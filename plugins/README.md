@@ -49,7 +49,7 @@ def hello(name):               # 前端 window.pywebview.api.hello('xx')
 
 没写过的插件默认开启。改完重启生效。
 
-## 已装的四个（都从 DSH 插件 1:1 移植，判断全走本地模型）
+## 四个核心插件（从 DSH 插件 1:1 移植，判断全走本地模型）
 
 ### feiyu_mood · 鱼的心情
 移植自 `dsh-feiyu-mood`。每轮聊完用本地模型判一次心情涨跌 + 七维情绪

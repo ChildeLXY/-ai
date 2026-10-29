@@ -16,11 +16,9 @@ user_avatar.jpg
 logs/
 *.log
 
-# ---------- 2. 个人头像 / 背景素材 ----------
+# ---------- 2. 个人头像（用户自己在设置里换的头像，别人 clone 后应留空/自选）----------
 ds图片/user_avatar.jpg
-ds图片/avatar2.jpg
 ds图片/avatar2 .ico
-ds图片/bg-dark.png
 
 # ---------- 3. 构建产物 ----------
 build/
