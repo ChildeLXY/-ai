@@ -242,5 +242,7 @@ pyinstaller 大肥鱼AI_原版.spec    # WebView2 版（入口 大肥鱼AI.py）
 
 ## 许可
 
-本仓库暂未声明开源许可证。如果你打算基于它二次分发，请先联系作者确认；
-其中第三方代码（如上述 dsh-pet-indesktop）仍遵循其原始 MIT 协议。
+本项目以 **MIT** 协议开源，完整条款见 [LICENSE](LICENSE)。
+
+第三方组件仍遵循各自原始协议：`dsh-pet-indesktop` 为 MIT © 2026 Merzlin，
+表情包素材版权归原作者所有，本仓库仅保留检索索引。
