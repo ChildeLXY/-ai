@@ -1,0 +1,56 @@
+# ============================================
+#  大肥鱼AI  .gitignore
+#  原则：代码与素材进仓库，个人使用数据一律不进
+# ============================================
+
+# ---------- 1. 运行时个人数据 ----------
+data/
+chats.json
+chats*.json
+chats.empty_before_restore.json
+memory.json
+settings.json
+user_avatar.jpg
+*.sqlite
+*.db
+logs/
+*.log
+
+# ---------- 2. 个人头像 / 背景素材 ----------
+ds图片/user_avatar.jpg
+ds图片/avatar2.jpg
+ds图片/avatar2 .ico
+ds图片/bg-dark.png
+
+# ---------- 3. 构建产物 ----------
+build/
+dist/
+__pycache__/
+*.py[cod]
+*.pkg
+*.pyz
+*.toc
+*.bmp
+*.exe
+*.zip
+
+# ---------- 4. 顶层本地调试残渣（只匹配根目录，不影响 plugins/_bili_*.py）----------
+/_*
+!/.gitignore
+!/.gitattributes
+
+# ---------- 5. 历史备份 ----------
+*.bak
+*.bak*
+*.cur
+*.orig
+
+# ---------- 6. 第三方上游仓库（1.6G，应单独 clone，不作本仓库内容）----------
+pet_repo/
+
+# ---------- 7. 编辑器 / 系统 ----------
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store

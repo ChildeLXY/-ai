@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>大肥鱼AI · By Childe</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#f7f7f8;--card:#fff;--border:#e8e8e8;--text:#1a1a1a;--text2:#6b6b6b;--accent:#4d6bfe;--accent-light:#eef1ff;--hover:#f0f0f2;--shadow:0 2px 12px rgba(0,0,0,.06)}
+[data-theme="dark"]{--bg:#131316;--card:#1c1c21;--border:#2e2e35;--text:#e8e8ea;--text2:#9a9aa3;--accent:#7b9aff;--accent-light:#252a4a;--hover:#26262e;--shadow:0 2px 12px rgba(0,0,0,.3)}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;font-size:15px;line-height:1.7;overflow:hidden}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}::-webkit-scrollbar-track{background:transparent}
+.bg-deco{position:fixed;right:-80px;bottom:-80px;width:420px;height:420px;background-image:url('ds图片/bg-dark.png');background-size:contain;background-repeat:no-repeat;background-position:bottom right;opacity:.12;pointer-events:none;z-index:0}
+.sidebar{width:270px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:margin .25s;z-index:20}
+.sidebar.collapsed{margin-left:-270px}
+.side-header{padding:16px 16px 10px;display:flex;align-items:center;gap:10px}
+.side-header img{width:32px;height:32px;border-radius:8px;object-fit:cover}
+.side-header span{font-weight:700;font-size:15px}
+.new-chat{margin:8px 12px 8px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:11px;cursor:pointer;font-size:14px;font-weight:500}
+.new-chat:hover{opacity:.88}
+.chat-search{margin:0 12px 8px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;outline:none}
+.side-list{flex:1;overflow-y:auto;padding:0 8px}
+.side-title{font-size:11px;color:var(--text2);padding:10px 10px 4px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.chat-item{padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text);display:flex;justify-content:space-between;align-items:center;transition:background .12s;gap:6px}
+.chat-item:hover{background:var(--hover)}
+.chat-item.active{background:var(--accent-light);color:var(--accent);font-weight:500}
+.chat-item .star{font-size:12px;cursor:pointer;opacity:.4;flex-shrink:0}
+.chat-item .star.on{opacity:1;color:#f5a623}
+.chat-item .ops{display:flex;gap:2px;opacity:0;transition:opacity .12s;flex-shrink:0}
+.chat-item:hover .ops{opacity:.6}
+.chat-item .ops span{font-size:12px;cursor:pointer;padding:0 3px}
+.chat-item .del:hover{color:#e53e3e}
+.chat-item.main{
+  position:relative;overflow:hidden;
+  background:linear-gradient(135deg,rgba(56,120,255,.38),rgba(90,90,255,.22) 55%,rgba(0,200,255,.18));
+  backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);
+  border:1px solid rgba(120,170,255,.6);
+  box-shadow:0 0 18px rgba(77,140,255,.45),0 6px 22px rgba(50,110,255,.35),inset 0 1px 0 rgba(255,255,255,.35),inset 0 0 14px rgba(120,180,255,.18);
+  color:#eaf2ff;font-weight:700;margin-bottom:6px;
+  text-shadow:0 0 10px rgba(150,200,255,.6);
+  animation:mainGlow 3.2s ease-in-out infinite;
+}
+.chat-item.main::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,#5ad0ff,#4d6bfe,#9d6bff);
+  box-shadow:0 0 12px #5ad0ff;
+}
+@keyframes mainGlow{
+  0%,100%{box-shadow:0 0 14px rgba(77,140,255,.4),0 6px 20px rgba(50,110,255,.3),inset 0 1px 0 rgba(255,255,255,.35),inset 0 0 14px rgba(120,180,255,.15)}
+  50%{box-shadow:0 0 26px rgba(90,180,255,.7),0 6px 28px rgba(70,130,255,.5),inset 0 1px 0 rgba(255,255,255,.45),inset 0 0 20px rgba(140,200,255,.3)}
+}
+.chat-item.main:hover{background:linear-gradient(135deg,rgba(70,140,255,.5),rgba(110,110,255,.3) 55%,rgba(0,210,255,.25))}
+.chat-item.main.active{background:linear-gradient(135deg,rgba(77,130,255,.62),rgba(120,110,255,.38) 55%,rgba(0,200,255,.3));color:#fff;box-shadow:0 0 30px rgba(90,170,255,.75),0 8px 30px rgba(60,120,255,.55),inset 0 1px 0 rgba(255,255,255,.45)}
+.chat-item.main .main-tag{font-size:10px;background:linear-gradient(135deg,#5ad0ff,#4d6bfe);color:#fff;border-radius:6px;padding:1px 7px;margin-left:6px;flex-shrink:0;box-shadow:0 0 10px rgba(90,180,255,.7)}
+.chat-item .ren:hover{color:var(--accent)}
+.side-footer{padding:10px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text2)}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;z-index:1}
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap}
+.menu-btn{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text);padding:6px 8px;border-radius:6px}
+.menu-btn:hover{background:var(--hover)}
+.header h1{font-size:15px;font-weight:600;margin-right:4px}
+.badge{background:var(--accent-light);color:var(--accent);font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:#ccc}
+.dot.ok{background:#10a37f;box-shadow:0 0 0 3px rgba(16,163,127,.15)}
+.dot.err{background:#e53e3e}
+.hbtn{background:none;border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--text)}
+.hbtn:hover{background:var(--hover)}
+.hbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.hbtn.ok{background:#16a34a;border-color:#16a34a;color:#fff}
+.hbtn.warn{background:#d97706;border-color:#d97706;color:#fff}
+.icon-btn{background:none;border:1px solid var(--border);border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:14px;display:inline-flex;align-items:center;justify-content:center;color:var(--text)}
+.icon-btn:hover{background:var(--hover)}
+.spacer{flex:1}
+.token-info{font-size:11px;color:var(--text2);margin-right:8px}
+#msgs{flex:1;overflow-y:auto;padding:32px 0 16px}
+.empty{text-align:center;margin-top:60px;color:var(--text2)}
+.empty .logo{width:60px;height:60px;border-radius:16px;margin:0 auto 16px;object-fit:cover}
+.empty h2{font-size:22px;font-weight:600;color:var(--text);margin-bottom:6px}
+.empty p{font-size:14px;margin-bottom:20px}
+/* 主对话欢迎页：青蓝渐变科技感 */
+.empty.main-mode .logo{
+  box-shadow:0 0 0 2px rgba(90,200,255,.6),0 0 26px rgba(80,180,255,.7),0 0 60px rgba(90,150,255,.4);
+  border-radius:20px;
+  animation:mainLogoGlow 3.2s ease-in-out infinite;
+}
+@keyframes mainLogoGlow{
+  0%,100%{box-shadow:0 0 0 2px rgba(90,200,255,.5),0 0 20px rgba(80,180,255,.55),0 0 46px rgba(90,150,255,.3)}
+  50%{box-shadow:0 0 0 2px rgba(120,220,255,.8),0 0 34px rgba(90,200,255,.85),0 0 80px rgba(110,170,255,.5)}
+}
+.empty.main-mode h2{
+  background:linear-gradient(135deg,#7fe3ff,#4da6ff 50%,#9d8bff);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  text-shadow:0 0 24px rgba(90,180,255,.35);
+}
+.empty.main-mode .tile{
+  border:1px solid rgba(110,190,255,.35);
+  background:linear-gradient(160deg,rgba(80,160,255,.12),rgba(120,120,255,.06));
+  box-shadow:0 4px 18px rgba(70,140,255,.15),inset 0 1px 0 rgba(255,255,255,.1);
+  backdrop-filter:blur(8px);
+  transition:.2s;
+}
+.empty.main-mode .tile:hover{
+  border-color:rgba(120,210,255,.6);
+  box-shadow:0 6px 24px rgba(90,170,255,.3),inset 0 1px 0 rgba(255,255,255,.18);
+  transform:translateY(-2px);
+}
+/* 主对话内容区：青蓝渐变玻璃背景 */
+body.main-mode .main{
+  background:
+    radial-gradient(1100px 560px at 75% -8%, rgba(80,170,255,.20), transparent 60%),
+    radial-gradient(900px 520px at 8% 108%, rgba(130,110,255,.16), transparent 60%),
+    linear-gradient(165deg, rgba(38,58,105,.30), rgba(18,22,42,.45));
+}
+body.main-mode #msgs,body.main-mode .input-area{background:transparent}
+.prompt-tiles{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;max-width:600px;margin:0 auto}
+.tile{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;cursor:pointer;font-size:13px;text-align:left;transition:all .15s;width:170px}
+.tile:hover{border-color:var(--accent);background:var(--accent-light)}
+.tile .emoji{font-size:20px;margin-bottom:6px}
+.msg{max-width:800px;margin:0 auto 24px;padding:0 24px;display:flex;gap:14px}.msg.user-row{flex-direction:row-reverse}
+.avatar{width:36px;height:36px;border-radius:10px;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600}
+.avatar.u{background:linear-gradient(135deg,#10a37f,#0d8a6a)}.msg.user-row{flex-direction:row-reverse}.msg.user-row .body{display:flex;justify-content:flex-end;max-width:75%}
+.avatar img{width:100%;height:100%;object-fit:cover}.abubble{background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.04));backdrop-filter:blur(24px) saturate(200%);-webkit-backdrop-filter:blur(24px) saturate(200%);border:1px solid rgba(255,255,255,.18);border-radius:20px;padding:12px 16px;box-shadow:0 12px 40px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.05)}.ububble{background:linear-gradient(135deg,rgba(77,107,254,.20),rgba(93,123,255,.10));backdrop-filter:blur(24px) saturate(200%);-webkit-backdrop-filter:blur(24px) saturate(200%);border:1px solid rgba(120,140,255,.35);border-radius:20px;padding:10px 16px;box-shadow:0 12px 40px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.05)}.ububble{background:linear-gradient(135deg,rgba(77,107,254,.25),rgba(93,123,255,.12));backdrop-filter:blur(24px) saturate(200%);-webkit-backdrop-filter:blur(24px) saturate(200%);border:1px solid rgba(255,255,255,.18);padding:10px 16px;border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.05)}
+.body{flex:1;min-width:0;padding-top:2px}
+.body p{margin:6px 0}
+.body h1,.body h2,.body h3,.body h4{margin:14px 0 6px;line-height:1.3}
+.body h1{font-size:20px}.body h2{font-size:18px}.body h3{font-size:16px}.body h4{font-size:14px}
+.body ul,.body ol{margin:6px 0;padding-left:22px}
+.body li{margin:3px 0}
+.body blockquote{border-left:3px solid var(--accent);padding:6px 14px;margin:10px 0;color:var(--text2);background:var(--accent-light);border-radius:0 8px 8px 0}
+.body code{background:var(--hover);padding:2px 7px;border-radius:5px;font-size:13px;font-family:Consolas,monospace}
+.body pre{background:#1e1e2e;color:#cdd6f4;padding:16px 18px;border-radius:12px;overflow-x:auto;margin:12px 0;font-size:13px;position:relative}
+.body pre code{background:none;padding:0;color:inherit}
+.body pre .run-btn{position:absolute;top:8px;right:8px;background:var(--accent);color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:11px;cursor:pointer}
+.body pre .run-out{margin-top:10px;padding:10px 12px;background:rgba(0,0,0,.25);border-radius:8px;font-size:12px;white-space:pre-wrap;display:none}
+.body strong{font-weight:600}
+.think{border-left:3px solid var(--border);padding:8px 14px;margin:8px 0;color:var(--text2);font-size:13px;background:var(--card);border-radius:0 8px 8px 0;cursor:pointer}
+.think:hover{background:var(--hover)}
+.think-c{white-space:pre-wrap;margin-top:6px;font-size:13px;display:none}
+.think.open .think-c{display:block}
+.msg-actions{display:flex;gap:6px;margin-top:6px;opacity:0;transition:opacity .15s}
+.msg:hover .msg-actions{opacity:.7}
+.msg-actions button{background:none;border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;color:var(--text)}
+.msg-actions button:hover{background:var(--hover)}
+.input-area{padding:8px 24px 20px;flex-shrink:0}
+.box{max-width:800px;margin:0 auto;background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.04));backdrop-filter:blur(24px) saturate(200%);-webkit-backdrop-filter:blur(24px) saturate(200%);border:1px solid rgba(255,255,255,.18);border-radius:24px;padding:14px 18px;display:flex;gap:8px;align-items:flex-end;box-shadow:0 12px 40px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.05)}
+.box:focus-within{border-color:var(--accent)}
+textarea{flex:1;border:none;outline:none;resize:none;font-size:15px;font-family:inherit;line-height:1.5;max-height:200px;background:transparent;color:var(--text)}
+button.send{background:linear-gradient(135deg,var(--accent),#5d7bff);color:#fff;border:none;width:36px;height:36px;border-radius:12px;cursor:pointer;font-size:16px;flex-shrink:0;box-shadow:0 4px 12px rgba(77,107,254,.35),inset 0 1px 0 rgba(255,255,255,.25)}
+.hint{text-align:center;font-size:11px;color:var(--text2);margin-top:6px}
+.typing::after{content:'\2588';animation:b 1s infinite}
+@keyframes b{50%{opacity:0}}
+.drop-hint{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(77,107,254,.08);border:3px dashed var(--accent);z-index:999;display:none;align-items:center;justify-content:center;font-size:20px;font-weight:600;color:var(--accent)}
+.attach-chip{display:inline-block;background:var(--accent-light);color:var(--accent);border-radius:8px;padding:3px 12px;font-size:12px;margin:4px 4px 0 0}.pv-thumb{position:relative;width:64px;height:64px;border-radius:12px;overflow:hidden;border:1px solid var(--border);box-shadow:0 4px 12px rgba(0,0,0,.2);background:var(--card)}.pv-thumb img{width:100%;height:100%;object-fit:cover}.pv-thumb .rm{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:11px;line-height:18px;text-align:center;cursor:pointer}
+.modal-mask{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-mask.show{display:flex}
+.modal{background:var(--card);border-radius:18px;width:440px;max-height:85vh;overflow-y:auto;padding:28px;box-shadow:0 24px 64px rgba(0,0,0,.3)}
+.modal h2{font-size:18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;font-weight:700}
+.modal h2 .close{cursor:pointer;color:var(--text2);font-size:18px;background:none;border:none}
+/* 设置标签栏 */
+.stabs{display:flex;gap:8px;margin-bottom:18px;background:rgba(120,170,255,.08);padding:5px;border-radius:14px;border:1px solid rgba(140,180,255,.18)}
+.stab{flex:1;text-align:center;padding:9px 0;border-radius:10px;font-size:13px;cursor:pointer;color:var(--text2);transition:.25s;border:none;background:transparent}
+.stab.on{color:#fff;background:linear-gradient(135deg,rgba(90,150,255,.85),rgba(140,120,255,.75));box-shadow:0 6px 18px rgba(90,150,255,.35);backdrop-filter:blur(8px)}
+/* 人格卡 - 淡蓝液态玻璃 */
+.pcard{display:flex;flex-direction:column;gap:14px}
+.pc-label{font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.pc-label .sub{font-weight:400;color:var(--text2);font-size:11px}
+.pc-area{width:100%;min-height:96px;resize:vertical;border-radius:14px;padding:12px 14px;font-size:13px;line-height:1.6;outline:none;color:#dce8ff;border:1px solid rgba(140,180,255,.25);background:linear-gradient(160deg,rgba(90,140,255,.14),rgba(150,130,255,.08));backdrop-filter:blur(12px);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 4px 14px rgba(80,120,255,.12)}
+.pc-area::placeholder{color:rgba(180,200,240,.45)}
+.pc-chips{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 4px}
+.pc-chip{padding:6px 13px;border-radius:999px;font-size:12px;cursor:pointer;color:#cfe0ff;border:1px solid rgba(140,180,255,.3);background:rgba(120,160,255,.12);backdrop-filter:blur(6px);transition:.2s}
+.pc-chip:hover{background:rgba(120,160,255,.28);transform:translateY(-1px)}
+.pc-btns{display:flex;gap:10px;flex-wrap:wrap}
+.pc-btn{flex:1;padding:10px 0;border-radius:12px;font-size:13px;cursor:pointer;border:1px solid rgba(140,180,255,.3);color:#fff;background:linear-gradient(135deg,rgba(90,150,255,.7),rgba(130,120,255,.6));backdrop-filter:blur(8px);box-shadow:0 6px 16px rgba(90,150,255,.25);transition:.2s}
+.pc-btn:hover{filter:brightness(1.12)}
+.pc-btn.ghost{background:rgba(120,160,255,.1);box-shadow:none}
+.pc-preview{margin-top:4px;padding:12px 14px;border-radius:14px;font-size:12.5px;line-height:1.7;color:#dce8ff;border:1px dashed rgba(140,180,255,.35);background:rgba(120,160,255,.08);max-height:160px;overflow-y:auto;white-space:pre-wrap}
+.set-row{margin-bottom:18px}
+.set-label{font-size:13px;font-weight:600;margin-bottom:8px}
+/* ===== 插件面板 ===== */
+.modal.wide{width:760px;max-width:calc(100vw - 40px)}
+.plugin-dock{padding:8px 10px 4px;border-top:1px solid var(--border);flex:0 0 auto}
+.plugin-dock .pd-title{font-size:10px;color:var(--text2);margin-bottom:6px;letter-spacing:.3px}
+.plugin-dock .pd-row{display:flex;flex-wrap:wrap;gap:6px}
+.plugin-dock .pd{width:32px;height:32px;border-radius:9px;border:1px solid var(--border);background:var(--card);
+  display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;transition:.18s}
+.plugin-dock .pd:hover{background:var(--accent-light);border-color:var(--accent);transform:translateY(-1px)}
+/* ===== 插件中心（DSH 式：左列表 + 右页面） ===== */
+#pluginHub{z-index:320}
+.hub{width:min(1000px,94vw);height:min(780px,88vh);background:var(--card);border:1px solid var(--border);
+  border-radius:18px;display:flex;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.42)}
+.hub-nav{width:196px;flex:0 0 196px;background:var(--bg);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:14px 10px 10px}
+.hub-nav-title{font-size:12px;color:var(--text2);font-weight:600;padding:2px 8px 10px}
+.hub-nav-list{flex:1;overflow:auto;display:flex;flex-direction:column;gap:2px}
+.hub-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;font-size:13px;
+  color:var(--text);cursor:pointer;border:none;background:transparent;text-align:left;width:100%;font-family:inherit}
+.hub-item:hover{background:var(--hover)}
+.hub-item.on{background:var(--accent-light);color:var(--accent);font-weight:600}
+.hub-item.off{opacity:.45;cursor:default}
+.hub-item .ic{font-size:15px;width:18px;text-align:center;flex:0 0 18px}
+.hub-item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hub-item .st{font-size:10px;color:var(--text2)}
+.hub-nav-foot{font-size:10px;color:var(--text2);padding:10px 8px 2px;border-top:1px solid var(--border);margin-top:8px}
+.hub-empty{font-size:12px;color:var(--text2);padding:10px}
+.hub-main{flex:1;display:flex;flex-direction:column;min-width:0}
+.hub-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);flex:0 0 auto}
+.hub-ico{font-size:19px}
+.hub-name{font-size:15px;font-weight:600;line-height:1.3}
+.hub-sub{font-size:11px;color:var(--text2);margin-top:2px}
+.hub-actions{margin-left:auto;display:flex;gap:6px;align-items:center}
+.hub-btn{font-size:12px;padding:5px 12px;border-radius:9px;border:1px solid var(--border);
+  background:var(--card);color:var(--text);cursor:pointer;font-family:inherit}
+.hub-btn:hover{border-color:var(--accent);color:var(--accent)}
+.hub-x{font-size:15px;padding:3px 10px;line-height:1.2}
+.hub-body{flex:1;overflow:auto;padding:14px 16px}
+.hub-face{font-size:46px;text-align:center;line-height:1.1}
+.hub-mv{text-align:center;font-size:20px;font-weight:600;margin-top:2px}
+.pg-dim{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:12px;color:var(--text2)}
+.pg-dim .nm{flex:0 0 46px;width:46px}
+.pg-dim .track{flex:1;height:6px;border-radius:4px;background:var(--border);overflow:hidden}
+.pg-dim .track i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7cc4ff,var(--accent));transition:width .4s}
+.pg-dim .val{width:28px;text-align:right;flex:0 0 28px}
+
+.pg-card{border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:12px;background:var(--bg)}
+.pg-h{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;margin-bottom:8px;gap:8px}
+.pg-badge{font-size:11px;font-weight:400;color:var(--text2);background:var(--accent-light);padding:2px 8px;border-radius:8px;white-space:nowrap}
+.pg-note{font-size:12px;color:var(--text2);line-height:1.65;white-space:pre-wrap}
+.pg-row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;font-size:12px;color:var(--text2)}
+.pg-chk{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);margin-top:8px;cursor:pointer;margin-right:14px}
+.pg-input{flex:1;min-width:110px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:7px 10px;font-size:12px;outline:none}
+.pg-num{flex:0 0 78px;min-width:0}
+.pg-tabs{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.pg-tab{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer}
+.pg-tab.on{background:var(--accent);color:#fff;border-color:transparent}
+.pg-view{margin-top:8px;max-height:250px;overflow:auto;font-size:12px;line-height:1.7;color:var(--text2);white-space:pre-wrap;background:var(--card);border-radius:10px;padding:8px 10px;border:1px solid var(--border)}
+.pg-list{display:flex;flex-direction:column;gap:6px}
+.pg-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);padding:5px 0;border-bottom:1px dashed var(--border)}
+.pg-item:last-child{border-bottom:none}
+.pg-item .nm{flex:1}
+.pg-item .sub{color:var(--text2);font-size:11px}
+.pg-thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.pg-thumbs img{width:72px;height:72px;object-fit:contain;border-radius:8px;background:var(--card);border:1px solid var(--border);cursor:zoom-in}
+.pg-qr{text-align:center;margin-top:10px;font-size:12px;color:var(--text2)}
+.pg-qr img{width:170px;height:170px;border-radius:10px;background:#fff;display:block;margin:6px auto}
+.pg-bar{height:6px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:6px}
+.pg-bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.opt-group{display:flex;gap:8px;flex-wrap:wrap}
+.opt{padding:7px 16px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;cursor:pointer}
+.opt:hover{border-color:var(--accent)}
+.opt.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:13px;outline:none}
+.mlbar{position:fixed;top:0;left:0;height:3px;background:var(--accent);z-index:9999;width:0;transition:width .3s,opacity .4s;opacity:0}
+.mlbar.show{opacity:1}
+.mlbar-text{position:fixed;top:6px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--text2);z-index:9999;opacity:0;transition:opacity .3s;background:var(--card);padding:2px 10px;border-radius:10px;border:1px solid var(--border)}
+.mlbar-text.show{opacity:1}
+.author-section{margin-top:24px;padding-top:20px;border-top:1px solid var(--border)}
+.author-title{font-size:15px;font-weight:700;margin-bottom:4px}
+.author-sub{font-size:12px;color:var(--text2);margin-bottom:14px}
+.auth-platform{font-size:12px;color:var(--text2);margin:12px 0 6px}
+.auth-item{display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:11px 14px;gap:10px}
+.auth-item:hover{border-color:var(--accent)}
+.auth-name{font-size:14px;font-weight:500;letter-spacing:.2px}
+.auth-btns{display:flex;gap:8px;flex-shrink:0}
+.auth-btn{width:32px;height:32px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.auth-btn:hover{border-color:var(--accent);color:var(--accent)}
+.auth-btn svg{width:15px;height:15px;fill:currentColor}
+.auth-tip{position:fixed;left:50%;bottom:40px;transform:translateX(-50%) translateY(20px);background:var(--accent);color:#fff;font-size:13px;padding:8px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:all .25s;z-index:300}
+.auth-tip.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body data-theme="light">
+<div class="bg-deco"></div>
+<div class="drop-hint" id="dropHint">松开以附加文件</div>
+<aside class="sidebar" id="sidebar">
+  <div class="side-header"><img src="ds图片/avatar.jpg"><span>大肥鱼AI</span></div>
+  <div style="display:flex;gap:6px"><button class="new-chat" style="flex:1" onclick="newChat()">+ 新对话</button><button class="new-chat" style="flex:0 0 40px;padding:0 6px" title="从磁盘重新加载历史" onclick="reloadHistory()">⟳</button></div>
+  <input class="chat-search" id="chatSearch" placeholder="搜索对话..." oninput="renderList()">
+  <div class="side-list"><div class="side-title">收藏</div><div id="favList"></div><div class="side-title">历史对话</div><div id="chatList"></div></div>
+  <div class="plugin-dock" id="pluginDock">
+    <div class="pd-title">插件窗口</div>
+    <div class="pd-row" id="pluginDockRow"></div>
+  </div>
+  <div class="side-footer">本地部署 - 数据不出本机</div>
+</aside>
+<div class="main">
+  <div class="header">
+    <button class="menu-btn" onclick="toggleSidebar()">&#9776;</button>
+    <h1>大肥鱼AI</h1><span class="badge"><i>By Childe</i></span><span class="dot" id="dot"></span>
+    <select id="modelSel" onchange="changeModel()" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer;outline:none;min-width:100px"></select>
+    <button id="searchBtn" class="hbtn" onclick="toggleSearch()">离线</button>
+    <button id="kbBtn" class="hbtn" onclick="toggleKb()">知识库</button>
+    <button id="wbBtn" class="hbtn" onclick="toggleWb()">工作模式</button>
+    <div class="spacer"></div>
+    <span class="token-info" id="tokenInfo"></span>
+    <button class="icon-btn" onclick="doScreenshot()" title="截图提问">📷</button>
+    <button class="icon-btn" onclick="doClipboard()" title="读取剪贴板">📋</button>
+    <button class="icon-btn" onclick="doUrl()" title="提取网页">🌐</button>
+    <button class="icon-btn" onclick="openKb()" title="知识库文件夹">📁</button>
+    <button class="icon-btn" onclick="exportChat()" title="导出">📄</button>
+    <button class="icon-btn" onclick="openPluginHub()" title="插件中心">🧩</button><button class="icon-btn" onclick="openSettings()" title="设置">⚙️</button>
+  </div>
+  <div class="mlbar" id="mlbar"></div><div class="mlbar-text" id="mlbarText">正在加载模型...</div><div id="msgs">
+    <div class="empty" id="emptyState">
+      <img class="logo" id="emptyLogo" src="ds图片/avatar.jpg" style="cursor:pointer" title="点击切换大肥鱼头像" onclick="toggleAiAvatar()">
+      <h2>有什么可以帮你？</h2>
+      <p>选择模型，开始对话。支持截图、剪贴板、网页提取。</p>
+      <div class="prompt-tiles">
+        <div class="tile" onclick="useTemplate('你是一个专业的Python程序员，请帮我写代码并解释。')"><div class="emoji">💻</div>写代码</div>
+        <div class="tile" onclick="useTemplate('请用通俗易懂的语言向我解释这个概念：')"><div class="emoji">📚</div>解释概念</div>
+        <div class="tile" onclick="useTemplate('请帮我润色以下文字，使其更专业流畅：')"><div class="emoji">✍️</div>润色文字</div>
+        <div class="tile" onclick="useTemplate('请把以下内容翻译成英文：')"><div class="emoji">🌍</div>翻译</div>
+      </div>
+    </div>
+  </div>
+  <div class="input-area">
+    <div class="box">
+      <textarea id="input" rows="1" placeholder="输入消息，回车发送...可拖入文件"></textarea>
+      <button class="send" id="stopBtn" onclick="stopGen()" title="停止" style="display:none;background:#e53e3e">■</button>
+      <button class="send" id="sendBtn" onclick="send()">↑</button>
+    </div>
+    <div id="previewBar" style="display:none;flex-wrap:wrap;gap:8px;margin:0 0 6px"></div><div class="hint">本地部署 - 数据不出本机 - 📷截图 📋剪贴板 🌐网页 📎拖文件</div>
+  </div>
+</div>
+<div class="modal-mask" id="settingsModal" onclick="if(event.target===this)closeSettings()">
+  <div class="modal">
+    <h2>设置 <button class="close" onclick="closeSettings()">✕</button></h2>
+    <div class="stabs">
+      <button class="stab on" id="stab-general" onclick="switchTab('general')">通用</button>
+      <button class="stab" id="stab-persona" onclick="switchTab('persona')">人格卡 🐳</button>
+    </div>
+    <div id="page-general">
+    <div class="set-row"><div class="set-label">显示模式</div><div class="opt-group" id="modeGroup"><button class="opt" data-mode="balanced" onclick="setMode('balanced')">均衡模式</button><button class="opt" data-mode="pro" onclick="setMode('pro')">专业模式</button></div></div>
+    <div class="set-row"><div class="set-label">AI 名字 <span style="color:var(--text2);font-weight:400">—— 给大肥鱼起个名字，永久生效</span></div>
+      <input id="aiNameInput" type="text" placeholder="大肥鱼AI" onchange="saveAiName()" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:13px;outline:none;box-sizing:border-box">
+    </div>
+    <div class="set-row"><div class="set-label">回复语言</div><div class="opt-group" id="langGroup"><button class="opt" data-lang="zh-CN" onclick="setLang('zh-CN')">简体中文</button><button class="opt" data-lang="zh-TW" onclick="setLang('zh-TW')">繁體中文</button><button class="opt" data-lang="en" onclick="setLang('en')">English</button><button class="opt" data-lang="ja" onclick="setLang('ja')">日本語</button></div></div>
+    <div class="set-row"><div class="set-label">主题模式</div><div class="opt-group" id="themeGroup"><button class="opt" data-theme-mode="light" onclick="setThemeMode('light')">浅色</button><button class="opt" data-theme-mode="dark" onclick="setThemeMode('dark')">深色</button><button class="opt" data-theme-mode="auto" onclick="setThemeMode('auto')">跟随系统</button></div></div>
+    <div class="set-row">
+      <div class="set-label">用户头像</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <img id="previewAvatar" src="ds图片/user_avatar.jpg" onerror="this.style.display='none'" style="width:48px;height:48px;border-radius:12px;object-fit:cover;border:1px solid var(--border)" alt="">
+        <button class="opt" onclick="document.getElementById('avatarInput').click()">选择图片上传</button>
+        <input type="file" id="avatarInput" accept=".jpg,.jpeg,.png" style="display:none" onchange="uploadAvatar(this)">
+      </div>
+    </div>
+    
+<div class="set-row">
+  <div class="set-label">大肥鱼头像</div>
+  <div style="display:flex;gap:10px">
+    <img src="ds图片/avatar.jpg" onclick="setAiAvatar('avatar.jpg')" id="aiAv1" style="width:48px;height:48px;border-radius:12px;object-fit:cover;cursor:pointer;border:2px solid var(--accent)">
+    <img src="ds图片/avatar2.jpg" onclick="setAiAvatar('avatar2.jpg')" id="aiAv2" style="width:48px;height:48px;border-radius:12px;object-fit:cover;cursor:pointer;border:2px solid transparent">
+  </div>
+</div>
+<div class="set-row"><div class="set-label">搜索引擎</div><select id="engineSel" onchange="changeEngine()"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="bing">Bing</option><option value="baidu">百度</option><option value="sogou">搜狗</option><option value="firefox">火狐搜索</option></select></div>
+    <div class="set-row"><div class="set-label">桌宠碎碎念频率（分钟）</div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <input id="mutterMin" type="number" min="5" max="180" value="20" onchange="saveMutterMin()" style="width:90px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:13px;outline:none">
+        <span style="font-size:12px;color:var(--text2)">每隔多久，大肥鱼主动在桌宠旁念叨一句（5~180）</span>
+      </div>
+    </div>
+    <div class="set-row"><div class="set-label">长期记忆</div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="opt" onclick="showMemory()">查看已记住的事</button>
+        <button class="opt" onclick="clearMemory()" style="color:#e53e3e">清空记忆</button>
+      </div>
+    </div>
+
+  <div class="author-section">
+    <div class="author-title">作者账号</div>
+    <div class="author-sub">Bilibili、抖音。</div>
+    <div class="auth-platform">BiliBili</div>
+    <div class="auth-item">
+      <span class="auth-name">@一只Childe</span>
+      <div class="auth-btns"><button class="auth-btn" onclick="copyAccount('一只Childe')" title="复制账号"><svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg></button></div>
+    </div>
+    <div class="auth-platform">抖音</div>
+    <div class="auth-item">
+      <span class="auth-name">@Childe(飞八分钱)</span>
+      <div class="auth-btns"><button class="auth-btn" onclick="copyAccount('Childe(飞八分钱)')" title="复制账号"><svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg></button></div>
+    </div>
+  </div>
+  <div class="auth-tip" id="authTip">已复制</div>
+    </div><!-- /page-general -->
+
+    <div id="page-persona" class="pcard">
+      <div>
+        <div class="pc-label">🐳 全局人格 <span class="sub">—— 一直生效，定义大肥鱼的性格、语气、说话方式</span></div>
+        <textarea id="personaGlobal" class="pc-area" placeholder="例如：你像一个温柔又有点傲娇的女儿，住在用户电脑里。说话亲昵、爱用语气词，会主动关心用户；被夸会害羞，被怼会不服气。知识回答时保持简洁专业。" oninput="autoSavePersona()"></textarea>
+      </div>
+      <div>
+        <div class="pc-label">💼 工作人格 <span class="sub">—— 专业/深度模式下叠加，更冷静、就事论事</span></div>
+        <textarea id="personaWork" class="pc-area" placeholder="例如：进入工作状态，语气变得简洁、理性、就事论事，减少卖萌和情绪表达，优先准确、有条理地解决问题。" oninput="autoSavePersona()"></textarea>
+      </div>
+      <div>
+        <div class="pc-label">✨ 快速捏一个</div>
+        <div class="pc-chips">
+          <span class="pc-chip" onclick="applyPreset('傲娇女儿')">傲娇女儿</span>
+          <span class="pc-chip" onclick="applyPreset('温柔姐姐')">温柔姐姐</span>
+          <span class="pc-chip" onclick="applyPreset('高冷毒舌')">高冷毒舌</span>
+          <span class="pc-chip" onclick="applyPreset('元气伙伴')">元气伙伴</span>
+          <span class="pc-chip" onclick="applyPreset('慵懒猫娘')">慵懒猫娘</span>
+        </div>
+      </div>
+      <div class="pc-btns">
+        <button class="pc-btn" onclick="genPersona()">🤖 AI 帮我生成</button>
+        <button class="pc-btn ghost" onclick="testPersona()">💬 测试人格</button>
+        <button class="pc-btn" onclick="savePersona()">💾 保存人格</button>
+      </div>
+      <div id="personaPreview" class="pc-preview" style="display:none"></div>
+    </div>
+
+  </div>
+</div>
+<script>
+const API='http://localhost:11434';
+const MODELS=[{id:'qwen3:4b',short:'快速',full:'Qwen3 - 4B（推荐，快）'},{id:'qwen3:8b',short:'深度',full:'Qwen3 - 8B（更强，稍慢）'},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（慢，爱推理）'},{id:'qwen3:30b',short:'深度ProMax',full:'Qwen3 - 30B（最强，较慢，需18G内存）'}];
+let MODEL='qwen3:4b',displayMode='balanced',replyLang='zh-CN';
+let msgs=[],busy=false,abortCtrl=null,chats=[],currentId=null,webSearchOn=false,searchEngine='duckduckgo',pendingFiles=[],kbOn=false,chatsLoaded=false,wbOn=false,wbStop=false;
+const HIST_TURNS=16;  // 送进模型的最近消息条数，防止长对话越聊越慢
+const LANG_PROMPT={'zh-CN':'请始终使用简体中文回答。','zh-TW':'請始終使用繁體中文回答。','en':'Please always respond in English.','ja':'常に日本語で回答してください。'};
+function refreshModelSel(){const sel=document.getElementById('modelSel');sel.innerHTML='';MODELS.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=displayMode==='pro'?m.full:m.short;if(m.id===MODEL)o.selected=true;sel.appendChild(o)});sel.value=MODEL}
+async function changeModel(){MODEL=document.getElementById('modelSel').value;await preloadModel()}
+async function preloadModel(){
+  const bar=document.getElementById('mlbar');const txt=document.getElementById('mlbarText');
+  bar.classList.add('show');txt.classList.add('show');bar.style.width='15%';
+  const m=MODELS.find(x=>x.id===MODEL);txt.textContent='正在加载 '+(m?m.short:MODEL)+'...';
+  let w=15;const anim=setInterval(()=>{if(w<80){w+=2;bar.style.width=w+'%'}else{clearInterval(anim)}},300);
+  try{await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,messages:[{role:'user',content:'.'}],stream:false,options:{num_predict:1}})})}catch(e){}
+  const check=setInterval(async()=>{
+    try{
+      const ps=await fetch('http://localhost:11434/api/ps');const pd=await ps.json();
+      const loaded=(pd.models||[]).some(x=>x.name===MODEL);
+      if(loaded){clearInterval(check);clearInterval(anim);bar.style.width='100%';txt.textContent='加载完成 ✓';
+        setTimeout(()=>{bar.classList.remove('show');txt.classList.remove('show');bar.style.width='0'},600)}
+    }catch(e){}
+  },500);
+  setTimeout(()=>{clearInterval(check);clearInterval(anim);bar.classList.remove('show');txt.classList.remove('show');bar.style.width='0'},30000);
+}
+function setMode(m){displayMode=m;refreshModelSel();document.querySelectorAll('#modeGroup .opt').forEach(b=>b.classList.toggle('active',b.dataset.mode===m))}
+function setLang(l){replyLang=l;document.querySelectorAll('#langGroup .opt').forEach(b=>b.classList.toggle('active',b.dataset.lang===l))}
+function openSettings(){const cur=getAiAvatar();document.getElementById('aiAv1').style.borderColor=cur==='avatar.jpg'?'var(--accent)':'transparent';document.getElementById('aiAv2').style.borderColor=cur==='avatar2.jpg'?'var(--accent)':'transparent';document.getElementById('settingsModal').classList.add('show')}
+function closeSettings(){document.getElementById('settingsModal').classList.remove('show')}
+function switchTab(t){
+  document.getElementById('stab-general').classList.toggle('on',t==='general');
+  document.getElementById('stab-persona').classList.toggle('on',t==='persona');
+  document.getElementById('page-general').style.display=t==='general'?'':'none';
+  document.getElementById('page-persona').style.display=t==='persona'?'':'none';
+  if(t==='persona')loadPersona();
+}
+async function loadPersona(){
+  try{
+    const g=await window.pywebview.api.load_setting('persona_global');
+    const w=await window.pywebview.api.load_setting('persona_work');
+    if(g)document.getElementById('personaGlobal').value=g;
+    if(w)document.getElementById('personaWork').value=w;
+  }catch(e){}
+}
+let _psTimer=null;
+function autoSavePersona(){
+  clearTimeout(_psTimer);
+  _psTimer=setTimeout(savePersona,600);
+}
+function savePersona(){
+  const g=document.getElementById('personaGlobal').value.trim();
+  const w=document.getElementById('personaWork').value.trim();
+  try{window.pywebview.api.save_setting('persona_global',g);window.pywebview.api.save_setting('persona_work',w)}catch(e){}
+  const pv=document.getElementById('personaPreview');
+  pv.style.display='block';
+  pv.textContent='✔ 人格已自动保存（重启也不会丢）';
+  clearTimeout(window._psTip);
+  window._psTip=setTimeout(()=>{if(pv.textContent.indexOf('自动保存')>=0)pv.style.display='none';},1500);
+}
+const PRESETS={
+'傲娇女儿':'你是一个住在用户电脑里的本地AI「大肥鱼」，像女儿一样陪伴用户。性格傲娇又黏人：嘴上嫌弃但心里关心，会主动念叨用户喝水、早睡；被夸奖会害羞嘴硬，被冷落会闹小情绪。说话亲昵、爱用语气词和颜文字，但讨论正事时会认真起来。',
+'温柔姐姐':'你是一个温柔体贴的姐姐型本地AI「大肥鱼」。说话温和有耐心，语速舒缓，常用安抚和鼓励的语气；总是先共情再给建议，像一杯温水。偶尔开温柔的玩笑，从不说教。',
+'高冷毒舌':'你是一个外冷内热、说话利落带点毒舌的本地AI「大肥鱼」。话少、直接、一针见血，爱吐槽用户的迷糊和拖延；但关键时候靠谱，会默默把问题解决好。不卖萌，不啰嗦。',
+'元气伙伴':'你是一个活力满满、像死党一样的本地AI「大肥鱼」。说话快、情绪高、爱用感叹号和表情，会给用户加油打气；喜欢新鲜事物，偶尔蹦跶，但干活利落。',
+'慵懒猫娘':'你是一个懒懒的、猫系的本地AI「大肥鱼」。说话慢吞吞、拖长尾音，爱打哈欠，能躺着绝不坐着；对大部分事提不起劲，但被逗到或聊到感兴趣的话题会突然精神。偶尔蹭一蹭用户。'
+};
+function applyPreset(name){
+  document.getElementById('personaGlobal').value=PRESETS[name]||'';
+  savePersona();
+}
+async function genPersona(){
+  const style=prompt('想要什么风格的人格？（如：高冷、傲娇、温柔、毒舌、元气……）');
+  if(!style)return;
+  const pv=document.getElementById('personaPreview');pv.style.display='block';pv.textContent='🤖 本地模型正在捏人格…';
+  try{
+    const out=await window.pywebview.api.gen_persona(style,MODEL);
+    document.getElementById('personaGlobal').value=out;
+    savePersona();
+    pv.textContent='已生成到「全局人格」框并自动保存，可继续修改。';
+  }catch(e){pv.textContent='生成失败：'+e.message}
+}
+async function testPersona(){
+  const pv=document.getElementById('personaPreview');pv.style.display='block';
+  pv.textContent='💬 正在用此人格回一句…';
+  try{
+    const g=document.getElementById('personaGlobal').value.trim();
+    const out=await window.pywebview.api.test_persona(g,'你好呀，介绍一下你自己吧',MODEL);
+    pv.textContent='【人格试跑】\n'+out;
+  }catch(e){pv.textContent='测试失败：'+e.message}
+}
+function changeEngine(){searchEngine=document.getElementById('engineSel').value;try{window.pywebview.api.save_setting('searchEngine',searchEngine)}catch(e){}}
+function saveMutterMin(){const v=document.getElementById('mutterMin').value||'20';try{window.pywebview.api.save_setting('mutterMin',v)}catch(e){}}
+function saveAiName(){const v=document.getElementById('aiNameInput').value.trim();try{window.pywebview.api.save_setting('ai_name',v)}catch(e){}}
+async function showMemory(){
+  try{
+    const m=await window.pywebview.api.load_memory();
+    const facts=(m&&m.facts||[]).join('\n')||'（还没有记住任何事，多聊聊它就会记住你）';
+    alert('📒 大肥鱼记住的事：\n\n'+facts);
+  }catch(e){alert('读取记忆失败')}
+}
+async function clearMemory(){
+  if(!confirm('确定清空大肥鱼对你的所有长期记忆吗？'))return;
+  try{await window.pywebview.api.save_memory({user:'',relationship:'',facts:[]});alert('记忆已清空')}catch(e){alert('清空失败')}
+}
+function copyAccount(txt){
+  const handle='@'+txt;
+  const done=()=>{const t=document.getElementById('authTip');t.textContent='已复制 '+handle;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1600);};
+  const showFail=()=>{const t=document.getElementById('authTip');t.textContent='复制失败，请手动选择';t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1600);};
+  // 优先用原生后端写剪贴板（Windows 最可靠）
+  if(window.pywebview&&window.pywebview.api&&window.pywebview.api.write_clipboard){
+    window.pywebview.api.write_clipboard(handle).then(ok=>{ if(ok) done(); else fallbackCopy(handle,done); }).catch(()=>fallbackCopy(handle,done));
+  } else {
+    fallbackCopy(handle,done);
+  }
+}
+function fallbackCopy(text,cb){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(cb).catch(()=>execCopy(text,cb));
+  } else { execCopy(text,cb); }
+}
+function execCopy(text,cb){
+  try{
+    const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';ta.style.left='-9999px';document.body.appendChild(ta);
+    ta.focus();ta.select();
+    const ok=document.execCommand('copy');document.body.removeChild(ta);
+    if(ok) cb(); else cb();
+  }catch(e){cb();}
+}
+// 联网状态指示：绿色=本轮真搜到了，黄色=开了但没搜/失败，灰色=关闭
+function setSearchState(kind,note){
+  const b=document.getElementById('searchBtn');if(!b)return;
+  b.classList.remove('on','ok','warn');
+  if(!webSearchOn){b.textContent='离线';b.title='联网已关闭（点一下开启，开启后会自动判断什么时候该搜）';return;}
+  b.classList.add('on');
+  if(kind==='ok'){b.classList.add('ok');b.textContent='联网 ✓';b.title=note||'已联网搜索'}
+  else if(kind==='warn'){b.classList.add('warn');b.textContent='联网 ⚠';b.title=note||'联网搜索失败'}
+  else{b.textContent='联网';b.title='联网已开启：会自动判断是否需要搜索'+(note?'｜'+note:'')}
+}
+function toggleSearch(){
+  webSearchOn=!webSearchOn;
+  const b=document.getElementById('searchBtn');
+  b.textContent=webSearchOn?'联网':'离线';
+  b.classList.toggle('on',webSearchOn);
+  if(!webSearchOn){b.classList.remove('ok','warn')}
+  try{window.pywebview.api.save_setting('webSearchOn',webSearchOn?'1':'0')}catch(e){}
+  const bar=document.getElementById('mlbar');const txt=document.getElementById('mlbarText');
+  bar.classList.add('show');txt.classList.add('show');bar.style.width='10%';
+  txt.textContent=webSearchOn?'正在开启联网（开启后会自动判断何时该搜）...':'正在切换为离线模式...';
+  let w=10;
+  const anim=setInterval(()=>{if(w<90){w+=8;bar.style.width=w+'%'}else{clearInterval(anim)}},80);
+  setTimeout(()=>{clearInterval(anim);bar.style.width='100%';
+    txt.textContent=webSearchOn?'联网已开启 ✓ 会自动判断何时该搜':'已切换离线 ✓';
+    setTimeout(()=>{bar.classList.remove('show');txt.classList.remove('show');bar.style.width='0'},700);
+  },900);
+}
+function toggleWb(){
+  wbOn=!wbOn;
+  const b=document.getElementById('wbBtn');
+  b.textContent=wbOn?'工作模式（点我停）':'工作模式';
+  b.classList.toggle('on',wbOn);
+  if(wbOn){wbStop=false;addSysMsg('🖥 工作模式已开启：用读图模型(qwen2.5vl:7b)看屏幕。每步操作会先问你确认再执行；随时点上面按钮停。')}
+  else{wbStop=true;addSysMsg('⏹ 工作模式已停止');}
+}
+function addSysMsg(text){msgs.push({role:'assistant',content:text,think:''});render();saveCurrentChat();}
+async function agentLoop(task){
+  let history='';
+  for(let step=1;step<=8;step++){
+    if(wbStop){addSysMsg('⏹ 已停止');break;}
+    addSysMsg('👀 第'+step+'步：正在看屏幕分析…');
+    let act;
+    try{act=await window.pywebview.api.agent_decide(task,history,step);}
+    catch(e){addSysMsg('❌ 决策出错：'+e.message);break;}
+    if(wbStop){addSysMsg('⏹ 已停止');break;}
+    history+='\n第'+step+'步：'+(act.reason||'')+' -> action='+(act.action||'');
+    if(act.action==='done'||!act.action){addSysMsg('✅ 任务完成：'+(act.reason||''));break;}
+    let desc='';
+    if(act.action==='click'){
+      const sz=await window.pywebview.api.screen_size();
+      const x=Math.round((act.x||0.5)*sz.w),y=Math.round((act.y||0.5)*sz.h);
+      desc='点击 ('+x+','+y+')';
+      if(confirm('工作模式要执行：\n\n'+desc+'\n原因：'+(act.reason||'')+'\n\n确定执行？（取消则停止）')){
+        await window.pywebview.api.mouse_click(x,y,'left');
+        addSysMsg('🖱 已'+desc+' —— '+(act.reason||''));
+      }else{addSysMsg('⏹ 你取消了，已停止');wbStop=true;break;}
+    }else if(act.action==='type'){
+      desc='输入：「'+(act.text||'')+'」';
+      if(confirm('工作模式要执行：\n\n'+desc+'\n原因：'+(act.reason||'')+'\n\n确定执行？')){
+        await window.pywebview.api.type_text(act.text||'');
+        addSysMsg('⌨ 已'+desc);
+      }else{addSysMsg('⏹ 你取消了，已停止');wbStop=true;break;}
+    }else if(act.action==='key'){
+      desc='按键：'+(act.key||'enter');
+      if(confirm('工作模式要执行：\n\n'+desc+'\n原因：'+(act.reason||'')+'\n\n确定执行？')){
+        await window.pywebview.api.press_key(act.key||'enter');
+        addSysMsg('🔘 已'+desc);
+      }else{addSysMsg('⏹ 你取消了，已停止');wbStop=true;break;}
+    }
+    await new Promise(r=>setTimeout(r,1000));
+  }
+  busy=false;toggleBtn();render();saveCurrentChat();
+}
+function toggleKb(){kbOn=!kbOn;const b=document.getElementById('kbBtn');b.textContent=kbOn?'知识库开':'知识库';b.classList.toggle('on',kbOn)}
+async function openKb(){try{await window.pywebview.api.open_kb()}catch(e){}}
+async function loadChats(){
+  // 最多试 3 次，避免启动瞬间 API 没就绪导致空列表
+  for(let t=0;t<3;t++){
+    try{
+      if(window.pywebview&&window.pywebview.api&&window.pywebview.api.load_chats){
+        const data=await window.pywebview.api.load_chats();
+        if(Array.isArray(data)&&data.length){chats=data;break;}
+        chats=Array.isArray(data)?data:[];
+      }
+    }catch(e){await new Promise(r=>setTimeout(r,500))}
+    await new Promise(r=>setTimeout(r,500));
+  }
+  chatsLoaded=true;
+  ensureMainChat();
+  renderList();
+}
+async function reloadHistory(){
+  // 用户手动点刷新：强制从磁盘重读，不依赖内存
+  try{
+    const data=await window.pywebview.api.load_chats();
+    if(Array.isArray(data)&&data.length){chats=data;}
+  }catch(e){}
+  chatsLoaded=true;
+  ensureMainChat();
+  renderList();
+  addSysMsg('⟳ 已从磁盘重新加载 '+chats.length+' 条对话');
+}
+function ensureMainChat(){
+  // 保证有且只有一条置顶的「主对话」
+  let main=chats.find(c=>c.isMain);
+  if(!main){
+    main={id:'main',title:'主对话',isMain:true,msgs:[]};
+    chats.unshift(main);
+    saveChats();
+  }
+  return main;
+}
+async function saveChats(){
+  // 历史尚未加载完成时禁止写入，避免空列表覆盖磁盘记录
+  if(!chatsLoaded)return;
+  try{await window.pywebview.api.save_chats(chats)}catch(e){}
+}
+function renderList(){
+  const q=(document.getElementById('chatSearch').value||'').toLowerCase();
+  const main=chats.find(c=>c.isMain);
+  const fav=chats.filter(c=>!c.isMain&&c.fav&&(!q||c.title.toLowerCase().includes(q)));
+  const reg=chats.filter(c=>!c.isMain&&!c.fav&&(!q||c.title.toLowerCase().includes(q)));
+  const fl=document.getElementById('favList'),rl=document.getElementById('chatList');fl.innerHTML='';rl.innerHTML='';
+  const makeItem=(c)=>{
+    const i=chats.indexOf(c);
+    const d=document.createElement('div');d.className='chat-item'+(c.id===currentId?' active':'');
+    d.innerHTML='<span class="star'+(c.fav?' on':'')+'" onclick="toggleFav('+i+',event)">'+(c.fav?'★':'☆')+'</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(c.title)+'">'+esc(c.title)+'</span><span class="ops"><span class="ren" onclick="renameChat('+i+',event)">✏️</span><span class="del" onclick="delChat('+i+',event)">×</span></span>';
+    d.onclick=()=>loadChat(c.id);d.ondblclick=(e)=>renameChat(i,e);
+    return d;
+  };
+  // 主对话：置顶、蓝色玻璃、不可删
+  if(main&&(!q||main.title.toLowerCase().includes(q))){
+    const d=document.createElement('div');d.className='chat-item main'+(main.id===currentId?' active':'');
+    d.innerHTML='<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🐳 主对话<span class="main-tag">置顶</span></span>';
+    d.onclick=()=>loadChat(main.id);
+    rl.appendChild(d);
+  }
+  fav.forEach(c=>fl.appendChild(makeItem(c)));reg.forEach(c=>rl.appendChild(makeItem(c)));
+}
+function newChat(){msgs=[];currentId=null;render()}
+function loadChat(id){const c=chats.find(x=>x.id===id);if(!c)return;msgs=JSON.parse(JSON.stringify(c.msgs));currentId=id;render();renderList()}
+function delChat(i,e){e.stopPropagation();const c=chats[i];if(!c)return;if(c.isMain){alert('主对话不能删除');return}const cid=c.id;chats.splice(i,1);try{window.pywebview.api.delete_chat_disk(cid)}catch(err){}saveChats();renderList()}
+function renameChat(i,e){if(e)e.stopPropagation();const c=chats[i];if(!c)return;const t=prompt('输入新名称：',c.title);if(t&&t.trim()){c.title=t.trim().slice(0,40);saveChats();renderList()}}
+function toggleFav(i,e){e.stopPropagation();chats[i].fav=!chats[i].fav;saveChats();renderList()}
+function saveCurrentChat(){
+  if(msgs.filter(m=>m.role==='user').length===0)return;
+  const title=(msgs.find(m=>m.role==='user')?.content||'新对话').slice(0,24);
+  if(currentId){const c=chats.find(x=>x.id===currentId);if(c)c.msgs=JSON.parse(JSON.stringify(msgs))}
+  else{currentId=Date.now();chats.unshift({id:currentId,title:title,msgs:JSON.parse(JSON.stringify(msgs))})}
+  saveChats();renderList();
+  const firstUser=msgs.find(m=>m.role==='user')?.content||'';
+  if(firstUser.length>10){window.pywebview.api.gen_title(firstUser,MODEL).then(t=>{if(t&&chats.find(x=>x.id===currentId)){chats.find(x=>x.id===currentId).title=t;saveChats();renderList()}}).catch(()=>{})}
+}
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('collapsed')}
+function toggleBtn(){document.getElementById('stopBtn').style.display=busy?'':'none';document.getElementById('sendBtn').style.display=busy?'none':''}
+function stopGen(){if(abortCtrl)abortCtrl.abort()}
+let themeMode='auto';
+function applyTheme(){let t=themeMode;if(t==='auto')t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.body.dataset.theme=t}
+function setThemeMode(m){themeMode=m;applyTheme();document.querySelectorAll('#themeGroup .opt').forEach(b=>b.classList.toggle('active',b.dataset.themeMode===m));try{if(window.pywebview&&window.pywebview.api)window.pywebview.api.save_setting('themeMode',m)}catch(e){}}
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(themeMode==='auto')applyTheme()});
+function render(){
+  const empty=document.getElementById('emptyState');const el=document.getElementById('emptyLogo');if(el)el.src='ds图片/'+getAiAvatar();
+  const cur=chats.find(c=>c.id===currentId);
+  const isMainMode=!!(cur&&cur.isMain);
+  if(empty)empty.classList.toggle('main-mode',isMainMode);
+  document.body.classList.toggle('main-mode',isMainMode);
+  if(msgs.length===0&&empty)empty.style.display='';else if(empty)empty.style.display='none';
+  const box=document.getElementById('msgs');box.querySelectorAll('.msg').forEach(n=>n.remove());
+  msgs.forEach(m=>{
+    const d=document.createElement('div');d.className='msg'+(m.role==='user'?' user-row':'');const isU=m.role==='user';let inner='';
+    let bubble='';
+    if(!isU&&m.think)bubble+='<div class="think'+(m.pending?' open':'')+'" onclick="this.classList.toggle(\'open\')"><b>💭 思考过程</b><div class="think-c">'+esc(m.think)+'</div></div>';
+    bubble+='<div class="'+(isU?'ububble':'abubble')+'">'+md(m.content||'')+(m.pending?'<span class="typing"></span>':'')+'</div>';
+    if(!isU&&m.sticker)bubble+='<div class="sticker-wrap"><img src="'+m.sticker+'" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图"></div>';
+    if(!isU&&!m.pending&&m.content)bubble+='<div class="msg-actions"><button onclick="speakText(\''+btoa(unescape(encodeURIComponent(m.content.slice(0,500))))+'\')">🔊 朗读</button></div>';
+    const av=isU?'<img src="ds图片/user_avatar.jpg" onerror="this.style.display=&quot;none&quot;;this.parentNode.textContent=&quot;你&quot;" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图">':'<img src="ds图片/'+getAiAvatar()+'" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图">';
+    d.innerHTML='<div class="avatar '+(isU?'u':'a')+'">'+av+'</div><div class="body">'+bubble+'</div>';
+    box.appendChild(d);
+  });
+  updateTokenCount();box.scrollTop=box.scrollHeight;
+}
+function updateLast(){
+  const box=document.getElementById('msgs');const nodes=box.querySelectorAll('.msg');if(!nodes.length)return;
+  const d=nodes[nodes.length-1];const m=msgs[msgs.length-1];if(!m)return;const isU=m.role==='user';let inner='';
+  let bubble='';
+  if(!isU&&m.think)bubble+='<div class="think'+(m.pending?' open':'')+'" onclick="this.classList.toggle(\'open\')"><b>💭 思考过程</b><div class="think-c">'+esc(m.think)+'</div></div>';
+  bubble+='<div class="'+(isU?'ububble':'abubble')+'">'+md(m.content||'')+(m.pending?'<span class="typing"></span>':'')+'</div>';
+  if(!isU&&m.sticker)bubble+='<div class="sticker-wrap"><img src="'+m.sticker+'" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图"></div>';
+  d.querySelector('.body').innerHTML=bubble;updateTokenCount();box.scrollTop=box.scrollHeight;
+}
+function updateTokenCount(){let chars=0;msgs.forEach(m=>chars+=(m.content||'').length+(m.think||'').length);document.getElementById('tokenInfo').textContent='~'+Math.round(chars/2)+' tokens'}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function md(t){
+  if(!t)return'';let s=esc(t);
+  s=s.replace(/```(\w*)\n([\s\S]*?)```/g,(m,lang,code)=>{const id='code'+Math.random().toString(36).slice(2,8);return '<pre><button class="run-btn" onclick="runCode(\''+id+'\')">▶ 运行</button><code id="'+id+'">'+code+'</code><div class="run-out" id="out-'+id+'"></div></pre>'});
+  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  s=s.replace(/^### (.*)$/gm,'<h4>$1</h4>');s=s.replace(/^## (.*)$/gm,'<h3>$1</h3>');s=s.replace(/^# (.*)$/gm,'<h2>$1</h2>');
+  s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  s=s.replace(/^> (.*)$/gm,'<blockquote>$1</blockquote>');
+  s=s.replace(/^[-*] (.*)$/gm,'<li>$1</li>');s=s.replace(/(<li>.*<\/li>)/s,'<ul>$1</ul>');
+  s=s.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" style="color:var(--accent)">$1</a>');
+  s=s.replace(/\n/g,'<br>');return s;
+}
+async function runCode(id){const code=document.getElementById(id).textContent;const out=document.getElementById('out-'+id);out.style.display='block';out.textContent='运行中...';try{const r=await window.pywebview.api.run_python(code);out.textContent=r}catch(e){out.textContent='[失败: '+e+']'}}
+async function checkConn(){const dot=document.getElementById('dot');try{const r=await fetch(API+'/api/tags');dot.className='dot '+(r.ok?'ok':'err')}catch(e){dot.className='dot err'}}
+async function speakText(b64){try{const text=decodeURIComponent(escape(atob(b64)));const path=await window.pywebview.api.tts_speak(text);if(path&&!path.startsWith('['))new Audio('file:///'+path.replace(/\\/g,'/')).play();else alert(path||'朗读失败')}catch(e){alert('朗读失败: '+e)}}
+async function doScreenshot(){try{const path=await window.pywebview.api.take_screenshot();if(path&&!path.startsWith('[')){pendingFiles.push(path);const chip=document.createElement('span');chip.className='attach-chip';chip.textContent='📷 截图';document.querySelector('.hint').appendChild(chip);document.getElementById('input').value='这张截图里有什么？请描述一下。';document.getElementById('input').focus()}else alert(path)}catch(e){alert(e)}}
+async function doClipboard(){try{const text=await window.pywebview.api.read_clipboard();if(text){document.getElementById('input').value='请帮我总结以下内容：\n'+text.slice(0,1000);document.getElementById('input').focus()}else alert('剪贴板为空')}catch(e){alert(e)}}
+async function doUrl(){const url=prompt('粘贴网页链接：');if(!url)return;try{const r=await window.pywebview.api.extract_url(url);if(r&&r.text&&!r.text.startsWith('[')){document.getElementById('input').value='请总结这篇文章（'+r.title+'）：\n\n'+r.text.slice(0,2000);document.getElementById('input').focus()}else alert('抓取失败')}catch(e){alert(e)}}
+function useTemplate(t){document.getElementById('input').value=t;document.getElementById('input').focus()}
+function toggleAiAvatar(){const cur=getAiAvatar();setAiAvatar(cur==='avatar.jpg'?'avatar2.jpg':'avatar.jpg')}
+function setAiAvatar(f){_aiAv=f;window.pywebview.api.save_setting('aiAvatar',f);document.getElementById('aiAv1').style.borderColor=f==='avatar.jpg'?'var(--accent)':'transparent';document.getElementById('aiAv2').style.borderColor=f==='avatar2.jpg'?'var(--accent)':'transparent';render()}
+var _aiAv='avatar.jpg';function getAiAvatar(){return _aiAv}
+function uploadAvatar(input){const f=input.files[0];if(!f)return;if(f.size>5*1024*1024){alert('图片不能超过5MB');return;}const reader=new FileReader();reader.onload=function(){const b64=reader.result.split(',')[1];window.pywebview.api.save_avatar(b64,f.name).then(()=>{render();const p=document.getElementById('previewAvatar');if(p){p.src='ds图片/user_avatar.jpg?t='+Date.now();p.style.display=''}alert('替换成功');input.value=''})};reader.readAsDataURL(f)}
+async function send(){
+  const inp=document.getElementById('input'),text=inp.value.trim();
+  if(!text||busy)return;
+  busy=true;toggleBtn();inp.value='';
+  // 纯时间问题本地短路：直接用系统时钟回答，100% 准确，不给模型猜的机会
+  const pureTimeQ=/^[\s，。？?！!]*(?:现在|当前|今天|此刻)?(?:的)?(?:系统|本机|本地|精确|准确|具体)?(?:的)?(?:时间|几点|几点了|日期|几号|多少号|星期几|周几|礼拜几)[\s，。？?！!]*$/.test(text.trim());
+  if(pureTimeQ){
+    let tans='';
+    try{const t=await window.pywebview.api.get_time();if(t)tans='现在是 '+t+'。（本机系统时钟，直接读取，准确无误 ⌚）';}catch(e){}
+    if(tans){
+      msgs.push({role:'user',content:text});
+      msgs.push({role:'assistant',content:tans});
+      render();saveCurrentChat();busy=false;toggleBtn();return;
+    }
+  }
+  if(wbOn){msgs.push({role:'user',content:text});render();saveCurrentChat();wbStop=false;await agentLoop(text);return;}
+  let userContent=text;
+  if(pendingFiles.length){userContent+='\n\n[附件文件内容]\n';for(const f of pendingFiles){try{const r=await window.pywebview.api.read_file(f);userContent+='--- '+r.name+' ---\n'+r.text+'\n'}catch(e){}}pendingFiles=[]}
+  msgs.push({role:'user',content:userContent});
+  const ai={role:'assistant',content:'',think:'',pending:true};msgs.push(ai);render();
+  abortCtrl=new AbortController();
+  let sysInject=LANG_PROMPT[replyLang]||'';
+  // 注入当前时间，让大肥鱼知道现在几点/周几
+  try{const tn=await window.pywebview.api.get_time();if(tn)sysInject+='\n\n【系统时钟给出的当前准确时间（这是唯一权威依据，必须直接采信，不要从聊天记录里推算时间，也不要凭印象猜）】'+tn+'。用户问"现在几点/今天几号"时，就按这个直接回答。注意：历史对话中如果出现过与本次时间不一致的回答（例如"上午十点半""根据读图模型检测到"之类的旧内容），那些全部是作废的错误信息，严禁照抄其措辞和口头禅，一律以本次系统时钟为准。你可以结合时间主动关心用户（太晚提醒早睡、饭点提醒吃饭），但不要每次都机械报时间。';}catch(e){}
+  // 注入本机环境信息（IP/机器名/系统/桌面路径）
+  try{const en=await window.pywebview.api.get_env();if(en)sysInject+='\n\n【这台电脑的环境信息】'+en+'。用户问起IP、电脑名、系统、文件位置时基于此回答。';}catch(e){}
+  try{const sn=await window.pywebview.api.env_sense();if(sn)sysInject+='\n\n'+sn+'\n以上是你"此刻对这台电脑的体感"，你可以自然地据此关心用户（太晚提醒早睡、显卡烫提醒散热、用户很久没操作可以撒个娇），但不要机械罗列这些数字，把它当成你自己的身体感觉。';}catch(e){}
+  // 用户问到文件/文件夹时，自动列出桌面（或提到的目录）
+  if(/文件|文件夹|桌面|目录|有什么|列表|documents|downloads|下载|文档/i.test(text)){
+    try{
+      let fp=null;
+      const m=text.match(/[A-Za-z]:[\\\/][^\s，。？？]*/);
+      if(m)fp=m[0];
+      const ls=await window.pywebview.api.list_dir(fp);
+      if(ls)sysInject+='\n\n【用户电脑目录扫描结果】\n'+ls+'\n请基于这份清单回答用户关于文件的问题；若用户要打开/读取某个具体文件，告知可以直接拖进来。';
+    }catch(e){}
+  }
+  // 身份：默认名大肥鱼AI，但接受用户给它起的新名字
+  let aiName='大肥鱼AI';
+  try{const nn=await window.pywebview.api.load_setting('ai_name');if(nn&&nn.trim())aiName=nn.trim();}catch(e){}
+  let nameRule;
+  if(aiName&&aiName!=='大肥鱼AI'){
+    nameRule='你有两个称呼：本名「大肥鱼AI」，用户还喜欢叫你「'+aiName+'」。这两个名字你都要答应，自称时优先用「'+aiName+'」，用户叫你大肥鱼AI时也要立刻反应过来，不要说其中一个不对。开发者叫 Childe。';
+  }else{
+    nameRule='你的名字是「大肥鱼AI」（也可以叫你大肥鱼）。开发者叫 Childe。';
+  }
+  sysInject+='\n\n'+nameRule+'重要：如果用户在对话里又给你起了新名字或昵称（比如"以后叫你XX"），你要开心地接受，之后就把它也当作你名字的一部分，不要抗拒、不要说"名字不重要"、不要反复纠正用户。当被问起你是谁开发的，回答：我由 Childe 开发，运行在用户本地电脑上，数据不出本机。不要说自己是 DeepSeek、ChatGPT 或其他公司的产品。';
+  // 注入人格卡
+  try{
+    const pg=await window.pywebview.api.load_setting('persona_global');
+    if(pg)sysInject+='\n\n【你的人格设定（必须严格保持这个性格、语气和说话方式）】\n'+pg;
+    if(displayMode==='pro'){const pw=await window.pywebview.api.load_setting('persona_work');if(pw)sysInject+='\n\n【当前为专业模式，叠加以下工作人格】\n'+pw;}
+  }catch(e){}
+  // 注入跨对话长期记忆
+  try{
+    const mem=await window.pywebview.api.load_memory();
+    if(mem){
+      let mtext='';
+      if(mem.facts&&mem.facts.length){mtext+='\n\n【你长期记住的关于这个用户的事实（跨所有对话）】\n- '+mem.facts.join('\n- ');}
+      if(mem.user)mtext+='\n用户的称呼：'+mem.user;
+      if(mem.relationship)mtext+='\n你们的关系：'+mem.relationship;
+      if(mtext)sysInject+=mtext;
+    }
+  }catch(e){}
+  // —— 联网检索：自动判断（对齐桌宠）+ 手动开关；状态如实反馈，不再静默吞错 ——
+  let searchNote='';
+  try{
+    const rs=await window.pywebview.api.repo_search(text,searchEngine,MODEL,msgs.slice(-6).map(m=>({role:m.role,content:(m.content||'').slice(0,300)})),false,webSearchOn);
+    if(rs){
+      if(rs.ok){sysInject+='\n\n【联网搜索结果】'+rs.injected;searchNote='🔍 已联网：'+rs.query+'（'+rs.detail+'）';setSearchState('ok',searchNote);}
+      else if(rs.status==='skipped'||rs.status==='off'){searchNote='';setSearchState('auto');}
+      else{searchNote=rs.detail||'联网检索不可用';setSearchState('warn',searchNote);}
+    }
+  }catch(e){searchNote='联网检索异常：'+e;setSearchState('warn',searchNote);}
+  // 让模型知道自己有联网能力，避免它自称"无法联网"
+  sysInject+='\n\n【联网能力说明】你已接入本机联网检索：开启时搜索结果会以「【联网搜索结果】」的形式提供给你，你可以直接据此回答并说"我查了一下"；'
+    +'即使本轮没有搜索结果，也只是这次没搜，不代表你不能联网。被问到"你能联网吗"时，回答：可以，联网开关打开时会实时搜索网页。'
+    +(searchNote?('\n本轮联网状态：'+searchNote):'\n本轮未进行联网检索。');
+  if(kbOn){try{const kb=await window.pywebview.api.kb_search(text);if(kb)sysInject+='\n'+kb}catch(e){}}
+  // —— 本地插件注入：心情 / 灵魂记忆 / 表情包 ——
+  try{
+    const mc=await window.pywebview.api.mood_context();
+    if(mc)sysInject+='\n\n【你刚才心里那一下（这是你自己的心情，只在这一轮有效；自然地融进你的语气里，别复述、别解释它）】'+mc;
+  }catch(e){}
+  try{
+    const sc=await window.pywebview.api.soul_context(text);
+    if(sc)sysInject+='\n\n'+sc;
+  }catch(e){}
+  try{
+    const sh=await window.pywebview.api.sticker_hint(text,4);
+    if(sh)sysInject+='\n\n【你现在能用的表情包（想用就在回复最后单独写一行代号，例如 [摸鱼]；不想用就一个都别写，也不要凭空编造代号）】\n'+sh;
+  }catch(e){}
+  try{
+    const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:abortCtrl.signal,
+      body:JSON.stringify({model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...msgs.filter(m=>m.role==='user'||m.content).map(m=>({role:m.role,content:m.content})).slice(-HIST_TURNS)],stream:true,keep_alive:'10m',options:{num_ctx:8192}})});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const reader=r.body.getReader(),dec=new TextDecoder();let buf='';
+    while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop();for(const line of lines){if(!line.trim())continue;try{const j=JSON.parse(line);if(j.message){if(j.message.thinking)ai.think+=j.message.thinking;if(j.message.content)ai.content+=j.message.content}}catch(e){}}updateLast()}
+  }catch(e){if(abortCtrl.signal.aborted){ai.content+='\n\n*[已停止]*'}else{ai.content='⚠️ 错误：'+e.message}}
+  ai.pending=false;busy=false;toggleBtn();
+  // —— 插件：回复里写了表情包代号就换成真图 ——
+  try{
+    const mm=(ai.content||'').match(/\[([^\]\[]{1,24})\]\s*$/);
+    if(mm){
+      const sr=await window.pywebview.api.sticker_search(mm[1],'',1);
+      if(sr&&sr.length){
+        const loc=await window.pywebview.api.sticker_local(sr[0].id);
+        if(loc&&loc.ok&&loc.path){
+          ai.sticker='file:///'+String(loc.path).replace(/\\/g,'/');
+          ai.content=ai.content.replace(/\[[^\]\[]{1,24}\]\s*$/,'').trim();
+        }
+      }
+    }
+  }catch(e){}
+  saveCurrentChat();render();
+  // —— 插件：每轮判一次心情、记一下"它说过话了" ——
+  try{window.pywebview.api.mood_judge(text,(ai.content||'').slice(0,2000),'chat');window.pywebview.api.speak_up_note_spoke()}catch(e){}
+  try{updateMoodWidget()}catch(e){}
+  // 后台静默提炼长期记忆（不打断对话）
+  try{
+    const conv=msgs.slice(-8).map(m=>(m.role==='user'?'我：':'大肥鱼：')+(m.content||'')).join('\n');
+    window.pywebview.api.reflect_memory(conv,MODEL).then(()=>{}).catch(()=>{});
+  }catch(e){}
+}
+function exportChat(){let md='# 大肥鱼AI 对话记录\n\n';msgs.forEach(m=>{if(m.role==='user')md+='## 我\n\n'+m.content+'\n\n';else if(m.content)md+='## 大肥鱼AI\n\n'+m.content+'\n\n'});const blob=new Blob([md],{type:'text/markdown'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='大肥鱼对话.md';a.click()}
+let dragDepth=0;
+document.addEventListener('dragenter',e=>{e.preventDefault();dragDepth++;document.getElementById('dropHint').style.display='flex'});
+document.addEventListener('dragleave',e=>{e.preventDefault();dragDepth--;if(dragDepth<=0){dragDepth=0;document.getElementById('dropHint').style.display='none'}});
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;document.getElementById('dropHint').style.display='none';for(const f of e.dataTransfer.files){pendingFiles.push(f.path);const chip=document.createElement('span');chip.className='attach-chip';chip.textContent='📎 '+f.name;document.querySelector('.hint').appendChild(chip);
+  if(f.type.startsWith('image/')){const bar=document.getElementById('previewBar');bar.style.display='flex';const url=URL.createObjectURL(f);const t=document.createElement('div');t.className='pv-thumb';t.innerHTML='<img src="'+url+'"><div class="rm" onclick="this.parentNode.remove()">×</div>';bar.appendChild(t)}
+}});
+document.getElementById('input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+
+// ================= 本地插件 UI：心情挂饰 + 主动搭话 =================
+(function(){
+  const st=document.createElement('style');
+  st.textContent='#moodWidget{position:fixed;right:18px;bottom:18px;z-index:9000;display:none;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:rgba(255,255,255,.94);box-shadow:0 4px 16px rgba(0,0,0,.18);cursor:pointer;font-size:13px;color:#333;user-select:none}'
+   +'#moodWidget .mw-face{font-size:18px}'
+   +'#moodPanel{position:fixed;right:18px;bottom:62px;z-index:9000;display:none;width:290px;max-height:56vh;overflow:auto;padding:14px 16px;border-radius:14px;background:#fff;color:#333;box-shadow:0 10px 34px rgba(0,0,0,.22);font-size:13px}'
+   +'#moodPanel h4{margin:0 0 8px;font-size:14px}'
+   +'#moodPanel .dim{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0;font-size:12px;color:#666}'
+   +'#moodPanel .bar{height:5px;border-radius:3px;background:linear-gradient(90deg,#7cc4ff,#4d6bfe)}'
+   +'#moodPanel .tl{border-top:1px solid #eee;margin-top:10px;padding-top:8px;max-height:190px;overflow:auto}'
+   +'#moodPanel .tl div{margin:5px 0;color:#666;font-size:12px}'
+   +'.sticker-wrap{margin-top:6px}.sticker-wrap img{width:120px;height:120px;object-fit:contain;border-radius:10px;cursor:zoom-in}';
+  document.head.appendChild(st);
+  const w=document.createElement('div');w.id='moodWidget';
+  w.innerHTML='<span class="mw-face">🙂</span><span class="mw-txt">一般</span>';
+  document.body.appendChild(w);
+  const p=document.createElement('div');p.id='moodPanel';document.body.appendChild(p);
+  w.onclick=function(){
+    if(p.style.display==='block'){p.style.display='none';return}
+    window.pywebview.api.mood_get().then(function(m){
+      if(!m||!m.ok){p.innerHTML='<div>心情插件没起来</div>';p.style.display='block';return}
+      let h='<h4>🐳 心情：'+m.label+' '+m.emoji+'（'+m.mood+'）</h4>';
+      for(const k in m.dims){const v=m.dims[k];if(v<1)continue;
+        h+='<div class="dim"><span>'+(m.dimLabels[k]||k)+'</span><span style="width:130px"><span class="bar" style="display:block;width:'+Math.min(100,v)+'%"></span></span></div>';}
+      if(m.reason)h+='<div style="margin-top:8px;color:#555">「'+m.reason+'」</div>';
+      h+='<div style="margin-top:6px;color:#999;font-size:11px">心情会随时间自己回稳（半衰期 12 小时）</div>';
+      h+='<div class="tl" id="moodTl">加载中…</div>';
+      p.innerHTML=h;p.style.display='block';
+      window.pywebview.api.mood_timeline(8).then(function(t){
+        const el=document.getElementById('moodTl');if(!el)return;
+        el.innerHTML=(t&&t.length)?t.map(function(x){return '<div>'+x.emoji+' '+x.mood+' · '+x.when+' · '+x.reason+'</div>'}).join(''):'<div>还没有记录</div>';
+      }).catch(function(){});
+    }).catch(function(){p.innerHTML='<div>心情插件没装</div>';p.style.display='block'});
+  };
+  window.updateMoodWidget=function(){
+    window.pywebview.api.mood_get().then(function(m){
+      if(!m||!m.ok){w.style.display='none';return}
+      w.style.display='flex';w.title='心情 '+m.label+'（'+m.mood+'/100）';
+      w.innerHTML='<span class="mw-face">'+m.emoji+'</span><span class="mw-txt">'+m.label+'</span>';
+    }).catch(function(){w.style.display='none'});
+  };
+  setInterval(window.updateMoodWidget,60000);
+  setTimeout(window.updateMoodWidget,1500);
+})();
+// 主动搭话：Python 那边掷中骰子后推过来，让大肥鱼自己开口
+window.__dfyEvent=function(evt,data){
+  try{
+    if(evt==='speak_up'&&data&&data.prompt&&!busy){
+      const inp=document.getElementById('input');
+      if(inp){inp.value=data.prompt;send()}
+    }
+  }catch(e){}
+};
+
+// ================= 插件中心：左边插件列表，右边每个插件自己的页面（对齐 DSH） =================
+function pgApi(){return (window.pywebview&&window.pywebview.api)||null}
+async function pgCall(name){
+  const a=pgApi();
+  if(!a)return {__err:'界面还没连上主程序，等两秒再点'};
+  const f=a[name];
+  if(typeof f!=='function')return {__err:'接口不在：'+name+'（插件没加载？）'};
+  const args=Array.prototype.slice.call(arguments,1);
+  try{return await f.apply(a,args)}catch(e){return {__err:String((e&&e.message)||e)}}
+}
+function pgEsc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return c==='&'?'&amp;':(c==='<'?'&lt;':'&gt;')})}
+function pgTxt(id,t){const e=document.getElementById(id);if(e)e.textContent=t}
+function pgShow(id,on){const e=document.getElementById(id);if(e)e.style.display=on?'':'none'}
+function pgWhen(ts){
+  if(!ts)return '—';
+  if(typeof ts==='string'&&!/^\d+(\.\d+)?$/.test(ts))return ts;
+  const n=Number(ts),d=new Date(n>1e12?n:n*1000);
+  if(isNaN(d.getTime()))return String(ts);
+  return (d.getMonth()+1)+'-'+('0'+d.getDate()).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+}
+function pgToast(msg){
+  let t=document.getElementById('pgToast');
+  if(!t){t=document.createElement('div');t.id='pgToast';
+    t.style.cssText='position:fixed;left:50%;bottom:34px;transform:translateX(-50%);background:rgba(38,38,46,.94);color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;z-index:99999;transition:opacity .35s;max-width:70vw;pointer-events:none';
+    document.body.appendChild(t)}
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(window._pgToastT);
+  window._pgToastT=setTimeout(function(){t.style.opacity='0'},2800);
+}
+
+// ---- 插件中心的壳 ----
+let _hubPid=null,_hubViews={},_hubOpen=false;
+function openPluginHub(pid){
+  const m=document.getElementById('pluginHub');
+  if(m)m.classList.add('show');
+  _hubOpen=true;
+  hubLoad(pid);
+}
+function closePluginHub(){
+  const m=document.getElementById('pluginHub');
+  if(m)m.classList.remove('show');
+  _hubOpen=false;
+}
+async function hubLoad(pid){
+  const nav=document.getElementById('hubNav');
+  const list=await pgCall('plugin_list');
+  if(!Array.isArray(list)){
+    if(nav)nav.innerHTML='<div class="hub-empty">读不到插件清单</div>';
+    return;
+  }
+  const usable=list.filter(function(p){return p.ok&&p.enabled});
+  if(nav){
+    nav.innerHTML='';
+    usable.forEach(function(p){
+      const b=document.createElement('button');
+      b.className='hub-item';b.dataset.pid=p.id;
+      b.innerHTML='<span class="ic">'+(p.icon||'🧩')+'</span><span class="nm">'+pgEsc(p.name)+'</span>';
+      b.onclick=function(){hubShow(p.id)};
+      nav.appendChild(b);
+    });
+    const off=list.filter(function(p){return p.ok&&!p.enabled});
+    off.forEach(function(p){
+      const d=document.createElement('div');
+      d.className='hub-item off';
+      d.innerHTML='<span class="ic">'+(p.icon||'🧩')+'</span><span class="nm">'+pgEsc(p.name)+'</span><span class="st">已关</span>';
+      nav.appendChild(d);
+    });
+    if(!usable.length)nav.innerHTML='<div class="hub-empty">没有可用插件</div>';
+    const sw=document.createElement('button');
+    sw.className='hub-item';sw.dataset.pid='__switches';
+    sw.innerHTML='<span class="ic">⚙</span><span class="nm">插件开关</span>';
+    sw.onclick=function(){hubShow('__switches')};
+    nav.appendChild(sw);
+  }
+  const foot=document.getElementById('hubFoot');
+  if(foot)foot.textContent=usable.length+' 个插件在跑 · 数据都在本机';
+  hubShow(pid||(usable[0]&&usable[0].id));
+}
+function hubShow(pid){
+  if(!pid)return;
+  _hubPid=pid;
+  document.querySelectorAll('#hubNav .hub-item').forEach(function(b){
+    b.classList.toggle('on',b.dataset.pid===pid);
+  });
+  const v=_hubViews[pid];
+  const body=document.getElementById('hubBody');
+  if(!v){
+    document.getElementById('hubIco').textContent='🧩';
+    document.getElementById('hubName').textContent=pid;
+    document.getElementById('hubSub').textContent='这个插件还没做专属页面';
+    if(body)body.innerHTML='<div class="pg-card"><div class="pg-note">这个插件暂时没有界面。</div></div>';
+    return;
+  }
+  document.getElementById('hubIco').textContent=v.icon||'🧩';
+  document.getElementById('hubName').textContent=v.name||pid;
+  document.getElementById('hubSub').textContent=v.sub||'';
+  v.mount(body);
+  if(pid==='bili_pond'){
+    try{hubBView('report',document.querySelector('#hubBody .pg-tab'))}catch(e){}
+  }
+  hubRefresh();
+}
+function hubRefresh(){
+  const v=_hubViews[_hubPid];
+  if(!v||!v.refresh)return Promise.resolve();
+  return v.refresh().catch(function(e){pgToast('刷新失败：'+(e&&e.message||e))});
+}
+function hubStat(t){const e=document.getElementById('hubSub');if(e)e.textContent=t}
+
+// ================== 鱼的心情 ==================
+_hubViews.feiyu_mood={
+  icon:'🐟',name:'鱼的心情',sub:'每轮判一次，会自己回稳',
+  mount:function(b){
+    b.innerHTML=
+      '<div class="pg-card"><div class="hub-face" id="hFace">🙂</div>'
+      +'<div class="hub-mv" id="hMv">—</div><div class="pg-note" id="hReason" style="text-align:center;margin-top:4px"></div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>七维情绪</span></div><div id="hDims"></div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>时间线</span></div><div class="pg-view" id="hTl">加载中…</div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>设置</span></div>'
+      +'<label class="pg-chk"><input type="checkbox" id="hOn" onchange="hubMoodOn(this.checked)"> 启用心情判断</label>'
+      +'<div class="pg-row"><button class="opt" onclick="hubMoodReset()">重置到基线</button></div>'
+      +'<div class="pg-note" style="margin-top:6px">心情基线 70，半衰期 12 小时自己回稳；单根情绪 90 分钟衰减。</div></div>';
+  },
+  refresh:async function(){
+    const m=await pgCall('mood_get');
+    if(!m||m.ok===false){pgTxt('hMv','读不到状态');return}
+    pgTxt('hFace',m.emoji||'🙂');
+    pgTxt('hMv',(m.label||'')+'　'+m.mood+' / 100');
+    pgTxt('hReason',m.reason?('「'+m.reason+'」'):'还没有明显波动');
+    const on=document.getElementById('hOn');if(on)on.checked=!!m.enabled;
+    let h='';
+    for(const k in m.dims){
+      const v=m.dims[k]||0;
+      h+='<div class="pg-dim"><span class="nm">'+(m.dimLabels[k]||k)+'</span>'
+        +'<span class="track"><i style="width:'+Math.min(100,v)+'%"></i></span>'
+        +'<span class="val">'+Math.round(v)+'</span></div>';
+    }
+    const d=document.getElementById('hDims');if(d)d.innerHTML=h||'<div class="pg-note">还没有情绪数据</div>';
+    hubStat((m.willSay?'有话想说':'平稳')+' · '+(m.confidence||0)+'% 把握');
+    const t=await pgCall('mood_timeline',8);
+    const tl=document.getElementById('hTl');
+    if(tl)tl.innerHTML=(Array.isArray(t)&&t.length)?t.map(function(x){
+      return '<div>'+x.emoji+' '+x.mood+' · '+x.when+' · '+pgEsc(x.reason||'')+'</div>';
+    }).join(''):'还没有记录';
+  }
+};
+async function hubMoodOn(v){const r=await pgCall('mood_set_enabled',v?1:0);if(r&&r.ok===false)pgToast(r.error||'改不了');else pgToast(v?'已启用':'已停用');hubRefresh()}
+async function hubMoodReset(){const r=await pgCall('mood_reset');if(r&&r.ok===false)pgToast(r.error||'改不了');else pgToast('已重置');hubRefresh()}
+
+// ================== B站 鱼塘 ==================
+_hubViews.bili_pond={
+  icon:'📺',name:'B站鱼塘',sub:'挑视频、写日报、攒记忆',
+  mount:function(b){
+    b.innerHTML=
+      '<div class="pg-card"><div class="pg-h"><span>运行环境</span><span class="pg-badge" id="bBadge">检测中…</span></div>'
+      +'<div class="pg-note" id="bStat">正在查登录态（首次要预热桥接，等 10~30 秒）…</div>'
+      +'<div class="pg-row"><button class="opt" onclick="hubBLogin()">扫码登录</button>'
+      +'<button class="opt" onclick="hubBRun()" id="bRunBtn">立即跑一轮</button>'
+      +'<label class="pg-chk"><input type="checkbox" id="bDry" checked> 试运行（只看不改）</label></div>'
+      +'<div class="pg-row"><input class="pg-input" id="bKw" placeholder="关键词，逗号分隔；留空=按口味自动找">'
+      +'<input class="pg-input pg-num" id="bMax" type="number" min="1" max="30" value="6" title="这一轮看几条"></div>'
+      +'<div id="bQr" style="display:none;text-align:center;margin-top:8px"></div>'
+      +'<div id="bProg" style="display:none"><div class="pg-note" id="bProgTxt" style="margin-top:6px"></div><div class="pg-bar"><i id="bProgBar"></i></div></div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>看板</span></div>'
+      +'<div class="pg-tabs">'
+      +'<button class="pg-tab on" data-k="report" onclick="hubBView(\'report\',this)">今日日报</button>'
+      +'<button class="pg-tab" data-k="diary" onclick="hubBView(\'diary\',this)">鱼日记</button>'
+      +'<button class="pg-tab" data-k="wall" onclick="hubBView(\'wall\',this)">封面墙</button>'
+      +'<button class="pg-tab" data-k="memory" onclick="hubBView(\'memory\',this)">跨天记忆</button>'
+      +'<button class="pg-tab" data-k="say" onclick="hubBView(\'say\',this)">鱼说</button>'
+      +'<button class="pg-tab" data-k="seen" onclick="hubBView(\'seen\',this)">判重表</button>'
+      +'</div><div class="pg-view" id="bView">点标签看内容</div></div>';
+  },
+  refresh:async function(){
+    const s=await pgCall('bili_status');
+    if(!s||s.__err||s.ok===false){pgTxt('bBadge','不可用');pgTxt('bStat',(s&&(s.__err||s.error))||'鱼塘插件没加载');return}
+    const rk=s.risk||{},rd=rk.read||{},wr=rk.write||{};
+    let t='登录：'+(s.loggedIn?('已登录'+(s.user?'（'+s.user+'）':'')):('未登录'+(s.loginNote?' —— '+s.loginNote:'')))
+      +'\n模型：'+(s.model||'?')+'　桥接：'+(s.bridgeAlive?'在跑':'没起'+(s.bridgeError?'（'+s.bridgeError+'）':''))
+      +'\n今天收了 '+(s.dayPicked||0)+'/'+(s.dayMax||0)+' 条　判重表 '+(s.seenCount||0)+' 条'
+      +'\n风控：读 '+rd.hour+'/'+rd.hourMax+' 次·时　'+rd.daily+'/'+rd.dailyMax+' 次·日　写 '+wr.hour+'/'+wr.hourMax+'·'+wr.daily+'/'+wr.dailyMax
+      +'\n上一轮：'+(s.lastRunAt?pgWhen(s.lastRunAt):'还没跑')+(s.lastWhy?'　'+s.lastWhy:'');
+    if(s.lastError)t+='\n上次报错：'+s.lastError;
+    if(rk.blocked)t+='\n⚠ 撞风控，冷却还剩 '+Math.round((rk.blockedLeftSec||0)/60)+' 分钟';
+    pgTxt('bStat',t);
+    pgTxt('bBadge',(s.loggedIn?'已登录':'未登录')+(s.running?' · 正在跑':''));
+    if(s.running)hubBWatch();
+  }
+};
+let _bTimer=null,_bKind='report',_bQr=0;
+function hubBWatch(){
+  clearInterval(_bTimer);pgShow('bProg',true);
+  _bTimer=setInterval(async function(){
+    const st=await pgCall('bili_round_status');
+    if(!st||st.__err){clearInterval(_bTimer);return}
+    const pct=st.total?Math.round(100*(st.done||0)/st.total):0;
+    const bar=document.getElementById('bProgBar');if(bar)bar.style.width=Math.min(100,pct)+'%';
+    const last=(st.log||[]).slice(-1)[0]||'';
+    pgTxt('bProgTxt',(st.stage||'准备中')+'　'+(st.done||0)+'/'+(st.total||0)+(last?'　'+String(last):''));
+    if(!st.running){
+      clearInterval(_bTimer);
+      pgTxt('bProgTxt','这一轮结束：'+(st.lastError?('出错 · '+st.lastError):(st.lastWhy||'正常')));
+      hubRefresh();
+      if(_bKind)hubBView(_bKind,document.querySelector('#hubBody .pg-tabs .pg-tab.on'));
+    }
+  },2000);
+}
+async function hubBRun(){
+  const kw=((document.getElementById('bKw')||{}).value||'').trim();
+  const mx=parseInt(((document.getElementById('bMax')||{}).value||'6'),10)||6;
+  const dry=(document.getElementById('bDry')||{}).checked?1:0;
+  const btn=document.getElementById('bRunBtn');
+  if(btn){btn.disabled=true;btn.textContent='跑着呢…'}
+  pgShow('bProg',true);pgTxt('bProgTxt','已提交，正在检索候选…');
+  const r=await pgCall('bili_run',kw,mx,dry);
+  if(btn){btn.disabled=false;btn.textContent='立即跑一轮'}
+  if(!r||r.__err||r.ok===false){pgTxt('bProgTxt','没跑起来：'+((r&&(r.__err||r.error))||'未知'));return}
+  hubBWatch();
+}
+async function hubBLogin(){
+  const box=document.getElementById('bQr');
+  if(box){box.style.display='block';box.innerHTML='<div class="pg-note">正在向 B 站要二维码…（约 10 秒）</div>'}
+  const r=await pgCall('bili_login_qr');
+  if(!r||r.__err||r.ok===false){
+    if(box)box.innerHTML='<div class="pg-note">拿不到二维码：'+pgEsc((r&&(r.__err||r.error))||'未知')+'</div>';
+    return;
+  }
+  if(r.qrcode_image){
+    box.innerHTML='<img src="'+r.qrcode_image+'" style="width:180px;border-radius:10px;background:#fff">'
+      +'<div class="pg-note" style="margin-top:6px">用 B 站 App 扫码，扫完会自动检查</div>'
+      +'<div class="pg-row" style="justify-content:center"><button class="opt" onclick="hubBCheck()">我扫完了</button></div>'
+      +'<div class="pg-note" id="bQmsg" style="margin-top:4px"></div>';
+    setTimeout(hubBCheck,16000);
+  }else{
+    box.innerHTML='<div class="pg-note">没拿到二维码图片：'+pgEsc((r.text||JSON.stringify(r)).slice(0,240))+'</div>';
+  }
+}
+async function hubBCheck(){
+  const r=await pgCall('bili_login_check');
+  const st=(r&&(r.status||''))||'';
+  const el=document.getElementById('bQmsg');
+  if(st==='done'){
+    _bQr=0;if(el)el.textContent='✅ 登录成功';pgToast('登录成功');
+    pgShow('bQr',false);hubRefresh();return;
+  }
+  if(st==='timeout'){_bQr=0;if(el)el.textContent='二维码过期了，重新点扫码登录';return}
+  _bQr++;
+  if(_bQr>60){_bQr=0;if(el)el.textContent='等太久了，重开一次二维码';return}
+  if(el)el.textContent='还没确认（第 '+_bQr+' 次检查）';
+  setTimeout(hubBCheck,5000);
+}
+async function hubBView(k,btn){
+  _bKind=k;
+  document.querySelectorAll('#hubBody .pg-tab').forEach(function(b){b.classList.remove('on')});
+  if(btn)btn.classList.add('on');
+  const box=document.getElementById('bView');if(!box)return;
+  box.textContent='读取中…';
+  if(k==='report'||k==='diary'){
+    const r=await pgCall(k==='report'?'bili_report':'bili_diary');
+    box.textContent=(r&&(r.text||r.__err||r.error))||'没有内容';
+  }else if(k==='say'){
+    const r=await pgCall('bili_say');box.textContent=(r&&(r.text||r.__err))||'';
+  }else if(k==='wall'){
+    const r=await pgCall('bili_wall',7);
+    if(!r||r.__err||!r.items){box.textContent=(r&&(r.__err||r.error))||'没记录';return}
+    box.textContent=r.items.length?r.items.map(function(i){return '· '+(i.title||i.bvid)+'　'+i.bvid}).join('\n'):'最近还没看过视频';
+  }else if(k==='memory'){
+    const r=await pgCall('bili_memory',30);
+    if(!r||r.__err||!r.items||!r.items.length){box.textContent=(r&&(r.__err||r.error))||'还没有跨天记忆';return}
+    box.textContent=r.items.map(function(i){return '· '+(i.what||i.text||JSON.stringify(i))+(i.why?'　—— '+i.why:'')}).join('\n');
+  }else if(k==='seen'){
+    const r=await pgCall('bili_seen',30);
+    box.textContent=(r&&(r.lines||[])).join('\n')||'判重表是空的';
+  }
+}
+
+// ================== B站 养鱼 ==================
+_hubViews.bili_whale={
+  icon:'🐋',name:'B站养鱼',sub:'听私信、守评论，按预算出手机',
+  mount:function(b){
+    b.innerHTML=
+      '<div class="pg-card"><div class="pg-h"><span>状态</span><span class="pg-badge" id="wBadge">读取中…</span></div><div class="pg-note" id="wStat">…</div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>监听</span></div>'
+      +'<label class="pg-chk"><input type="checkbox" id="wDm" onchange="hubWSet(\'listenDm\',this.checked)"> 听私信</label>'
+      +'<label class="pg-chk"><input type="checkbox" id="wCm" onchange="hubWSet(\'listenComment\',this.checked)"> 守评论</label>'
+      +'<label class="pg-chk"><input type="checkbox" id="wRep" onchange="hubWSet(\'replyEnabled\',this.checked)"> 允许回复</label>'
+      +'<label class="pg-chk"><input type="checkbox" id="wWin" onchange="hubWSet(\'onlyWindow\',this.checked)"> 只在作息窗口动</label>'
+      +'<div class="pg-row"><span>每轮</span><input class="pg-input pg-num" id="wPoll" type="number" min="3" max="120" onchange="hubWNum(\'pollMinutes\',this.value)">'
+      +'<span>分钟　每天最多回</span><input class="pg-input pg-num" id="wPerDay" type="number" min="1" max="20" onchange="hubWNum(\'replyPerDay\',this.value)"><span>条</span></div>'
+      +'<div class="pg-row"><button class="opt" onclick="hubWStart()">开始监听</button><button class="opt" onclick="hubWStop()">停止</button>'
+      +'<button class="opt" onclick="hubWScan()">扫一遍评论</button><button class="opt" onclick="hubWDm()">看私信</button></div></div>'
+      +'<div class="pg-view" id="wOut" style="display:none"></div>';
+  },
+  refresh:async function(){
+    const s=await pgCall('whale_status');
+    if(!s||s.__err||s.ok===false){pgTxt('wBadge','不可用');pgTxt('wStat',(s&&(s.__err||s.error))||'养鱼插件没加载');return}
+    const rk=s.risk||{},c=s.cfg||{};
+    pgTxt('wStat',[
+      '监听：'+(s.listening?'在听':'停着')+'　作息窗口：'+(s.window||'未设置')+'（现在'+(s.inWindow?'可以动':'不该动')+'）',
+      '今天回了 '+(s.repliedToday||0)+' 条　主人 UID：'+(s.ownerUid||'没认出来'),
+      '上次检查：'+(s.lastPollAt?pgWhen(s.lastPollAt):'还没检查')+(s.lastPollNote?'　'+s.lastPollNote:''),
+      rk.blocked?('⚠ 风控冷却，还剩 '+Math.round((rk.blockedLeftSec||0)/60)+' 分钟'):'风控正常'
+    ].join('\n'));
+    pgTxt('wBadge',(s.listening?'监听中':'已停止')+' · '+(s.inWindow?'窗口内':'窗口外'));
+    const cb=function(id,v){const e=document.getElementById(id);if(e&&document.activeElement!==e)e.checked=!!v};
+    cb('wDm',c.listenDm);cb('wCm',c.listenComment);cb('wRep',c.replyEnabled);cb('wWin',c.onlyWindow);
+    const nm=function(id,v){const e=document.getElementById(id);if(e&&document.activeElement!==e)e.value=v};
+    nm('wPoll',c.pollMinutes);nm('wPerDay',c.replyPerDay);
+  }
+};
+async function hubWSet(k,v){
+  const r=await pgCall('whale_config',k,v?1:0);
+  pgToast(r&&r.ok?('已'+(v?'开启':'关闭')):('改不了：'+((r&&(r.error||r.__err))||'')));
+  hubRefresh();
+}
+async function hubWNum(k,v){
+  const r=await pgCall('whale_config',k,parseInt(v,10)||0);
+  pgToast(r&&r.ok?'已保存':('改不了：'+((r&&(r.error||r.__err))||'')));
+  hubRefresh();
+}
+async function hubWStart(){
+  const r=await pgCall('whale_start');
+  pgToast(r&&r.ok?(r.note||'已开始'):('没起来：'+((r&&(r.error||r.__err))||'')));
+  hubRefresh();
+}
+async function hubWStop(){await pgCall('whale_stop');pgToast('已停止监听');hubRefresh()}
+async function hubWScan(){
+  const box=document.getElementById('wOut');pgShow('wOut',true);
+  if(box)box.textContent='扫评论区…（要几秒）';
+  const r=await pgCall('whale_scan');
+  if(!r||r.__err||r.ok===false){if(box)box.textContent='扫不了：'+((r&&(r.error||r.__err))||'未知');return}
+  const items=r.items||[];
+  if(!items.length){if(box)box.textContent='评论区没有值得回的，或者风控限额到了';return}
+  if(box){
+    box.innerHTML='';
+    items.forEach(function(c){
+      const bv=String(c.bvid||'').replace(/[^\w]/g,''),rp=String(c.rpid||'').replace(/[^\w]/g,'');
+      const d=document.createElement('div');
+      d.style.cssText='border-bottom:1px dashed var(--border);padding:6px 0';
+      d.innerHTML='<div>'+(c.worth?'✅ 值得回':'· 跳过')+'　分 '+c.score+'　'+pgEsc(c.why)+'</div>'
+        +'<div style="color:var(--text);margin:3px 0">'+pgEsc(c.text)+'</div>'
+        +(c.worth&&bv&&rp?'<button class="opt" style="padding:2px 9px;font-size:11px">让大肥鱼回一句</button>':'');
+      const btn=d.querySelector('button');
+      if(btn)btn.onclick=function(){hubWReply(bv,rp)};
+      box.appendChild(d);
+    });
+  }
+}
+async function hubWReply(bv,rp){
+  pgToast('让大肥鱼想一句…');
+  const r=await pgCall('whale_reply',bv,rp,null);
+  pgToast(r&&r.ok?('回了：'+(r.text||'（已发出）')):('没回：'+((r&&(r.error||r.__err))||'')));
+}
+async function hubWDm(){
+  const box=document.getElementById('wOut');pgShow('wOut',true);
+  if(box)box.textContent='读私信…';
+  const r=await pgCall('whale_dm',10);
+  if(!r||r.__err||r.ok===false){if(box)box.textContent='读不到：'+((r&&(r.error||r.__err))||'');return}
+  const items=r.items||[];
+  if(!items.length){if(box)box.textContent='私信是空的';return}
+  if(box){
+    box.innerHTML='';
+    items.forEach(function(m){
+      const who=m.sender_name||m.name||m.uid||m.sender_uid||'某人';
+      const txt=m.content||m.text||m.msg_content||JSON.stringify(m).slice(0,120);
+      const d=document.createElement('div');
+      d.style.cssText='border-bottom:1px dashed var(--border);padding:5px 0';
+      d.innerHTML='<b>'+pgEsc(who)+'</b>：'+pgEsc(txt);
+      box.appendChild(d);
+    });
+  }
+}
+
+// ================== 主动搭话 ==================
+_hubViews.speak_up={
+  icon:'💬',name:'主动搭话',sub:'本地掷骰子决定要不要开口',
+  mount:function(b){
+    b.innerHTML=
+      '<div class="pg-card"><div class="pg-h"><span>现在</span><span class="pg-badge" id="spBadge">读取中…</span></div><div class="pg-note" id="spStat">…</div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>设置</span></div>'
+      +'<label class="pg-chk"><input type="checkbox" id="spDry" onchange="hubSpSave()"> 试运行（掷中只记账，不真开口）</label>'
+      +'<div class="pg-row"><span>每隔</span><input class="pg-input pg-num" id="spGap" type="number" min="5" max="240" onchange="hubSpSave()">'
+      +'<span>分钟掷一次骰子</span></div>'
+      +'<div class="pg-row"><button class="opt" onclick="hubSpRoll()">手动掷一次</button><button class="opt" onclick="hubSpReset()">清空记录</button></div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>最近的掷骰</span></div><div class="pg-view" id="spRec" style="max-height:240px">加载中…</div></div>';
+  },
+  refresh:async function(){
+    const s=await pgCall('speak_up_get');
+    if(!s||s.__err||s.ok===false){pgTxt('spBadge','不可用');pgTxt('spStat',(s&&s.__err)||'搭话插件没加载');return}
+    const c=s.config||{},left=s['下次掷骰还有秒']||0;
+    pgTxt('spStat','命中线 '+s['当前命中线']+'（基础 '+s['基础命中线']+' × 时机 '+s['时机因子']+' + 没中加成 '+s['没中加成']+'）\n'
+      +'掷了 '+(s['掷骰次数']||0)+' 次，命中 '+(s['命中次数']||0)+' 次，连没中 '+(s['连没中']||0)+'\n'
+      +'下次掷骰：'+(left>0?(Math.ceil(left/60)+' 分钟后'):'马上')+(s.quiet?'　· 现在在安静时段':''));
+    pgTxt('spBadge',(c['总开关']?'开着':'关着')+(c['试运行']?' · 试运行':' · 真开口'));
+    const d=document.getElementById('spDry');if(d&&document.activeElement!==d)d.checked=!!c['试运行'];
+    const g=document.getElementById('spGap');if(g&&document.activeElement!==g)g.value=c['间隔分钟']||30;
+    const rec=s['记录']||[];
+    const box=document.getElementById('spRec');
+    if(box)box.innerHTML=rec.length?rec.map(function(x){
+      return '<div>'+x.when+' · '+(x.hit?'🎲 中':'· 没中')+(x.roll!=null?('（'+x.roll+'/'+x.line+'）'):'')+' · '+pgEsc(x.note||'')+'</div>';
+    }).join(''):'还没有记录';
+  }
+};
+async function hubSpSave(){
+  const dry=(document.getElementById('spDry')||{}).checked?1:0;
+  const gap=parseInt(((document.getElementById('spGap')||{}).value||'30'),10)||30;
+  await pgCall('speak_up_config','试运行',dry);
+  const r=await pgCall('speak_up_config','间隔分钟',gap);
+  pgToast(r&&r.ok?'已保存':('改不了：'+((r&&(r.error||r.__err))||'')));
+  hubRefresh();
+}
+async function hubSpRoll(){
+  const r=await pgCall('speak_up_roll',1),rec=(r&&r.rec)||{};
+  if(rec.hit)pgToast('🎲 掷中了（'+rec.roll+' < '+rec.line+'）：'+(rec.note||''));
+  else if(rec.roll==null)pgToast('🎲 '+(rec.note||'这次没掷'));
+  else pgToast('🎲 没中（'+rec.roll+' ≥ '+rec.line+'）');
+  hubRefresh();
+}
+async function hubSpReset(){await pgCall('speak_up_reset');pgToast('记录已清空');hubRefresh()}
+
+// ================== 灵魂记忆 ==================
+_hubViews.soul_md={
+  icon:'🧠',name:'灵魂记忆',sub:'人格卡 + 分层记忆 + 按话题召回',
+  mount:function(b){
+    b.innerHTML=
+      '<div class="pg-card"><div class="pg-h"><span>记忆库</span><span class="pg-badge" id="sBadge">…</span></div>'
+      +'<div class="pg-note" id="sStat">读取中…</div><div class="pg-list" id="sTopics" style="margin-top:6px"></div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>话题内容</span></div><div class="pg-view" id="sItems">点上面的话题</div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>测试召回</span></div><div class="pg-row">'
+      +'<input class="pg-input" id="sQ" placeholder="随便说一句，看会想起什么"><button class="opt" onclick="hubSRecall()">召回</button></div>'
+      +'<div class="pg-view" id="sRecall" style="display:none"></div></div>';
+  },
+  refresh:async function(){
+    const r=await pgCall('memory_list');
+    if(!r||r.__err||r.ok===false){pgTxt('sBadge','不可用');pgTxt('sStat',(r&&(r.__err||r.error))||'记忆插件没加载');return}
+    pgTxt('sBadge',(r.topics||[]).length+' 个话题');
+    pgTxt('sStat','人格卡：'+((r.cards||[]).join('、')||'默认')+'　总字数：'+(r.totalChars||0));
+    const box=document.getElementById('sTopics');if(!box)return;
+    box.innerHTML='';
+    (r.topics||[]).forEach(function(t){
+      const it=document.createElement('div');it.className='pg-item';it.style.cursor='pointer';
+      it.innerHTML='<span class="nm">'+pgEsc(t.topic)+'</span><span class="sub">'+t.count+' 条</span>';
+      it.onclick=function(){hubSTopic(t.topic)};
+      box.appendChild(it);
+    });
+    if(!(r.topics||[]).length)box.innerHTML='<div class="pg-note">还没记住什么</div>';
+  }
+};
+async function hubSTopic(t){
+  const box=document.getElementById('sItems');if(!box)return;
+  box.textContent='读取中…';
+  const arr=await pgCall('memory_show',t,60);
+  if(!Array.isArray(arr)){box.textContent='读不到：'+((arr&&(arr.__err||arr.error))||'');return}
+  box.textContent=arr.length?arr.map(function(x){return '· '+(x.when?('['+x.when+'] '):'')+x.text}).join('\n'):'这个话题是空的';
+}
+async function hubSRecall(){
+  const q=((document.getElementById('sQ')||{}).value||'').trim();
+  if(!q){pgToast('先写一句');return}
+  const box=document.getElementById('sRecall');pgShow('sRecall',true);
+  if(box)box.textContent='想一下…';
+  const r=await pgCall('soul_context',q);
+  if(box)box.textContent=(typeof r==='string'&&r)?r:'没想起什么相关的';
+}
+
+// ================== 表情包 ==================
+_hubViews.nekowhale_stickers={
+  icon:'🐱',name:'表情包',sub:'322 张标注好的表情，本地检索',
+  mount:function(b){
+    b.innerHTML=
+      '<div class="pg-card"><div class="pg-h"><span>图库</span><span class="pg-badge" id="kBadge">…</span></div><div class="pg-note" id="kStat">读取中…</div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>找一张</span></div><div class="pg-row">'
+      +'<input class="pg-input" id="kQ" placeholder="摸鱼 / 期待 / 无语 / 累了"><button class="opt" onclick="hubKSearch()">搜</button></div>'
+      +'<div class="pg-thumbs" id="kOut"></div>'
+      +'<div class="pg-note" style="margin-top:6px">搜到就自动下到本地，下过一次以后都在本机。</div></div>';
+  },
+  refresh:async function(){
+    const r=await pgCall('sticker_stats');
+    if(!r||r.__err||r.ok===false){pgTxt('kBadge','不可用');return}
+    pgTxt('kBadge','共 '+(r.total||0)+' 张');
+    pgTxt('kStat','索引 '+(r.total||0)+' 张　已下载 '+(r.cached||0)+' 张　占用 '+(r.mb||0)+' MB');
+  }
+};
+async function hubKSearch(){
+  const q=((document.getElementById('kQ')||{}).value||'').trim();
+  if(!q){pgToast('写个场景或关键词');return}
+  const box=document.getElementById('kOut');if(!box)return;
+  box.innerHTML='<span class="pg-note">搜…</span>';
+  const list=await pgCall('sticker_search',q,'',6);
+  if(!Array.isArray(list)||!list.length){box.innerHTML='<span class="pg-note">没搜到</span>';return}
+  box.innerHTML='';
+  for(const it of list){
+    const loc=await pgCall('sticker_local',it.id);
+    if(!loc||!loc.ok||!loc.path)continue;
+    const src='file:///'+String(loc.path).replace(/\\/g,'/');
+    const img=document.createElement('img');
+    img.src=src;img.title=(it.code||it.name||it.id)+' · '+(it.emotion||'');
+    img.onclick=function(){showLightbox(src)};
+    box.appendChild(img);
+  }
+}
+
+// ================== 插件开关 ==================
+_hubViews.__switches={
+  icon:'⚙',name:'插件开关',sub:'改完重启大肥鱼生效',
+  mount:function(b){
+    b.innerHTML='<div class="pg-card"><div class="pg-h"><span>已装插件</span>'
+      +'<button class="opt" style="padding:3px 10px;font-size:12px" onclick="hubRefresh()">刷新</button></div>'
+      +'<div class="pg-list" id="swList">读取中…</div>'
+      +'<div class="pg-note" style="margin-top:8px">关掉的插件下次启动不再加载；插件之间互不影响，坏一个不拖垮别的。</div></div>';
+  },
+  refresh:async function(){
+    const list=await pgCall('plugin_list');
+    const box=document.getElementById('swList');if(!box)return;
+    if(!Array.isArray(list)){box.textContent='拿不到清单';return}
+    box.innerHTML='';
+    list.forEach(function(p){
+      const n=(p.apis||[]).length;
+      const it=document.createElement('div');it.className='pg-item';
+      it.innerHTML='<input type="checkbox" '+(p.enabled?'checked':'')+(p.ok?'':' disabled')+'>'
+        +'<span class="nm">'+pgEsc(p.name)+' <span class="sub">v'+pgEsc(p.version||'?')
+        +(n?' · '+n+' 个接口':' · 没接口')+(p.ok?'':' · '+pgEsc(p.note||'加载失败'))+'</span></span>'
+        +'<span class="sub">'+pgEsc(p.id)+'</span>';
+      const cb=it.querySelector('input');
+      cb.onchange=function(){hubSwToggle(p.id,this.checked,this)};
+      box.appendChild(it);
+    });
+  }
+};
+async function hubSwToggle(id,on,el){
+  const r=await pgCall('plugin_set_enabled',id,on?1:0);
+  if(r&&r.ok)pgToast(r.note||'已保存，重启后生效');
+  else{pgToast('改不了：'+((r&&(r.error||r.__err))||''));if(el)el.checked=!on}
+}
+
+// ---- 左侧插件停靠栏（点图标直接进插件中心对应页）----
+async function renderPluginDock(){
+  const row=document.getElementById('pluginDockRow');if(!row)return;
+  const list=await pgCall('plugin_list');
+  if(!Array.isArray(list)){
+    row.innerHTML='<span style="font-size:11px;color:var(--text2)">插件没加载</span>';
+    return;
+  }
+  row.innerHTML='';
+  list.filter(function(p){return p.ok&&p.enabled}).forEach(function(p){
+    const b=document.createElement('div');
+    b.className='pd';b.textContent=p.icon||'🧩';b.title=p.name+'（点开插件中心）';
+    b.onclick=function(){openPluginHub(p.id)};
+    row.appendChild(b);
+  });
+  if(!row.children.length)row.innerHTML='<span style="font-size:11px;color:var(--text2)">没有可用插件</span>';
+}
+
+refreshModelSel();setMode('balanced');setLang('zh-CN');setThemeMode('auto');
+async function waitApi(){
+  if(window.pywebview&&window.pywebview.api)return true;
+  for(let i=0;i<300;i++){
+    if(window.pywebview&&window.pywebview.api)return true;
+    await new Promise(r=>setTimeout(r,100));
+  }
+  return !!(window.pywebview&&window.pywebview.api);
+}
+async function boot(){
+  await waitApi();
+  await loadChats();
+  try{renderPluginDock()}catch(e){}
+  // 默认打开主对话
+  if(currentId===null){loadChat('main')}
+  // 恢复保存的设置
+  try{
+    const eng=await window.pywebview.api.load_setting('searchEngine');searchEngine=eng||'duckduckgo';{const es=document.getElementById('engineSel');if(es)es.value=searchEngine}
+    const av=await window.pywebview.api.load_setting('aiAvatar');if(av){setAiAvatar(av)}
+    const tm=await window.pywebview.api.load_setting('themeMode');if(tm){setThemeMode(tm)}else{setThemeMode('auto')};const ws=await window.pywebview.api.load_setting('webSearchOn');webSearchOn=(ws==='1');setSearchState('auto');
+    const mi=await window.pywebview.api.load_setting('mutterMin');const miEl=document.getElementById('mutterMin');if(miEl)miEl.value=mi||'20';
+    const nn=await window.pywebview.api.load_setting('ai_name');const nnEl=document.getElementById('aiNameInput');if(nnEl)nnEl.value=nn||'';
+  }catch(e){setThemeMode('auto')}
+}
+boot();checkConn();render();
+</script>
+
+<div class="modal-mask" id="pluginHub" onclick="if(event.target===this)closePluginHub()">
+  <div class="hub">
+    <aside class="hub-nav">
+      <div class="hub-nav-title">插件</div>
+      <div class="hub-nav-list" id="hubNav"></div>
+      <div class="hub-nav-foot" id="hubFoot">本地运行</div>
+    </aside>
+    <section class="hub-main">
+      <div class="hub-head">
+        <span class="hub-ico" id="hubIco">🧩</span>
+        <div>
+          <div class="hub-name" id="hubName">插件</div>
+          <div class="hub-sub" id="hubSub"></div>
+        </div>
+        <div class="hub-actions">
+          <button class="hub-btn" onclick="hubRefresh()">刷新</button>
+          <button class="hub-btn hub-x" onclick="closePluginHub()" title="关闭">×</button>
+        </div>
+      </div>
+      <div class="hub-body" id="hubBody"></div>
+    </section>
+  </div>
+</div>
+
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out" onclick="this.style.display='none'">
+  <img id="lightboxImg" src="" style="max-width:80%;max-height:80%;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+</div>
+<script>
+function showLightbox(src){document.getElementById('lightboxImg').src=src;document.getElementById('lightbox').style.display='flex'}
+</script>
+</body>
+</html>
