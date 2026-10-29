@@ -19,7 +19,7 @@ DSH（DeepSeek Harness）那套 "everything is a plugin" 的思路做了一版�
 | 插件中心 | 每个插件一个独立页面，界面对齐 DSH |
 | 桌面宠物 | 可选的 tkinter 桌宠，会自己走动、念叨 |
 | 语音朗读 | 走 edge-tts（可选） |
-| 联网检索 | DuckDuckGo / Bing，可开关 |
+| 联网检索 | DuckDuckGo / Bing / 百度，可开关 |
 
 ---
 
