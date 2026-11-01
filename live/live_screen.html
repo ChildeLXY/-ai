@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>大肥鱼 · 直播间画面</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#08060f; }
+  body{
+    font-family:"Microsoft YaHei UI","Microsoft YaHei","PingFang SC",sans-serif;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ===== 舞台：固定 1080x1920 设计稿，等比缩放铺满窗口 ===== */
+  #stage{
+    width:1080px; height:1920px; position:relative; flex-shrink:0;
+    background:
+      radial-gradient(circle at 50% 22%, #1e3a5f 0%, #12172e 38%, #08060f 78%);
+    overflow:hidden;
+    transform-origin:center center;
+  }
+
+  /* 背景光斑 */
+  .glow{ position:absolute; border-radius:50%; filter:blur(90px); opacity:.5; }
+  .glow.a{ width:820px; height:820px; left:-180px; top:-120px;
+           background:radial-gradient(circle,#2f7fd1,transparent 68%); animation:drift 18s ease-in-out infinite; }
+  .glow.b{ width:700px; height:700px; right:-200px; bottom:120px;
+           background:radial-gradient(circle,#7a4dd1,transparent 68%); animation:drift 22s ease-in-out infinite reverse; }
+  @keyframes drift{
+    0%,100%{ transform:translate(0,0) scale(1); }
+    50%    { transform:translate(50px,-40px) scale(1.12); }
+  }
+
+  /* 星点 */
+  .stars{ position:absolute; inset:0; opacity:.35; }
+  .stars i{ position:absolute; width:3px; height:3px; background:#cfe8ff; border-radius:50%;
+            animation:twinkle 3.6s ease-in-out infinite; }
+  @keyframes twinkle{ 0%,100%{opacity:.15;} 50%{opacity:.9;} }
+
+  /* ===== 顶部信息条 ===== */
+  .topbar{
+    position:absolute; top:72px; left:0; right:0;
+    display:flex; align-items:center; justify-content:center; gap:26px;
+    z-index:6;
+  }
+  .badge{
+    display:flex; align-items:center; gap:14px;
+    padding:16px 40px; border-radius:60px;
+    background:rgba(255,255,255,.09);
+    border:2px solid rgba(120,200,255,.32);
+    backdrop-filter:blur(14px);
+  }
+  .dot{ width:18px; height:18px; border-radius:50%; background:#ff3b5c;
+        box-shadow:0 0 20px #ff3b5c; animation:pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1; transform:scale(1);} 50%{opacity:.45; transform:scale(.82);} }
+  .badge span{ font-size:34px; color:#eaf4ff; letter-spacing:3px; font-weight:600; }
+
+  /* 标题 */
+  .title{
+    position:absolute; top:188px; left:0; right:0; text-align:center;
+    font-size:46px; color:#9fd4ff; letter-spacing:5px; z-index:6;
+    text-shadow:0 0 32px rgba(90,180,255,.6);
+  }
+
+  /* ===== 立绘 ===== */
+  .char-wrap{
+    position:absolute; left:50%; top:44%; transform:translate(-50%,-50%);
+    width:960px; z-index:4;
+  }
+  .char{
+    width:100%; display:block;
+    filter:drop-shadow(0 30px 70px rgba(0,0,0,.62));
+    transform-origin:50% 92%;
+    animation:breathe 4.6s ease-in-out infinite;
+    transition:filter .35s ease;
+  }
+  @keyframes breathe{
+    0%,100%{ transform:translateY(0) scale(1); }
+    50%    { transform:translateY(-14px) scale(1.014); }
+  }
+  /* 说话时：浮动加快、光晕变亮 */
+  #stage.speaking .char{
+    animation:talk 1.05s ease-in-out infinite;
+    filter:drop-shadow(0 30px 70px rgba(0,0,0,.62)) drop-shadow(0 0 44px rgba(90,190,255,.5));
+  }
+  @keyframes talk{
+    0%,100%{ transform:translateY(0) scale(1); }
+    50%    { transform:translateY(-24px) scale(1.028); }
+  }
+
+  /* 声波条：只在说话时出现 */
+  .wave{
+    position:absolute; left:50%; bottom:-58px; transform:translateX(-50%);
+    display:flex; align-items:flex-end; gap:12px; height:70px;
+    opacity:0; transition:opacity .3s ease;
+  }
+  #stage.speaking .wave{ opacity:1; }
+  .wave i{
+    width:12px; border-radius:8px;
+    background:linear-gradient(180deg,#7fe3ff,#3b8fe0);
+    animation:bar 1s ease-in-out infinite;
+  }
+  @keyframes bar{
+    0%,100%{ height:14px; opacity:.55; }
+    50%    { height:62px; opacity:1; }
+  }
+
+  /* ===== 字幕 ===== */
+  .sub-wrap{
+    position:absolute; left:70px; right:70px; bottom:250px; z-index:7;
+    display:flex; justify-content:center;
+  }
+  .subtitle{
+    max-width:940px; padding:34px 52px 38px; border-radius:36px;
+    background:rgba(8,14,30,.72);
+    border:2px solid rgba(120,200,255,.26);
+    backdrop-filter:blur(18px);
+    box-shadow:0 20px 70px rgba(0,0,0,.55), inset 0 0 60px rgba(80,160,255,.07);
+    opacity:0; transform:translateY(26px);
+    transition:opacity .42s ease, transform .42s ease;
+  }
+  .subtitle.show{ opacity:1; transform:translateY(0); }
+  .subtitle p{
+    font-size:56px; line-height:1.62; color:#f2f8ff; text-align:center;
+    letter-spacing:1px; text-shadow:0 3px 18px rgba(0,0,0,.6);
+    word-break:break-word;
+  }
+  .caret{ display:inline-block; width:5px; height:52px; margin-left:6px;
+          background:#7fe3ff; vertical-align:-8px; animation:blinkCarets .85s step-end infinite; }
+  @keyframes blinkCarets{ 0%,100%{opacity:1;} 50%{opacity:0;} }
+
+  /* ===== 左下心情 ===== */
+  .mood{
+    position:absolute; left:64px; bottom:96px; z-index:7;
+    display:flex; align-items:center; gap:14px;
+    padding:16px 30px; border-radius:44px;
+    background:rgba(255,255,255,.07);
+    border:2px solid rgba(140,210,255,.2);
+    font-size:30px; color:#bcdcff;
+  }
+
+  /* ===== 右下时长 ===== */
+  .clock{
+    position:absolute; right:64px; bottom:96px; z-index:7;
+    font-size:30px; color:#8fb6d9; letter-spacing:2px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* ===== 底部声明 ===== */
+  .notice{
+    position:absolute; left:0; right:0; bottom:30px; text-align:center; z-index:7;
+    font-size:24px; color:rgba(190,215,245,.42); letter-spacing:4px;
+  }
+
+  /* ===== 未连接提示 ===== */
+  #offline{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:26px; z-index:20;
+    background:rgba(6,8,16,.92); color:#a9c6e4; font-size:40px;
+  }
+  #offline small{ font-size:28px; color:#6f8aa8; }
+  #offline.hide{ display:none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="glow a"></div>
+  <div class="glow b"></div>
+  <div class="stars" id="stars"></div>
+
+  <div class="topbar">
+    <div class="badge"><i class="dot"></i><span>直播中</span></div>
+  </div>
+  <div class="title" id="title">大肥鱼 · 陪你聊会儿</div>
+
+  <div class="char-wrap">
+    <img class="char" id="char" src="/ds图片/bg-dark.png" alt="大肥鱼">
+    <div class="wave" id="wave"></div>
+  </div>
+
+  <div class="sub-wrap">
+    <div class="subtitle" id="subBox"><p id="subText"></p></div>
+  </div>
+
+  <div class="mood" id="mood">🐟 心情：踏实</div>
+  <div class="clock" id="clock">00:00</div>
+  <div class="notice">AI 生成内容 · 请注意甄别</div>
+
+  <div id="offline">
+    <div>等待大肥鱼开播……</div>
+    <small>请先在大肥鱼AI 的「直播」页面点「开始」</small>
+  </div>
+</div>
+
+<script>
+// ---------- 等比缩放铺满 ----------
+function fit(){
+  const s = Math.min(window.innerWidth/1080, window.innerHeight/1920);
+  document.getElementById('stage').style.transform = 'scale(' + s + ')';
+}
+window.addEventListener('resize', fit); fit();
+
+// ---------- 星点 ----------
+(function(){
+  const box = document.getElementById('stars');
+  let html = '';
+  for (let i=0;i<70;i++){
+    const x = Math.random()*100, y = Math.random()*100;
+    const d = (Math.random()*3.6).toFixed(1);
+    html += '<i style="left:'+x+'%;top:'+y+'%;animation-delay:'+d+'s"></i>';
+  }
+  box.innerHTML = html;
+})();
+
+// ---------- 声波条 ----------
+(function(){
+  const wave = document.getElementById('wave');
+  let html = '';
+  for (let i=0;i<9;i++){
+    html += '<i style="animation-delay:'+(i*0.09).toFixed(2)+'s"></i>';
+  }
+  wave.innerHTML = html;
+})();
+
+// ---------- 状态 ----------
+const stage  = document.getElementById('stage');
+const subBox = document.getElementById('subBox');
+const subTxt = document.getElementById('subText');
+const clock  = document.getElementById('clock');
+const moodEl = document.getElementById('mood');
+const offline= document.getElementById('offline');
+
+let typingTimer = null;
+let hideTimer   = null;
+let curText     = '';
+let startedAt   = null;
+
+// 打字机
+function typeOut(text){
+  clearInterval(typingTimer);
+  clearTimeout(hideTimer);
+  curText = text || '';
+  subBox.classList.add('show');
+  let i = 0;
+  subTxt.innerHTML = '<span class="caret"></span>';
+  typingTimer = setInterval(function(){
+    i++;
+    if (i >= curText.length){
+      clearInterval(typingTimer);
+      subTxt.innerHTML = curText;
+      return;
+    }
+    subTxt.innerHTML = curText.slice(0,i) + '<span class="caret"></span>';
+  }, 78);
+}
+
+function clearSub(){
+  clearInterval(typingTimer);
+  hideTimer = setTimeout(function(){ subBox.classList.remove('show'); }, 2600);
+}
+
+function fmt(sec){
+  const m = Math.floor(sec/60), s = sec%60;
+  return (m<10?'0':'')+m + ':' + (s<10?'0':'')+s;
+}
+
+// 每秒刷新时长
+setInterval(function(){
+  if (startedAt !== null){
+    clock.textContent = fmt(Math.floor((Date.now()-startedAt)/1000));
+  }
+}, 1000);
+
+// ---------- SSE ----------
+// ?still=1 时进入静态模式：只拉一次状态、不建长连接（供截图/预览用）
+const STILL = location.search.indexOf('still') >= 0;
+
+function connect(){
+  const es = new EventSource('/events');
+  es.onmessage = function(e){
+    let d;
+    try { d = JSON.parse(e.data); } catch(err){ return; }
+    offline.classList.add('hide');
+
+    if (d.title) document.getElementById('title').textContent = d.title;
+    if (d.mood_label) moodEl.textContent = '🐟 心情：' + d.mood_label;
+    if (typeof d.seconds === 'number') startedAt = Date.now() - d.seconds*1000;
+
+    if (d.text && d.text !== curText){
+      stage.classList.add('speaking');
+      typeOut(d.text);
+    }
+    if (d.speaking === false){
+      stage.classList.remove('speaking');
+      clearSub();
+    } else if (d.speaking === true){
+      stage.classList.add('speaking');
+    }
+  };
+  es.onerror = function(){
+    // EventSource 会自己重连，这里只在长时间断开时提示
+    setTimeout(function(){
+      if (es.readyState === EventSource.CLOSED) offline.classList.remove('hide');
+    }, 4000);
+  };
+}
+if (!STILL) connect();
+
+// 兜底/静态：直接拉一次状态（SSE 出问题也能显示）
+fetch('/state').then(r=>r.json()).then(function(d){
+  if (!d) return;
+  offline.classList.add('hide');
+  if (d.title) document.getElementById('title').textContent = d.title;
+  if (d.mood_label) moodEl.textContent = '🐟 心情：' + d.mood_label;
+  if (typeof d.seconds === 'number') startedAt = Date.now() - d.seconds*1000;
+  if (d.speaking) stage.classList.add('speaking');
+  if (d.text) typeOut(d.text);
+}).catch(function(){});
+</script>
+</body>
+</html>

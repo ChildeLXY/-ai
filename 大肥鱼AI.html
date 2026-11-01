@@ -1442,6 +1442,101 @@ async function hubKSearch(){
 }
 
 // ================== 插件开关 ==================
+// ================== 大肥鱼直播 ==================
+_hubViews.live_cast={
+  icon:'🎙',name:'大肥鱼直播',sub:'AI 自己开播，闲聊陪伴',
+  mount:function(b){
+    b.innerHTML=
+      '<div class="pg-card">'
+      +'<div class="pg-h"><span>直播状态</span><span class="pg-badge" id="lcBadge">未开播</span></div>'
+      +'<div class="pg-note" id="lcStat">还没开始。点「开播」之后它会自己找话说。</div>'
+      +'<div class="pg-view" id="lcLine" style="margin-top:8px;min-height:46px">—</div>'
+      +'<div class="pg-row"><button class="opt" onclick="hubLiveStart()">开播</button>'
+      +'<button class="opt" onclick="hubLiveStop()">停播</button>'
+      +'<button class="opt" onclick="hubLiveScreen()">打开直播画面</button></div>'
+      +'<div class="pg-note" id="lcErr" style="color:#e06c75;margin-top:6px"></div>'
+      +'</div>'
+      +'<div class="pg-card"><div class="pg-h"><span>让它说一句</span></div>'
+      +'<div class="pg-row"><input class="pg-input" id="lcSay" placeholder="临时接管，插一句话进去" '
+      +'onkeydown="if(event.key===\'Enter\')hubLiveSay()">'
+      +'<button class="opt" onclick="hubLiveSay()">发送</button></div>'
+      +'<div class="pg-note">不打断循环，当前这句念完就轮到它。</div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>设置</span></div>'
+      +'<div class="pg-row"><span class="pg-note" style="margin:0;min-width:64px">音色</span>'
+      +'<select class="pg-input" id="lcVoice" onchange="hubLiveCfg(\'live_voice\',this.value)"></select></div>'
+      +'<div class="pg-row"><span class="pg-note" style="margin:0;min-width:64px">句间停顿</span>'
+      +'<input class="pg-num" id="lcGapMin" type="number" min="1" max="120" onchange="hubLiveCfg(\'live_gap_min\',this.value)">'
+      +'<span class="pg-note" style="margin:0">~</span>'
+      +'<input class="pg-num" id="lcGapMax" type="number" min="1" max="120" onchange="hubLiveCfg(\'live_gap_max\',this.value)">'
+      +'<span class="pg-note" style="margin:0">秒</span></div>'
+      +'<div class="pg-row"><span class="pg-note" style="margin:0;min-width:64px">标题</span>'
+      +'<input class="pg-input" id="lcTitle" onchange="hubLiveCfg(\'live_title\',this.value)"></div>'
+      +'<div class="pg-note">模型固定用 qwen2.5vl:7b（qwen3:4b 在本机会复述任务，不适合直播）。</div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>怎么真的开播</span></div>'
+      +'<div class="pg-note">① 点「打开直播画面」→ 浏览器按 <b>F11</b> 全屏<br>'
+      +'② 装抖音「直播伴侣」→ 添加来源 → <b>窗口捕获</b> → 选这个浏览器窗口<br>'
+      +'③ 声音：装 <b>VB-CABLE</b> 虚拟声卡，直播伴侣麦克风选 <b>CABLE Output</b><br>'
+      +'④ 画面已标注「AI 生成内容」——抖音要求这么做，别删</div></div>';
+    hubLiveVoices();
+  },
+  refresh:async function(){ await hubLiveRefresh(); }
+};
+
+async function hubLiveVoices(){
+  const r=await pgCall('live_voices');
+  const sel=document.getElementById('lcVoice');
+  if(!sel||!Array.isArray(r))return;
+  sel.innerHTML=r.map(function(v){
+    return '<option value="'+pgEsc(v.id)+'">'+pgEsc(v.name)+'</option>';
+  }).join('');
+}
+
+async function hubLiveRefresh(){
+  const s=await pgCall('live_state');
+  if(!s||s.__err){pgTxt('lcBadge','读不到');return}
+  pgTxt('lcBadge',s.running?'直播中':'未开播');
+  const mm=Math.floor((s.seconds||0)/60), ss=(s.seconds||0)%60;
+  pgTxt('lcStat',(s.running?'已播 ':'')+mm+' 分 '+(ss<10?'0':'')+ss+' 秒 · 已说 '+(s.lines||0)+' 句 · 队列 '+(s.queued||0));
+  const ln=document.getElementById('lcLine');
+  if(ln)ln.textContent=s.text?('「'+s.text+'」'):'—';
+  pgTxt('lcErr',s.last_err||'');
+  if(document.getElementById('lcVoice'))document.getElementById('lcVoice').value=s.voice||'';
+  if(document.getElementById('lcGapMin'))document.getElementById('lcGapMin').value=s.gap_min||3;
+  if(document.getElementById('lcGapMax'))document.getElementById('lcGapMax').value=s.gap_max||8;
+  const t=document.getElementById('lcTitle');
+  if(t&&document.activeElement!==t)t.value=s.title||'';
+}
+
+async function hubLiveStart(){
+  const r=await pgCall('live_start');
+  if(!r||r.ok===false){pgToast((r&&r.msg)||'开播失败');return}
+  pgToast(r.msg||'开播了');hubLiveRefresh();
+}
+async function hubLiveStop(){
+  const r=await pgCall('live_stop');
+  pgToast((r&&r.msg)||'已停播');hubLiveRefresh();
+}
+async function hubLiveScreen(){
+  const r=await pgCall('live_open_screen');
+  pgToast((r&&r.msg)||(r&&r.url)||'打不开');
+}
+async function hubLiveSay(){
+  const el=document.getElementById('lcSay');
+  if(!el||!el.value.trim()){pgToast('先写一句');return}
+  const r=await pgCall('live_say',el.value.trim());
+  pgToast((r&&r.msg)||'已发送');el.value='';
+}
+async function hubLiveCfg(k,v){
+  const r=await pgCall('live_config',k,v);
+  if(!r||r.ok===false){pgToast((r&&r.msg)||'改不了');return}
+  pgToast('已保存');hubLiveRefresh();
+}
+
+// 直播页开着时每 2 秒刷一次状态
+setInterval(function(){
+  if(_hubOpen && _hubPid==='live_cast') hubLiveRefresh();
+}, 2000);
+
 _hubViews.__switches={
   icon:'⚙',name:'插件开关',sub:'改完重启大肥鱼生效',
   mount:function(b){
