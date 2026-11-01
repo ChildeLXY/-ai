@@ -139,6 +139,8 @@ pg-badge / pg-input / pg-num / pg-chk / pg-thumbs / pg-bar / pg-item / pg-list`�
 
 ## 大肥鱼直播（live_cast）
 
+![直播画面预览](../live/preview.jpg)
+
 让大肥鱼自己对着镜头说话。选这个话题是因为**它不需要抓任何平台的数据**——数据源是它自己，
 所以没有抖音那套签名、风控、协议变更的麻烦。
 
