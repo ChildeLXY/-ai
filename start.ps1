@@ -3,6 +3,12 @@ $ollamaPath = "D:\本地部署大肥鱼环境\program\ollama.exe"
 $env:OLLAMA_MODELS = "D:\本地部署大肥鱼环境\models"
 $env:OLLAMA_ORIGINS = "*"
 $env:OLLAMA_CACHE = "D:\大肥鱼缓存"
+# 8GB 显卡（RTX 4060 Laptop）跑 7B + 8192 上下文时，不优化的话模型有 0.6GB 会被挤到内存里跑，
+# 生成速度掉三成。开闪存注意力 + 把 KV cache 量化成 q8_0 后，模型占 5.00GB 全部在显存内，零溢出。
+# 注意：如果以后 ollama 报 502 "upstream connect failed"，先检查是不是开着系统代理——
+# 代理变量会被 ollama 继承，导致它连接自己拉起的 runner 时被拐走。
+$env:OLLAMA_FLASH_ATTENTION = "1"
+$env:OLLAMA_KV_CACHE_TYPE = "q8_0"
 
 Set-Location "D:\"
 

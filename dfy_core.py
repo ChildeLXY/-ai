@@ -22,6 +22,7 @@ import threading
 import subprocess
 import urllib.parse
 import urllib.request
+import llm_params          # num_ctx / keep_alive 的唯一来源
 
 FROZEN = bool(getattr(sys, "frozen", False))
 APP_DIR = os.path.dirname(os.path.abspath(sys.executable if FROZEN else __file__))
@@ -487,10 +488,11 @@ _CHITCHAT_HINT = re.compile(
 
 
 def _ollama_chat_once(messages, model, timeout=30, num_predict=32, think=None, include_think=True):
-    payload = {"model": model, "messages": messages, "stream": False,
-               "options": {"temperature": 0, "num_predict": num_predict}}
-    if think is not None:
-        payload["think"] = think
+    # num_ctx 必须和主对话一致（走 llm_params），否则 Ollama 会为这一个请求
+    # 把整个模型重载一遍，实测每次白花约 4 秒
+    payload = llm_params.payload(model, messages, stream=False,
+                                 num_predict=num_predict, temperature=0,
+                                 think=think)
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
                                  headers={"Content-Type": "application/json"})
@@ -574,10 +576,11 @@ def repo_search(query, engine="duckduckgo", model="qwen3:4b", history=None, forc
 
 
 # ============ 流式对话 ============
-def ollama_stream(messages, model, num_ctx=8192, keep_alive="10m", timeout=600):
+def ollama_stream(messages, model, num_ctx=None, keep_alive=None, timeout=600):
     """逐行产出 {content, thinking, done}。迭代器被中途关闭即中止生成。"""
     payload = {"model": model, "messages": messages, "stream": True,
-               "keep_alive": keep_alive, "options": {"num_ctx": num_ctx}}
+               "keep_alive": keep_alive or llm_params.KEEP_ALIVE,
+               "options": {"num_ctx": num_ctx or llm_params.NUM_CTX}}
     # qwen3 / deepseek-r1 默认会先输出思维链；2026-10-28 按主人要求关掉，直接说话
     m = (model or "").lower()
     if "qwen3" in m or "r1" in m:
@@ -1266,14 +1269,11 @@ def agent_decide(task, history="", step=0):
             "屏幕分辨率 %dx%d。谨慎操作，不要点删除/确认删除这类危险按钮。" % (sw["w"], sw["h"])
         )
         user_msg = "用户任务：" + task + "\n历史步骤：" + (history or "无") + "\n第%d步。现在截图如上，下一步做什么？只输出JSON。" % step
-        payload = {
-            "model": "qwen2.5vl:7b",
-            "messages": [
-                {"role": "system", "content": sys_p},
-                {"role": "user", "content": user_msg, "images": [img_b64]}
-            ],
-            "stream": False, "options": {"num_predict": 300, "temperature": 0.1}
-        }
+        payload = llm_params.payload(
+            "qwen2.5vl:7b",
+            [{"role": "system", "content": sys_p},
+             {"role": "user", "content": user_msg, "images": [img_b64]}],
+            stream=False, num_predict=300, temperature=0.1)
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
                                      headers={"Content-Type": "application/json"})

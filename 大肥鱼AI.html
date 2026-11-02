@@ -538,7 +538,7 @@ async function preloadModel(){
   const m=MODELS.find(x=>x.id===MODEL);txt.textContent='正在加载 '+(m?m.short:MODEL)+'...';
   let w=15;const anim=setInterval(()=>{if(w<80){w+=2;bar.style.width=w+'%'}else{clearInterval(anim)}},300);
   // num_ctx 必须和正式对话一致（8192），否则 ollama 会按默认上下文加载一次、真正聊天时再重载一遍
-  try{await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,messages:[{role:'user',content:'.'}],stream:false,keep_alive:'10m',options:{num_predict:1,num_ctx:8192}})})}catch(e){}
+  try{await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,messages:[{role:'user',content:'.'}],stream:false,keep_alive:'60m',options:{num_predict:1,num_ctx:8192}})})}catch(e){}
   const check=setInterval(async()=>{
     try{
       const ps=await fetch('http://localhost:11434/api/ps');const pd=await ps.json();
@@ -1082,7 +1082,7 @@ async function send(){
   try{
     const _opts={num_ctx:8192,temperature:dtTemp};
     if(dtMax>0)_opts.num_predict=dtMax;
-    const _body={model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...buildHistMsgs()],stream:true,keep_alive:'10m',options:_opts};
+    const _body={model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...buildHistMsgs()],stream:true,keep_alive:'60m',options:_opts};
     if(dtThink)_body.think=true;                 // 开深度思考且模型支持时才带，避免 400
     const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:abortCtrl.signal,
       body:JSON.stringify(_body)});

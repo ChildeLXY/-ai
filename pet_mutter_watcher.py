@@ -5,6 +5,7 @@
 由桌宠(dsh-pet)的原生气泡显示。本脚本不弹窗、不碰桌宠本体。
 """
 import os, json, time, datetime, urllib.request, re
+import llm_params          # num_ctx / keep_alive 的唯一来源
 
 _DATA_DIR = os.environ.get("DFY_DATA_DIR") or r"D:\本地部署大肥鱼环境\data"
 _CACHE_DIR = os.environ.get("DFY_CACHE_DIR") or r"D:\大肥鱼缓存"
@@ -46,8 +47,9 @@ def ask_ollama():
         "只输出那句话本身，不要引号、不要解释、不要思考过程。\n"
         "你对用户的了解：" + (facts or "你还不太了解他")
     )
-    body = json.dumps({"model": MODEL, "messages": [{"role": "user", "content": prompt}],
-                        "stream": False, "options": {"num_predict": 80}}).encode("utf-8")
+    body = json.dumps(llm_params.payload(
+        MODEL, [{"role": "user", "content": prompt}],
+        stream=False, num_predict=80)).encode("utf-8")
     req = urllib.request.Request(OLLAMA + "/api/chat", data=body,
                                  headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=90) as r:

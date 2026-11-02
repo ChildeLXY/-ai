@@ -11,6 +11,7 @@ import sys
 import re
 import base64
 import datetime
+import llm_params          # num_ctx / keep_alive 的唯一来源，改动前先看那个文件
 import socket
 
 # 单实例锁：防止多个窗口同时运行互相覆盖聊天记录
@@ -584,11 +585,13 @@ def _ollama_chat_once(messages, model, timeout=30, num_predict=32, think=None):
 
     think=False 可关掉思考型模型（deepseek-r1）的思维链，让预判从 10~20s 降到秒级。
     content 和 thinking 拼起来一起取，防止内容被塞进思维链里。
+
+    num_ctx 必须和主对话一致（走 llm_params），否则 Ollama 会为这一个请求
+    把整个模型重载一遍，实测每次白花约 4 秒。
     """
-    payload = {"model": model, "messages": messages, "stream": False,
-               "options": {"temperature": 0, "num_predict": num_predict}}
-    if think is not None:
-        payload["think"] = think
+    payload = llm_params.payload(model, messages, stream=False,
+                                 num_predict=num_predict, temperature=0,
+                                 think=think)
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
                                  headers={"Content-Type": "application/json"})
@@ -820,14 +823,11 @@ def agent_decide(task, history="", step=0):
             "屏幕分辨率 %dx%d。谨慎操作，不要点删除/确认删除这类危险按钮。" % (sw["w"], sw["h"])
         )
         user_msg = "用户任务：" + task + "\n历史步骤：" + (history or "无") + "\n第%d步。现在截图如上，下一步做什么？只输出JSON。" % step
-        payload = {
-            "model": "qwen2.5vl:7b",
-            "messages": [
-                {"role": "system", "content": sys_p},
-                {"role": "user", "content": user_msg, "images": [img_b64]}
-            ],
-            "stream": False, "options": {"num_predict": 300, "temperature": 0.1}
-        }
+        payload = llm_params.payload(
+            "qwen2.5vl:7b",
+            [{"role": "system", "content": sys_p},
+             {"role": "user", "content": user_msg, "images": [img_b64]}],
+            stream=False, num_predict=300, temperature=0.1)
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
                                      headers={"Content-Type": "application/json"})
@@ -942,11 +942,10 @@ def tts_speak(text):
 def gen_title(first_msg, model="qwen3:4b"):
     """Ask Ollama to generate a short title for the conversation."""
     try:
-        data = json.dumps({
-            "model": model,
-            "messages": [{"role": "user", "content": "用不超过8个字数概括这句话的主题，只输出标题：" + first_msg[:100]}],
-            "stream": False
-        }).encode("utf-8")
+        data = json.dumps(llm_params.payload(
+            model,
+            [{"role": "user", "content": "用不超过8个字数概括这句话的主题，只输出标题：" + first_msg[:100]}],
+            stream=False, num_predict=40)).encode("utf-8")
         req = urllib.request.Request("http://localhost:11434/api/chat", data=data, headers={"Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=30) as r:
             result = json.loads(r.read().decode("utf-8"))
@@ -1151,13 +1150,9 @@ def reflect_memory(conv_text, model="qwen3:4b"):
             "已经记录过的不要重复；如果没有新的长期事实，只输出 NONE。\n"
             "已记录：" + (facts_now or "无") + "\n\n对话：\n" + conv_text
         )
-        data = json.dumps({
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "think": False,
-            "options": {"num_predict": 200}
-        }).encode("utf-8")
+        data = json.dumps(llm_params.payload(
+            model, [{"role": "user", "content": prompt}],
+            stream=False, num_predict=200, think=False)).encode("utf-8")
         req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
                                      headers={"Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=60) as r:
@@ -1204,12 +1199,9 @@ def pet_mutter(model="qwen3:4b"):
             "只输出那句话本身，不要引号、不要解释。\n"
             "你对用户的了解：" + (facts or "你还不太了解他")
         )
-        data = json.dumps({
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "options": {"num_predict": 60}
-        }).encode("utf-8")
+        data = json.dumps(llm_params.payload(
+            model, [{"role": "user", "content": prompt}],
+            stream=False, num_predict=60)).encode("utf-8")
         req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
                                      headers={"Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=60) as r:
@@ -1230,11 +1222,9 @@ def gen_persona(style, model="qwen3:4b"):
             "要求：80~150字，中文，描述这个AI的性格、语气、说话习惯、与用户的关系；"
             "不要分点、不要解释，直接输出那段设定文字本身。"
         )
-        data = json.dumps({
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False, "options": {"num_predict": 250}
-        }).encode("utf-8")
+        data = json.dumps(llm_params.payload(
+            model, [{"role": "user", "content": prompt}],
+            stream=False, num_predict=250)).encode("utf-8")
         req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
                                      headers={"Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=90) as r:
@@ -1250,12 +1240,10 @@ def test_persona(persona, user_msg, model="qwen3:4b"):
     try:
         sys_p = ("你是大肥鱼AI，开发者 Childe，运行在用户本地电脑上。"
                  "必须严格按以下人格设定回应：\n" + (persona or "（未设置人格，正常回答）"))
-        data = json.dumps({
-            "model": model,
-            "messages": [{"role": "system", "content": sys_p},
-                         {"role": "user", "content": user_msg}],
-            "stream": False, "options": {"num_predict": 150}
-        }).encode("utf-8")
+        data = json.dumps(llm_params.payload(
+            model, [{"role": "system", "content": sys_p},
+                    {"role": "user", "content": user_msg}],
+            stream=False, num_predict=150)).encode("utf-8")
         req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
                                      headers={"Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=90) as r:
