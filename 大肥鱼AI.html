@@ -412,13 +412,13 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
 </div>
 <script>
 const API='http://localhost:11434';
-const MODELS=[{id:'qwen3:4b',short:'快速',full:'Qwen3 - 4B（推荐，快）'},{id:'qwen3:8b',short:'深度',full:'Qwen3 - 8B（更强，稍慢）'},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（慢，爱推理）'},{id:'qwen3:30b',short:'深度ProMax',full:'Qwen3 - 30B（最强，较慢，需18G内存）'}];
-let MODEL='qwen3:4b',displayMode='balanced',replyLang='zh-CN';
+const MODELS=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐：说话自然、会挑表情包）'},{id:'qwen3:4b',short:'快速',full:'Qwen3 - 4B（最快，但不爱挑表情包）'},{id:'qwen3:8b',short:'深度',full:'Qwen3 - 8B（更强，稍慢）'},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（慢，爱推理）'},{id:'qwen3:30b',short:'深度ProMax',full:'Qwen3 - 30B（最强，较慢，需18G内存）'}];
+let MODEL='qwen2.5vl:7b',displayMode='balanced',replyLang='zh-CN';
 let msgs=[],busy=false,abortCtrl=null,chats=[],currentId=null,webSearchOn=false,searchEngine='duckduckgo',pendingFiles=[],kbOn=false,chatsLoaded=false,wbOn=false,wbStop=false;
 const HIST_TURNS=16;  // 送进模型的最近消息条数，防止长对话越聊越慢
 const LANG_PROMPT={'zh-CN':'请始终使用简体中文回答。','zh-TW':'請始終使用繁體中文回答。','en':'Please always respond in English.','ja':'常に日本語で回答してください。'};
 function refreshModelSel(){const sel=document.getElementById('modelSel');sel.innerHTML='';MODELS.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=displayMode==='pro'?m.full:m.short;if(m.id===MODEL)o.selected=true;sel.appendChild(o)});sel.value=MODEL}
-async function changeModel(){MODEL=document.getElementById('modelSel').value;await preloadModel()}
+async function changeModel(){MODEL=document.getElementById('modelSel').value;await preloadModel();try{await window.pywebview.api.save_setting('model',MODEL)}catch(e){}}
 async function preloadModel(){
   const bar=document.getElementById('mlbar');const txt=document.getElementById('mlbarText');
   bar.classList.add('show');txt.classList.add('show');bar.style.width='15%';
@@ -752,6 +752,24 @@ function toggleAiAvatar(){const cur=getAiAvatar();setAiAvatar(cur==='avatar.jpg'
 function setAiAvatar(f){_aiAv=f;window.pywebview.api.save_setting('aiAvatar',f);document.getElementById('aiAv1').style.borderColor=f==='avatar.jpg'?'var(--accent)':'transparent';document.getElementById('aiAv2').style.borderColor=f==='avatar2.jpg'?'var(--accent)':'transparent';render()}
 var _aiAv='avatar.jpg';function getAiAvatar(){return _aiAv}
 function uploadAvatar(input){const f=input.files[0];if(!f)return;if(f.size>5*1024*1024){alert('图片不能超过5MB');return;}const reader=new FileReader();reader.onload=function(){const b64=reader.result.split(',')[1];window.pywebview.api.save_avatar(b64,f.name).then(()=>{render();const p=document.getElementById('previewAvatar');if(p){p.src='ds图片/user_avatar.jpg?t='+Date.now();p.style.display=''}alert('替换成功');input.value=''})};reader.readAsDataURL(f)}
+// 把回复末尾（或任意位置）的 [表情包名] 换成本地图片。
+// 返回 true 表示成功挂上；只有代号没有正文也算成功（气泡里只显示图）。
+async function applyStickerTag(ai){
+  try{
+    const t=ai.content||'';
+    // 优先认结尾的代号（容忍后面的句号/波浪号等），否则取全文最后一个
+    let mm=t.match(/\[([^\]\[]{1,24})\]\s*[。．.!！?？~～…]*\s*$/);
+    if(!mm){const all=[...t.matchAll(/\[([^\]\[]{1,24})\]/g)];if(all.length)mm=all[all.length-1];}
+    if(!mm)return false;
+    const sr=await window.pywebview.api.sticker_search(mm[1],'',1);
+    if(!sr||!sr.length)return false;            // 代号对不上任何一张图：当普通文字保留
+    const loc=await window.pywebview.api.sticker_local(sr[0].id);
+    if(!loc||!loc.ok||!loc.path)return false;   // 图没取到：不动原文，避免丢字
+    ai.sticker='file:///'+String(loc.path).replace(/\\/g,'/');
+    ai.content=(t.slice(0,mm.index)+t.slice(mm.index+mm[0].length)).trim();
+    return true;
+  }catch(e){return false}
+}
 async function send(){
   const inp=document.getElementById('input'),text=inp.value.trim();
   if(!text||busy)return;
@@ -842,7 +860,7 @@ async function send(){
   }catch(e){}
   try{
     const sh=await window.pywebview.api.sticker_hint(text,4);
-    if(sh)sysInject+='\n\n【你现在能用的表情包（想用就在回复最后单独写一行代号，例如 [摸鱼]；不想用就一个都别写，也不要凭空编造代号）】\n'+sh;
+    if(sh)sysInject+='\n\n【表情包】下面这几张你这次用得上，想配就在回复最后另起一行写它的名字（方括号括住，只写名字），不想配就不写，别勉强、也别自己编名字：\n'+sh;
   }catch(e){}
   try{
     const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:abortCtrl.signal,
@@ -853,20 +871,22 @@ async function send(){
   }catch(e){if(abortCtrl.signal.aborted){ai.content+='\n\n*[已停止]*'}else{ai.content='⚠️ 错误：'+e.message}}
   ai.pending=false;busy=false;toggleBtn();
   // —— 插件：回复里写了表情包代号就换成真图 ——
+  await applyStickerTag(ai);
+  saveCurrentChat();render();
+  // —— 插件：模型没写代号时，单独让它挑一张（异步补图，不挡正文显示） ——
   try{
-    const mm=(ai.content||'').match(/\[([^\]\[]{1,24})\]\s*$/);
-    if(mm){
-      const sr=await window.pywebview.api.sticker_search(mm[1],'',1);
-      if(sr&&sr.length){
-        const loc=await window.pywebview.api.sticker_local(sr[0].id);
-        if(loc&&loc.ok&&loc.path){
-          ai.sticker='file:///'+String(loc.path).replace(/\\/g,'/');
-          ai.content=ai.content.replace(/\[[^\]\[]{1,24}\]\s*$/,'').trim();
+    const t=(ai.content||'');
+    const longReply=t.length>220;               // 长篇/正式回答不挂表情包
+    const bad=t.startsWith('⚠️')||t.startsWith('*[')||!t.trim();
+    if(!ai.sticker&&!longReply&&!bad){
+      window.pywebview.api.sticker_pick(text,t.slice(0,600),4,MODEL).then(function(pk){
+        if(pk&&pk.ok&&pk.path&&!ai.sticker){
+          ai.sticker='file:///'+String(pk.path).replace(/\\/g,'/');
+          render();saveCurrentChat();
         }
-      }
+      }).catch(function(){});
     }
   }catch(e){}
-  saveCurrentChat();render();
   // —— 插件：每轮判一次心情、记一下"它说过话了" ——
   try{window.pywebview.api.mood_judge(text,(ai.content||'').slice(0,2000),'chat');window.pywebview.api.speak_up_note_spoke()}catch(e){}
   try{updateMoodWidget()}catch(e){}
@@ -1609,6 +1629,7 @@ async function boot(){
     const tm=await window.pywebview.api.load_setting('themeMode');if(tm){setThemeMode(tm)}else{setThemeMode('auto')};const ws=await window.pywebview.api.load_setting('webSearchOn');webSearchOn=(ws==='1');setSearchState('auto');
     const mi=await window.pywebview.api.load_setting('mutterMin');const miEl=document.getElementById('mutterMin');if(miEl)miEl.value=mi||'20';
     const nn=await window.pywebview.api.load_setting('ai_name');const nnEl=document.getElementById('aiNameInput');if(nnEl)nnEl.value=nn||'';
+    const md=await window.pywebview.api.load_setting('model');if(md&&MODELS.some(m=>m.id===md)){MODEL=md;refreshModelSel()}
   }catch(e){setThemeMode('auto')}
 }
 boot();checkConn();render();

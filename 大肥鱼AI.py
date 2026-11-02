@@ -992,7 +992,8 @@ def save_setting(key, value):
         data = {}
         if os.path.exists(sp):
             import json
-            data = json.load(open(sp, encoding='utf-8'))
+            # utf-8-sig：文件被记事本/PowerShell 写过就可能带 BOM，用 utf-8 读会直接抛错
+            data = json.load(open(sp, encoding='utf-8-sig'))
         data[key] = value
         import json
         json.dump(data, open(sp, 'w', encoding='utf-8'))
@@ -1005,7 +1006,8 @@ def load_setting(key):
         sp = _settings_file()
         if os.path.exists(sp):
             import json
-            data = json.load(open(sp, encoding='utf-8'))
+            # 兼容带 BOM 的文件，否则 json 解析会失败、所有设置读出来都是空
+            data = json.load(open(sp, encoding='utf-8-sig'))
             return data.get(key, "")
         return ""
     except:
@@ -1570,6 +1572,33 @@ _SELFTEST_JS = r"""
 """
 
 
+_CHATTEST_JS = r"""
+(() => {
+  window.__chattest = {done:false, stage:'send'};
+  (async () => {
+    const st = window.__chattest;
+    try{
+      try{ closePluginHub && closePluginHub(); }catch(_){}
+      const inp = document.getElementById('input');
+      inp.value = '今天加班到十点，好累啊';
+      await send();
+      st.stage = 'sent';
+      for (let i = 0; i < 24; i++){
+        await new Promise(r => setTimeout(r, 500));
+        const last = msgs[msgs.length-1] || {};
+        if (last.sticker){ st.sticker = last.sticker; break; }
+      }
+      const last = msgs[msgs.length-1] || {};
+      st.content = (last.content || '').slice(0, 100);
+      st.sticker = st.sticker || last.sticker || '';
+      st.model = MODEL;
+      st.saved = await window.pywebview.api.save_setting('model', MODEL);
+      st.readback = await window.pywebview.api.load_setting('model');
+      st.done = true;
+    }catch(e){ st.err = String(e); st.done = true; }
+  })();
+})();
+"""
 _HUBTEST_JS = r"""
 (() => {
   window.__hubtest = {done:false, res:{}};
@@ -1673,6 +1702,20 @@ def _run_selftest():
         else:
             data["eval_error"] = "evaluate_js 超时（12s 未返回）"
 
+        # 真实发一句话，看表情包会不会挂上（仅 DFY_CHATTEST=1）
+        if os.environ.get("DFY_CHATTEST") == "1":
+            try:
+                window.evaluate_js(_CHATTEST_JS)
+                got = None
+                for _i in range(120):
+                    time.sleep(1)
+                    got = window.evaluate_js("JSON.stringify(window.__chattest||{})")
+                    if got and '"done":true' in got:
+                        break
+                data["chattest"] = got or "超时"
+            except Exception:
+                data["chattest_error"] = _tb.format_exc()
+
         # 逐个插件页面真实渲染（仅 DFY_HUBTEST=1 时跑，用来验证插件中心）
         if os.environ.get("DFY_HUBTEST") == "1":
             try:
@@ -1697,7 +1740,11 @@ def _run_selftest():
         if _shot:
             try:
                 _pid = "" if _shot == "1" else _shot
-                window.evaluate_js("openPluginHub(%s)" % json.dumps(_pid, ensure_ascii=False))
+                # 聊天测试时截的是对话界面，不能再把插件中心弹出来
+                if os.environ.get("DFY_CHATTEST") != "1":
+                    window.evaluate_js("openPluginHub(%s)" % json.dumps(_pid, ensure_ascii=False))
+                else:
+                    window.evaluate_js("try{closePluginHub()}catch(e){}")
                 try:
                     _h0 = int(window.hwnd)
                     ctypes.windll.user32.ShowWindow(_h0, 9)          # SW_RESTORE

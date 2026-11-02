@@ -289,7 +289,7 @@ def sticker_search(query, emotion="", limit=6):
     for sc, it in scored[:max(1, min(n, 30))]:
         lp = _local_path(it)
         out.append({
-            "id": it["id"], "name": it["name"], "pack": it["pack"],
+            "id": it["id"], "code": it.get("code", ""), "name": it["name"], "pack": it["pack"],
             "emotion": it["emotion"], "tags": it["tags"],
             "use": it["use"], "desc": it["desc"], "meme": it["meme"],
             "file": it["file"], "hash": it["hash"],
@@ -348,8 +348,13 @@ def sticker_hint(text, limit=4):
         return ""
     lines = []
     for r in res:
-        lines.append("[%s] %s — %s" % (
-            r.get("code") or r.get("name"), r.get("name"), r.get("use") or r.get("desc", "")[:30]))
+        code = r.get("name") or r.get("code")   # 用中文名当代号：模型照抄最准，反查也稳
+        use = (r.get("use") or r.get("desc") or "").strip()
+        # 去掉描述开头的重复名字，避免 "[摸鱼] 摸鱼 — ..." 这种冗余
+        name = r.get("name") or ""
+        if name and use.startswith(name):
+            use = use[len(name):].lstrip(" —-·、")
+        lines.append("[%s] %s" % (code, use[:40] or name))
     return "\n".join(lines)
 
 
@@ -428,6 +433,56 @@ def sticker_emotions():
     return list(idx.get("emotions", []))
 
 
+# ---------------------------------------------------------------- 两段式选图
+_PICK_SYS = ("你是表情包挑选器。看这段对话，从候选里挑一张最贴的图，"
+             "只输出它的序号数字。只输出数字，不要解释、不要标点、不要任何其他文字。")
+
+
+def sticker_pick(user_text, ai_text="", limit=4, model=None):
+    """让模型从候选里挑一张（独立的一次极短推理，不干扰正文生成）。
+
+    为什么单独做一次：让模型在长回复里自己写代号，7B 模型经常漏写或写崩；
+    拆成"只挑一个序号"后准确率高很多，代价只有零点几秒。
+
+    返回 {ok, id, name, path, cached} 或 {ok: False, error}
+    """
+    if not _ctx:
+        return {"ok": False, "error": "no ctx"}
+    q = ("%s %s" % (user_text or "", ai_text or "")).strip()
+    if not q:
+        return {"ok": False, "error": "没内容"}
+    try:
+        n = max(2, min(int(limit or 4), 8))
+    except Exception:
+        n = 4
+    cand = sticker_search(q, "", n)
+    if not cand:
+        return {"ok": False, "error": "没有候选"}
+
+    lst = "\n".join(
+        "%d. [%s] %s" % (i + 1, c.get("name"), (c.get("use") or c.get("desc") or "")[:26])
+        for i, c in enumerate(cand))
+    msg = ("对话：\n用户：%s\n我：%s\n\n候选：\n%s\n\n最贴的是第几个？只回数字。"
+           % ((user_text or "")[:160], (ai_text or "")[:260], lst))
+    out = None
+    try:
+        out = _ctx.chat(
+            [{"role": "system", "content": _PICK_SYS},
+             {"role": "user", "content": msg}],
+            model=model, timeout=25, num_predict=8, think=False)
+    except Exception as e:
+        return {"ok": False, "error": "选图失败: %r" % (e,)}
+    m = re.search(r"[1-%d]" % len(cand), str(out or ""))
+    if not m:
+        return {"ok": False, "error": "模型没给出序号", "raw": str(out or "")[:40]}
+    it = cand[int(m.group()) - 1]
+    loc = sticker_local(it["id"])
+    if not loc.get("ok"):
+        return {"ok": False, "error": loc.get("error") or "取图失败", "id": it["id"]}
+    return {"ok": True, "id": it["id"], "name": it.get("name"),
+            "path": loc.get("path"), "cached": loc.get("cached")}
+
+
 def apis():
     return [sticker_search, sticker_local, sticker_hint, sticker_sync,
-            sticker_stats, sticker_emotions]
+            sticker_stats, sticker_emotions, sticker_pick]
