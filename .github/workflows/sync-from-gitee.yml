@@ -1,0 +1,42 @@
+# 这个文件在 Gitee 和 GitHub 两边都有一份，不要删。
+# 为什么两边都要有：本工作流会把 Gitee 的内容强制覆盖到 GitHub，
+# 如果只在 GitHub 上存在，第一次同步就会被自己的镜像覆盖删掉，之后就再也不跑了。
+
+name: 从 Gitee 同步
+
+on:
+  schedule:
+    # 每 6 小时跑一次（UTC 时间，:23 避开整点高峰）
+    - cron: '23 */6 * * *'
+  workflow_dispatch:        # 也可以在 Actions 页面手动点一下立刻同步
+
+permissions:
+  contents: write           # 需要写权限才能推回本仓库
+
+concurrency:
+  group: sync-from-gitee
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取 Gitee 仓库（镜像克隆）
+        run: |
+          git clone --mirror https://gitee.com/liu-xingyuec/dafeiyu-ai-local.git src.git
+          cd src.git
+          echo "Gitee HEAD: $(git rev-parse --short HEAD)"
+          echo "共 $(git rev-list --count --all) 条提交、$(git branch | wc -l) 个分支"
+
+      - name: 强制推送分支与标签到 GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd src.git
+          # 只改推送地址，拉取地址仍是 Gitee
+          git remote set-url --push origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          # 只同步分支和标签：不用 --mirror，否则会尝试删掉 GitHub 的 refs/pull/* 而报错
+          git push --prune --force origin \
+            'refs/heads/*:refs/heads/*' \
+            'refs/tags/*:refs/tags/*'
+          echo "同步完成 → ${{ github.repository }}"
