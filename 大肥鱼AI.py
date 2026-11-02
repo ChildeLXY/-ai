@@ -14,6 +14,11 @@ import datetime
 import llm_params          # num_ctx / keep_alive 的唯一来源，改动前先看那个文件
 import socket
 
+# 桌宠/插件的工作区已从 C:\Users\<用户>\.dsh 搬到 D 盘。
+# 这里兜底设一次：不管用 start.ps1、bat 还是直接跑 py，插件都能找对地方。
+# 用户环境变量里也设了 DSH_HOME，但没有重新登录时不一定生效。
+os.environ.setdefault("DSH_HOME", r"D:\本地部署大肥鱼环境\dsh")
+
 # 单实例锁：防止多个窗口同时运行互相覆盖聊天记录
 _mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Global\\DaFeiYuAI_SingleInstance_v1")
 if ctypes.windll.kernel32.GetLastError() == 183 and os.environ.get("DFY_ALLOW_MULTI") != "1":  # ERROR_ALREADY_EXISTS
@@ -581,14 +586,22 @@ _CHITCHAT_HINT = re.compile(
 
 
 def _ollama_chat_once(messages, model, timeout=30, num_predict=32, think=None):
-    """向 Ollama 发一次非流式请求，返回 message.content（失败抛异常）。
+    """向 Ollama 发一次非流式请求，返回正文（失败抛异常）。
 
-    think=False 可关掉思考型模型（deepseek-r1）的思维链，让预判从 10~20s 降到秒级。
-    content 和 thinking 拼起来一起取，防止内容被塞进思维链里。
+    思考型模型会显式开思考链，让推理走 thinking 通道，content 只留真正要说的话，
+    这样 JSON / 命令这类结构化输出才不会被推理污染。
 
     num_ctx 必须和主对话一致（走 llm_params），否则 Ollama 会为这一个请求
     把整个模型重载一遍，实测每次白花约 4 秒。
     """
+    # 思考型模型（qwen3/R1 等）：一律显式开思考链，让它在自己的通道里想。
+    # 传 think=false 反而会把推理写进正文（实测 362 字），结构化输出（JSON）直接解析失败——
+    # 心情判断插件之前就是这样一直报"解析失败"的。
+    if _thinks(model):
+        think = True
+        # 思考和正文共用 num_predict：预算太小，思考吃完就只剩空正文（实测 200 时正文 0 字）。
+        # 给思考额外留 1000 的额度，正文才有地方写。
+        num_predict = min(max(int(num_predict or 0), 400) + 1000, 2200)
     payload = llm_params.payload(model, messages, stream=False,
                                  num_predict=num_predict, temperature=0,
                                  think=think)
@@ -598,7 +611,19 @@ def _ollama_chat_once(messages, model, timeout=30, num_predict=32, think=None):
     with _LOCAL_OPENER.open(req, timeout=timeout) as r:
         out = json.loads(r.read().decode("utf-8"))
     msg = out.get("message") or {}
-    return ((msg.get("content") or "") + "\n" + (msg.get("thinking") or "")).strip()
+    content = (msg.get("content") or "").strip()
+    thinking = (msg.get("thinking") or "").strip()
+    # 正文优先。以前是"正文 + 思考"直接拼起来，思考一多就把 JSON/命令冲烂了；
+    # 只有正文为空（有的模型把话全写进思考）时才拿思考兜底。
+    return content or thinking
+
+
+def _thinks(model):
+    """这个模型有没有思考链。查不到就当没有（不传 think，免得 400）。"""
+    try:
+        return bool(model_caps(model).get("thinking"))
+    except Exception:
+        return False
 
 
 def _clean_search_query(raw, fallback):

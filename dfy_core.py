@@ -499,12 +499,11 @@ def _ollama_chat_once(messages, model, timeout=30, num_predict=32, think=None, i
     with _LOCAL_OPENER.open(req, timeout=timeout) as r:
         out = json.loads(r.read().decode("utf-8"))
     msg = out.get("message") or {}
-    content = msg.get("content") or ""
-    # 有些模型把思考直接写进 content
-    content = re.sub(r"<think>[\s\S]*?</think>", "", content).strip()
-    if include_think and (msg.get("thinking") or ""):
-        content = (content + "\n" + msg.get("thinking")).strip()
-    return content.strip()
+    content = re.sub(r"<think>[\s\S]*?</think>", "", msg.get("content") or "").strip()
+    # 正文优先；正文为空才拿思考兜底。以前无条件拼接会把 JSON/命令冲烂（心情判断就这样挂了）
+    if not content and (msg.get("thinking") or "").strip():
+        content = msg.get("thinking").strip()
+    return content
 
 
 def _make_query(text):

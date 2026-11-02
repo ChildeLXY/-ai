@@ -9,6 +9,9 @@ $env:OLLAMA_CACHE = "D:\大肥鱼缓存"
 # 代理变量会被 ollama 继承，导致它连接自己拉起的 runner 时被拐走。
 $env:OLLAMA_FLASH_ATTENTION = "1"
 $env:OLLAMA_KV_CACHE_TYPE = "q8_0"
+# 桌宠/插件的工作区（bili-duty、electron、profiles 等）已从 C:\Users\<用户>\.dsh 搬到 D 盘。
+# 桌宠读的是 DSH_HOME 这个变量，这里再设一次，保证不管用户环境变量有没有刷新都指向 D。
+$env:DSH_HOME = "D:\本地部署大肥鱼环境\dsh"
 
 Set-Location "D:\"
 

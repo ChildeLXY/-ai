@@ -32,11 +32,12 @@ GIF_BASE = "/media/gif"
 UA = "DaFeiYuAI-nekowhale-stickers (+local)"
 
 # DSH 那边的原始素材（用来首次生成索引，之后不再依赖它）
+# 工作区已从 C:\Users\<用户>\.dsh 搬到 D 盘，统一走 DSH_HOME，没设才回落默认位置
+_DSH_ROOT = os.environ.get("DSH_HOME") or os.path.join(os.path.expanduser("~"), ".dsh")
 _DSH_META = os.path.join(
-    os.path.expanduser("~"), ".dsh", "profiles", "desktop", "node_modules",
+    _DSH_ROOT, "profiles", "desktop", "node_modules",
     "dsh-nekowhale-stickers", "meta", "nekowhale.json")
-_DSH_MANIFEST = os.path.join(
-    os.path.expanduser("~"), ".dsh", "nekowhale-stickers", "manifest.json")
+_DSH_MANIFEST = os.path.join(_DSH_ROOT, "nekowhale-stickers", "manifest.json")
 
 _ctx = None
 _lock = threading.RLock()

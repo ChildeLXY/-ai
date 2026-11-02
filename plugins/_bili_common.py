@@ -22,10 +22,12 @@ import threading
 import time
 
 # ------------------------------------------------------------------ 路径
+# 工作区已从 C:\Users\<用户>\.dsh 搬到 D 盘，统一走 DSH_HOME，没设才回落默认位置
+_DSH_ROOT = os.environ.get("DSH_HOME") or os.path.join(os.path.expanduser("~"), ".dsh")
 BILI_HOME = (os.environ.get("BILI_DUTY_HOME")
-             or os.path.join(os.path.expanduser("~"), ".dsh", "bili-duty"))
+             or os.path.join(_DSH_ROOT, "bili-duty"))
 
-WHALE_CFG_PATH = os.path.join(os.path.expanduser("~"), ".dsh", "bili-whale.config.json")
+WHALE_CFG_PATH = os.path.join(_DSH_ROOT, "bili-whale.config.json")
 
 _BV_RE = re.compile(r"BV[0-9A-Za-z]{10}")
 
