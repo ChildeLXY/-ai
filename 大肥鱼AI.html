@@ -1083,7 +1083,14 @@ async function send(){
     const _opts={num_ctx:8192,temperature:dtTemp};
     if(dtMax>0)_opts.num_predict=dtMax;
     const _body={model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...buildHistMsgs()],stream:true,keep_alive:'60m',options:_opts};
-    if(dtThink)_body.think=true;                 // 开深度思考且模型支持时才带，避免 400
+    // 对支持思考链的模型一律显式传 think：
+    // 关着的时候必须传 false —— 不传的话 Ollama 会对 qwen3/R1 自动开思考，
+    // 结果就是"没开深度思考也在那想半天"，正文还被思考吃光（实测想过 3600 字）。
+    // 不支持思考链的模型传了会 400，所以先探测。
+    if(await probeModelCaps(MODEL))_body.think=!!dtThink;
+    // 思考链和正文共用 num_predict 这一个预算：开思考时 2048 会被思考吃光，
+    // 正文只剩几个字（实测思考 1431 字、正文 8 字）。所以开思考时抬高预算。
+    if(dtThink&&_opts.num_predict&&_opts.num_predict<3000)_opts.num_predict=3000;
     const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:abortCtrl.signal,
       body:JSON.stringify(_body)});
     if(!r.ok)throw new Error('HTTP '+r.status);
