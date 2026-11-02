@@ -999,11 +999,12 @@ async function send(){
   try{const nn=await window.pywebview.api.load_setting('ai_name');if(nn&&nn.trim())aiName=nn.trim();}catch(e){}
   let nameRule;
   if(aiName&&aiName!=='大肥鱼AI'){
-    nameRule='你有两个称呼：本名「大肥鱼AI」，用户还喜欢叫你「'+aiName+'」。这两个名字你都要答应，自称时优先用「'+aiName+'」，用户叫你大肥鱼AI时也要立刻反应过来，不要说其中一个不对。开发者叫 Childe。';
+    nameRule='你叫「大肥鱼AI」，用户也喜欢叫你「'+aiName+'」，两个都答应，自称优先用后者。开发者是 Childe。';
   }else{
-    nameRule='你的名字是「大肥鱼AI」（也可以叫你大肥鱼）。开发者叫 Childe。';
+    nameRule='你叫「大肥鱼AI」（也可以叫大肥鱼），开发者是 Childe，运行在用户本地电脑上。';
   }
-  sysInject+='\n\n'+nameRule+'重要：如果用户在对话里又给你起了新名字或昵称（比如"以后叫你XX"），你要开心地接受，之后就把它也当作你名字的一部分，不要抗拒、不要说"名字不重要"、不要反复纠正用户。当被问起你是谁开发的，回答：我由 Childe 开发，运行在用户本地电脑上，数据不出本机。不要说自己是 DeepSeek、ChatGPT 或其他公司的产品。';
+  // 注意：这块以前写了四五个"不要…"，模型会拿它当清单逐条自查，思考因此变长。改成正面短句。
+  sysInject+='\n\n'+nameRule+'用户给你起新昵称就开心接受，当作名字的一部分。被问开发者就答 Childe，别自称别家公司的模型。';
   // 注入人格卡
   try{
     const pg=await window.pywebview.api.load_setting('persona_global');
@@ -1011,11 +1012,11 @@ async function send(){
     if(displayMode==='pro'){const pw=await window.pywebview.api.load_setting('persona_work');if(pw)sysInject+='\n\n【当前为专业模式，叠加以下工作人格】\n'+pw;}
   }catch(e){}
   // 一句话立规矩：别把前面聊过的事硬塞进每一轮回答（不然问什么都绕回"你加班到十点"）
-  sysInject+='\n\n【这一轮怎么聊】\n'
-    +'1. 用户这轮问什么，就先直接回答什么，别为了用上历史把话题拐回去。\n'
-    +'2. 回复里不要出现任何具体钟点；也不要主动提"你加班到几点""记得吃饭""别饿着"这类旧细节——除非用户这轮自己说到。\n'
-    +'3. 不要照抄历史里你自己的说法和排版：换个开头，别一句话一行，别用（小声）（揉揉眼睛）这类动作提示。\n'
-    +'4. 用户问一个陌生名词（比如某个产品、人名、软件）时，就先说认不认识，别扯到别的事上。';
+  // 用正面表述、少用"不要"——否定句多了模型会当检查项反复核对，思考就变长
+  sysInject+='\n\n【这一轮】\n'
+    +'- 用户问什么就答什么，别把话题拐回以前的事（加班、吃饭那些不用每轮提）。\n'
+    +'- 像发微信：一两句口语，不分行、不用括号写动作、不报时间。\n'
+    +'- 碰上看不懂的名词，先说你认不认识。';
   // 用户自己发的表情包：模型在图库面板里挑的，正文里只有名字。告诉它这是张图，别装看不见。
   // 只在真的有图时才加，平时零开销。
   if(msgs.some(m=>m.role==='user'&&m.sticker))
@@ -1083,19 +1084,21 @@ async function send(){
     const _opts={num_ctx:8192,temperature:dtTemp};
     if(dtMax>0)_opts.num_predict=dtMax;
     const _body={model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...buildHistMsgs()],stream:true,keep_alive:'60m',options:_opts};
-    // 对支持思考链的模型一律显式传 think：
-    // 关着的时候必须传 false —— 不传的话 Ollama 会对 qwen3/R1 自动开思考，
-    // 结果就是"没开深度思考也在那想半天"，正文还被思考吃光（实测想过 3600 字）。
-    // 不支持思考链的模型传了会 400，所以先探测。
-    if(await probeModelCaps(MODEL))_body.think=!!dtThink;
-    // 思考链和正文共用 num_predict 这一个预算：开思考时 2048 会被思考吃光，
-    // 正文只剩几个字（实测思考 1431 字、正文 8 字）。所以开思考时抬高预算。
-    if(dtThink&&_opts.num_predict&&_opts.num_predict<3000)_opts.num_predict=3000;
+    // 思考型模型（qwen3/R1 等）必须让它在思考通道里想，不能传 think:false：
+    // 实测 qwen3:4b 同一句话，think=false 会把它"想的过程"直接写进正文
+    // （正文 751 字全是"好的，用户发了…我需要…"，还不能看），而且慢 2.5 倍；
+    // think=true 时正文只有 12 字、耗时 29s。加 /no_think 也没用（更糟，1244 字）。
+    // 所以：能思考的模型一律 think=true，要不要显示思考由界面决定（见下面 dtKeepThink）。
+    // 不支持思考链的模型（如灵动 qwen2.5vl）传了会 400，必须先探测。
+    const _hasThink=await probeModelCaps(MODEL);
+    if(_hasThink)_body.think=true;
+    // 思考链和正文共用 num_predict 这一个预算：预算小了会被思考吃光，正文只剩几个字。
+    if(_hasThink&&(!_opts.num_predict||_opts.num_predict<3000))_opts.num_predict=3000;
     const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:abortCtrl.signal,
       body:JSON.stringify(_body)});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const reader=r.body.getReader(),dec=new TextDecoder();let buf='';
-    while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop();for(const line of lines){if(!line.trim())continue;try{const j=JSON.parse(line);if(j.message){if(j.message.thinking)ai.think+=j.message.thinking;if(j.message.content)ai.content+=j.message.content}}catch(e){}}updateLast()}
+    while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop();for(const line of lines){if(!line.trim())continue;try{const j=JSON.parse(line);if(j.message){if(j.message.thinking&&dtThink)ai.think+=j.message.thinking;if(j.message.content)ai.content+=j.message.content}}catch(e){}}updateLast()}
   }catch(e){if(abortCtrl.signal.aborted){ai.content+='\n\n*[已停止]*'}else{ai.content='⚠️ 错误：'+e.message}}
   ai.pending=false;busy=false;toggleBtn();
   ai.content=stripTimeMarks(ai.content).trim();
