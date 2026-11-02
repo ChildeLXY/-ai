@@ -1533,6 +1533,22 @@ def plugin_set_enabled(pid, on):
     return {"ok": True, "id": pid, "enabled": want, "restart": True,
             "note": "已%s，重启大肥鱼后生效" % ("开启" if want else "关闭")}
 
+# ===== 自检回传通道（仅 DFY_SELFTEST=1 时暴露给前端）=====
+# 结果由前端主动推回来：比 Python 定时 evaluate_js 轮询稳，也不会在页面卡住时互相等死。
+_SELFTEST_BOX = {"data": None}
+_SELFTEST_EVT = threading.Event()
+
+
+def selftest_report(payload):
+    """前端把自检结果推回来，Python 侧只等事件，不去轮询页面。"""
+    try:
+        _SELFTEST_BOX["data"] = payload
+        _SELFTEST_EVT.set()
+    except Exception:
+        pass
+    return "ok"
+
+
 window.expose(*([_safe_api(_f) for _f in (
               load_chats, save_chats, delete_chat_disk, web_search, repo_search, read_file, run_python, kb_search, open_kb,
               take_screenshot, read_clipboard, write_clipboard, extract_url, tts_speak, gen_title, open_folder, pick_avatar, save_avatar, save_setting, load_setting,
@@ -1540,7 +1556,8 @@ window.expose(*([_safe_api(_f) for _f in (
               gen_persona, test_persona, get_time, get_env, list_dir, env_sense,
               screen_size, mouse_click, type_text, press_key, agent_decide, plugin_list,
               plugin_set_enabled)]
-              + [_safe_api(_f) for _f in PLUGIN_APIS]))
+              + [_safe_api(_f) for _f in PLUGIN_APIS]
+              + ([_safe_api(selftest_report)] if os.environ.get("DFY_SELFTEST") == "1" else [])))
 _SELFTEST_JS = r"""
 (() => {
   const q = id => document.getElementById(id);
@@ -1574,26 +1591,76 @@ _SELFTEST_JS = r"""
 
 _CHATTEST_JS = r"""
 (() => {
-  window.__chattest = {done:false, stage:'send'};
+  window.__chattest = {done:false, stage:'kick'};
   (async () => {
     const st = window.__chattest;
     try{
       try{ closePluginHub && closePluginHub(); }catch(_){}
+      // 包一层 fetch，记录这一轮到底有没有发出请求、发了多大
+      const _of = window.fetch;
+      st.reqLen = -1;
+      window.fetch = function(u, opt){
+        try{
+          const b = opt && opt.body ? String(opt.body) : '';
+          st.reqUrl = String(u).slice(-30);
+          st.reqLen = b.length;
+          const j = b ? JSON.parse(b) : null;
+          if (j){ st.reqModel = j.model; st.reqMsgs = (j.messages||[]).length; st.reqOpts = j.options; }
+        }catch(_){}
+        return _of.apply(this, arguments);
+      };
       const inp = document.getElementById('input');
       inp.value = '今天加班到十点，好累啊';
-      await send();
-      st.stage = 'sent';
-      for (let i = 0; i < 24; i++){
-        await new Promise(r => setTimeout(r, 500));
-        const last = msgs[msgs.length-1] || {};
-        if (last.sticker){ st.sticker = last.sticker; break; }
+      send();                                   // 不 await：要边等边看进度，模型慢时不能假死
+      st.stage = 'sending';
+      let last = {};
+      for (let i = 0; i < 240; i++){            // 最多等 180 秒
+        await new Promise(r => setTimeout(r, 750));
+        last = msgs[msgs.length-1] || {};
+        st.partial = (last.content || '').slice(-60);
+        st.pending = !!last.pending;
+        if (!busy && !last.pending && (last.content || '')){ st.stage = 'finished'; break; }
       }
-      const last = msgs[msgs.length-1] || {};
+      await new Promise(r => setTimeout(r, 4000));   // 等异步补图
+      last = msgs[msgs.length-1] || {};
       st.content = (last.content || '').slice(0, 100);
-      st.sticker = st.sticker || last.sticker || '';
+      st.sticker = last.sticker || '';
       st.model = MODEL;
       st.saved = await window.pywebview.api.save_setting('model', MODEL);
       st.readback = await window.pywebview.api.load_setting('model');
+      // 时间标记：验证新消息带 ts、送进模型的历史真的带了 [时间] 前缀
+      st.ts = [msgs[msgs.length-2] && msgs[msgs.length-2].ts, last.ts];
+      st.hist = buildHistMsgs().slice(-3);
+      st.ui = [...document.querySelectorAll('.msg-time')].map(e => e.textContent).slice(-3);
+      st.done = true;
+    }catch(e){ st.err = String(e); st.done = true; }
+    try{ window.pywebview.api.selftest_report(JSON.stringify(st)); }catch(_){}
+  })();
+})();
+"""
+_TIMETEST_JS = r"""
+(() => {
+  // 纯前端验证：塞一段带时间戳的假对话，不调用模型
+  window.__timetest = {done:false};
+  (async () => {
+    const st = window.__timetest;
+    try{
+      try{ closePluginHub && closePluginHub(); }catch(_){}
+      const now = Date.now(), M = 60000, H = 3600000;
+      msgs = [
+        {role:'user', content:'我睡不着，心里有点乱', ts: now - 13*H},
+        {role:'assistant', content:'那我陪你一会儿，别一个人扛。', ts: now - 13*H + M},
+        {role:'user', content:'谢谢你啊，跟我说说话就好多了', ts: now - 13*H + 5*M},
+        {role:'assistant', content:'嗯，我一直都在。', ts: now - 13*H + 6*M},
+        {role:'user', content:'那我去睡啦，晚安', ts: now - 12.7*H},
+        {role:'assistant', content:'晚安，好好睡。', ts: now - 12.7*H + 40000},
+        {role:'user', content:'昨晚没睡好，现在脑子有点糊', ts: now - 4*M},
+        {role:'assistant', content:'那今天别硬撑，中午补个觉。', ts: now - 3*M}
+      ];
+      render();
+      st.hist = buildHistMsgs().map(m => m.role + ': ' + m.content);
+      st.ui = [...document.querySelectorAll('.msg-time')].map(e => e.textContent);
+      st.histLen = buildHistMsgs().length;
       st.done = true;
     }catch(e){ st.err = String(e); st.done = true; }
   })();
@@ -1705,16 +1772,24 @@ def _run_selftest():
         # 真实发一句话，看表情包会不会挂上（仅 DFY_CHATTEST=1）
         if os.environ.get("DFY_CHATTEST") == "1":
             try:
+                _SELFTEST_EVT.clear()
+                _SELFTEST_BOX["data"] = None
                 window.evaluate_js(_CHATTEST_JS)
-                got = None
-                for _i in range(120):
-                    time.sleep(1)
-                    got = window.evaluate_js("JSON.stringify(window.__chattest||{})")
-                    if got and '"done":true' in got:
-                        break
-                data["chattest"] = got or "超时"
+                if not _SELFTEST_EVT.wait(280):
+                    data["chattest"] = _SELFTEST_BOX["data"] or "超时"
+                else:
+                    data["chattest"] = _SELFTEST_BOX["data"]
             except Exception:
                 data["chattest_error"] = _tb.format_exc()
+
+        # 时间标记渲染验证（仅 DFY_TIMETEST=1）：塞假对话，不碰模型
+        if os.environ.get("DFY_TIMETEST") == "1":
+            try:
+                window.evaluate_js(_TIMETEST_JS)
+                time.sleep(2.5)
+                data["timetest"] = window.evaluate_js("JSON.stringify(window.__timetest||{})")
+            except Exception:
+                data["timetest_error"] = _tb.format_exc()
 
         # 逐个插件页面真实渲染（仅 DFY_HUBTEST=1 时跑，用来验证插件中心）
         if os.environ.get("DFY_HUBTEST") == "1":
@@ -1741,7 +1816,7 @@ def _run_selftest():
             try:
                 _pid = "" if _shot == "1" else _shot
                 # 聊天测试时截的是对话界面，不能再把插件中心弹出来
-                if os.environ.get("DFY_CHATTEST") != "1":
+                if os.environ.get("DFY_CHATTEST") != "1" and os.environ.get("DFY_TIMETEST") != "1":
                     window.evaluate_js("openPluginHub(%s)" % json.dumps(_pid, ensure_ascii=False))
                 else:
                     window.evaluate_js("try{closePluginHub()}catch(e){}")

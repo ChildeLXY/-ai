@@ -120,6 +120,8 @@ body.main-mode #msgs,body.main-mode .input-area{background:transparent}
 .avatar.u{background:linear-gradient(135deg,#10a37f,#0d8a6a)}.msg.user-row{flex-direction:row-reverse}.msg.user-row .body{display:flex;justify-content:flex-end;max-width:75%}
 .avatar img{width:100%;height:100%;object-fit:cover}.abubble{background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.04));backdrop-filter:blur(24px) saturate(200%);-webkit-backdrop-filter:blur(24px) saturate(200%);border:1px solid rgba(255,255,255,.18);border-radius:20px;padding:12px 16px;box-shadow:0 12px 40px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.05)}.ububble{background:linear-gradient(135deg,rgba(77,107,254,.20),rgba(93,123,255,.10));backdrop-filter:blur(24px) saturate(200%);-webkit-backdrop-filter:blur(24px) saturate(200%);border:1px solid rgba(120,140,255,.35);border-radius:20px;padding:10px 16px;box-shadow:0 12px 40px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.05)}.ububble{background:linear-gradient(135deg,rgba(77,107,254,.25),rgba(93,123,255,.12));backdrop-filter:blur(24px) saturate(200%);-webkit-backdrop-filter:blur(24px) saturate(200%);border:1px solid rgba(255,255,255,.18);padding:10px 16px;border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.05)}
 .body{flex:1;min-width:0;padding-top:2px}
+.msg-time{font-size:11px;color:var(--text2);opacity:.62;margin-top:7px;line-height:1;user-select:none;letter-spacing:.2px}
+.msg.user-row .body{flex-direction:column;align-items:flex-end}
 .body p{margin:6px 0}
 .body h1,.body h2,.body h3,.body h4{margin:14px 0 6px;line-height:1.3}
 .body h1{font-size:20px}.body h2{font-size:18px}.body h3{font-size:16px}.body h4{font-size:14px}
@@ -416,6 +418,33 @@ const MODELS=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐�
 let MODEL='qwen2.5vl:7b',displayMode='balanced',replyLang='zh-CN';
 let msgs=[],busy=false,abortCtrl=null,chats=[],currentId=null,webSearchOn=false,searchEngine='duckduckgo',pendingFiles=[],kbOn=false,chatsLoaded=false,wbOn=false,wbStop=false;
 const HIST_TURNS=16;  // 送进模型的最近消息条数，防止长对话越聊越慢
+// ===== 消息时间：每条消息记下真实发生时刻，用来区分"刚刚"和"昨晚" =====
+// ts 为毫秒时间戳，随消息一起存进 chats.json；老消息没有 ts 时按"时间不详"处理
+function _hms(ts){const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+function _dayGap(ts){const a=new Date(ts),b=new Date();a.setHours(0,0,0,0);b.setHours(0,0,0,0);return Math.round((b-a)/86400000)}
+function timeTag(ts){                       // 给模型看的：今天 12:48 / 昨天 23:40 / 3天前 09:12 / 11-01 23:40
+  if(!ts)return'';
+  const n=_dayGap(ts),d=new Date(ts),Y=new Date().getFullYear();
+  const md=(d.getMonth()+1)+'-'+String(d.getDate()).padStart(2,'0');
+  if(n===0)return'今天 '+_hms(ts);
+  if(n===1)return'昨天 '+_hms(ts);
+  if(n===2)return'前天 '+_hms(ts);
+  if(n>2&&n<7)return n+'天前 '+_hms(ts);
+  return(d.getFullYear()===Y?md:d.getFullYear()+'-'+md)+' '+_hms(ts);
+}
+function timeUI(ts){                        // 界面上显示的：12:48 / 昨天 23:40 / 11月1日 23:40
+  if(!ts)return'';
+  const n=_dayGap(ts),d=new Date(ts);
+  if(n===0)return _hms(ts);
+  if(n===1)return'昨天 '+_hms(ts);
+  if(n<7)return(d.getMonth()+1)+'月'+d.getDate()+'日 '+_hms(ts);
+  return(d.getFullYear()===new Date().getFullYear()?'':d.getFullYear()+'年')+(d.getMonth()+1)+'月'+d.getDate()+'日';
+}
+function timeFull(ts){if(!ts)return'';const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+_hms(ts)+':'+String(d.getSeconds()).padStart(2,'0')}
+function buildHistMsgs(){                   // 送进模型的历史：每条前面带上它真实发生的时间
+  const list=msgs.filter(m=>m.role==='user'||m.content).slice(-HIST_TURNS);
+  return list.map(m=>{const t=m.ts?timeTag(m.ts):'';return{role:m.role,content:(t?'['+t+'] ':'')+(m.content||'')}});
+}
 const LANG_PROMPT={'zh-CN':'请始终使用简体中文回答。','zh-TW':'請始終使用繁體中文回答。','en':'Please always respond in English.','ja':'常に日本語で回答してください。'};
 function refreshModelSel(){const sel=document.getElementById('modelSel');sel.innerHTML='';MODELS.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=displayMode==='pro'?m.full:m.short;if(m.id===MODEL)o.selected=true;sel.appendChild(o)});sel.value=MODEL}
 async function changeModel(){MODEL=document.getElementById('modelSel').value;await preloadModel();try{await window.pywebview.api.save_setting('model',MODEL)}catch(e){}}
@@ -424,7 +453,8 @@ async function preloadModel(){
   bar.classList.add('show');txt.classList.add('show');bar.style.width='15%';
   const m=MODELS.find(x=>x.id===MODEL);txt.textContent='正在加载 '+(m?m.short:MODEL)+'...';
   let w=15;const anim=setInterval(()=>{if(w<80){w+=2;bar.style.width=w+'%'}else{clearInterval(anim)}},300);
-  try{await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,messages:[{role:'user',content:'.'}],stream:false,options:{num_predict:1}})})}catch(e){}
+  // num_ctx 必须和正式对话一致（8192），否则 ollama 会按默认上下文加载一次、真正聊天时再重载一遍
+  try{await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,messages:[{role:'user',content:'.'}],stream:false,keep_alive:'10m',options:{num_predict:1,num_ctx:8192}})})}catch(e){}
   const check=setInterval(async()=>{
     try{
       const ps=await fetch('http://localhost:11434/api/ps');const pd=await ps.json();
@@ -573,7 +603,7 @@ function toggleWb(){
   if(wbOn){wbStop=false;addSysMsg('🖥 工作模式已开启：用读图模型(qwen2.5vl:7b)看屏幕。每步操作会先问你确认再执行；随时点上面按钮停。')}
   else{wbStop=true;addSysMsg('⏹ 工作模式已停止');}
 }
-function addSysMsg(text){msgs.push({role:'assistant',content:text,think:''});render();saveCurrentChat();}
+function addSysMsg(text){msgs.push({role:'assistant',content:text,think:'',ts:Date.now()});render();saveCurrentChat();}
 async function agentLoop(task){
   let history='';
   for(let step=1;step<=8;step++){
@@ -713,6 +743,7 @@ function render(){
     bubble+='<div class="'+(isU?'ububble':'abubble')+'">'+md(m.content||'')+(m.pending?'<span class="typing"></span>':'')+'</div>';
     if(!isU&&m.sticker)bubble+='<div class="sticker-wrap"><img src="'+m.sticker+'" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图"></div>';
     if(!isU&&!m.pending&&m.content)bubble+='<div class="msg-actions"><button onclick="speakText(\''+btoa(unescape(encodeURIComponent(m.content.slice(0,500))))+'\')">🔊 朗读</button></div>';
+    if(m.ts&&!m.pending)bubble+='<div class="msg-time" title="'+timeFull(m.ts)+'">'+timeUI(m.ts)+'</div>';
     const av=isU?'<img src="ds图片/user_avatar.jpg" onerror="this.style.display=&quot;none&quot;;this.parentNode.textContent=&quot;你&quot;" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图">':'<img src="ds图片/'+getAiAvatar()+'" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图">';
     d.innerHTML='<div class="avatar '+(isU?'u':'a')+'">'+av+'</div><div class="body">'+bubble+'</div>';
     box.appendChild(d);
@@ -726,6 +757,7 @@ function updateLast(){
   if(!isU&&m.think)bubble+='<div class="think'+(m.pending?' open':'')+'" onclick="this.classList.toggle(\'open\')"><b>💭 思考过程</b><div class="think-c">'+esc(m.think)+'</div></div>';
   bubble+='<div class="'+(isU?'ububble':'abubble')+'">'+md(m.content||'')+(m.pending?'<span class="typing"></span>':'')+'</div>';
   if(!isU&&m.sticker)bubble+='<div class="sticker-wrap"><img src="'+m.sticker+'" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图"></div>';
+  if(m.ts&&!m.pending)bubble+='<div class="msg-time" title="'+timeFull(m.ts)+'">'+timeUI(m.ts)+'</div>';
   d.querySelector('.body').innerHTML=bubble;updateTokenCount();box.scrollTop=box.scrollHeight;
 }
 function updateTokenCount(){let chars=0;msgs.forEach(m=>chars+=(m.content||'').length+(m.think||'').length);document.getElementById('tokenInfo').textContent='~'+Math.round(chars/2)+' tokens'}
@@ -754,13 +786,22 @@ var _aiAv='avatar.jpg';function getAiAvatar(){return _aiAv}
 function uploadAvatar(input){const f=input.files[0];if(!f)return;if(f.size>5*1024*1024){alert('图片不能超过5MB');return;}const reader=new FileReader();reader.onload=function(){const b64=reader.result.split(',')[1];window.pywebview.api.save_avatar(b64,f.name).then(()=>{render();const p=document.getElementById('previewAvatar');if(p){p.src='ds图片/user_avatar.jpg?t='+Date.now();p.style.display=''}alert('替换成功');input.value=''})};reader.readAsDataURL(f)}
 // 把回复末尾（或任意位置）的 [表情包名] 换成本地图片。
 // 返回 true 表示成功挂上；只有代号没有正文也算成功（气泡里只显示图）。
+// 模型有时会模仿历史里的时间标记，回复中带上 [今天 12:48]，这里清掉免得用户困惑
+function stripTimeMarks(t){
+  return String(t||'')
+    .replace(/\[(?:今天|昨天|前天|\d+\s*天前|\d{4}-\d{1,2}-\d{1,2}|\d{1,2}-\d{1,2})\s+\d{1,2}:\d{2}\]/g,'')
+    .replace(/[ \t]+\n/g,'\n')
+    .replace(/\n{3,}/g,'\n\n');
+}
+const _TIME_TAG=/^(?:今天|昨天|前天|刚刚|刚才|\d+\s*天前|\d{4}-\d{1,2}-\d{1,2}|\d{1,2}-\d{1,2})\s+\d{1,2}:\d{2}$/;
 async function applyStickerTag(ai){
   try{
     const t=ai.content||'';
     // 优先认结尾的代号（容忍后面的句号/波浪号等），否则取全文最后一个
     let mm=t.match(/\[([^\]\[]{1,24})\]\s*[。．.!！?？~～…]*\s*$/);
+    if(mm&&_TIME_TAG.test(mm[1].trim()))return false;   // 结尾是时间标记，不是表情包代号
     if(!mm){const all=[...t.matchAll(/\[([^\]\[]{1,24})\]/g)];if(all.length)mm=all[all.length-1];}
-    if(!mm)return false;
+    if(!mm||_TIME_TAG.test(mm[1].trim()))return false;
     const sr=await window.pywebview.api.sticker_search(mm[1],'',1);
     if(!sr||!sr.length)return false;            // 代号对不上任何一张图：当普通文字保留
     const loc=await window.pywebview.api.sticker_local(sr[0].id);
@@ -780,20 +821,31 @@ async function send(){
     let tans='';
     try{const t=await window.pywebview.api.get_time();if(t)tans='现在是 '+t+'。（本机系统时钟，直接读取，准确无误 ⌚）';}catch(e){}
     if(tans){
-      msgs.push({role:'user',content:text});
-      msgs.push({role:'assistant',content:tans});
+      msgs.push({role:'user',content:text,ts:Date.now()});
+      msgs.push({role:'assistant',content:tans,ts:Date.now()});
       render();saveCurrentChat();busy=false;toggleBtn();return;
     }
   }
-  if(wbOn){msgs.push({role:'user',content:text});render();saveCurrentChat();wbStop=false;await agentLoop(text);return;}
+  if(wbOn){msgs.push({role:'user',content:text,ts:Date.now()});render();saveCurrentChat();wbStop=false;await agentLoop(text);return;}
   let userContent=text;
   if(pendingFiles.length){userContent+='\n\n[附件文件内容]\n';for(const f of pendingFiles){try{const r=await window.pywebview.api.read_file(f);userContent+='--- '+r.name+' ---\n'+r.text+'\n'}catch(e){}}pendingFiles=[]}
-  msgs.push({role:'user',content:userContent});
-  const ai={role:'assistant',content:'',think:'',pending:true};msgs.push(ai);render();
+  msgs.push({role:'user',content:userContent,ts:Date.now()});
+  const ai={role:'assistant',content:'',think:'',pending:true,ts:Date.now()};msgs.push(ai);render();
   abortCtrl=new AbortController();
   let sysInject=LANG_PROMPT[replyLang]||'';
   // 注入当前时间，让大肥鱼知道现在几点/周几
   try{const tn=await window.pywebview.api.get_time();if(tn)sysInject+='\n\n【系统时钟给出的当前准确时间（这是唯一权威依据，必须直接采信，不要从聊天记录里推算时间，也不要凭印象猜）】'+tn+'。用户问"现在几点/今天几号"时，就按这个直接回答。注意：历史对话中如果出现过与本次时间不一致的回答（例如"上午十点半""根据读图模型检测到"之类的旧内容），那些全部是作废的错误信息，严禁照抄其措辞和口头禅，一律以本次系统时钟为准。你可以结合时间主动关心用户（太晚提醒早睡、饭点提醒吃饭），但不要每次都机械报时间。';}catch(e){}
+  // 说明历史消息头上的 [时间] 标记怎么用（配合 buildHistMsgs）
+  try{let hasT=false,noT=false;for(const m of msgs){if(!m.content)continue;if(m.ts)hasT=true;else noT=true;}
+    if(hasT||noT){
+      let nt='【聊天记录里的时间标记】历史消息开头方括号里写的是那条消息真实发生的时间（例如 "[昨天 23:40] 我睡不着"）。你能看到它，但用户看不到——所以你回复时绝不要自己写这种时间标记，也不要模仿这个格式。'
+        +'判断一件事是不是"刚刚发生"只看标记和上面的系统时钟，不要按对话顺序猜：相邻两条消息可能隔了几分钟，也可能隔了十几个小时。'
+        +'如果这件事发生的时间和你现在的时间差得远（比如标记是昨天深夜、现在是中午），那就是过去的事，只能用回忆的语气（"昨晚你说过…"），不能当成刚刚才说的。'
+        +'同样，你自己以前说过的话如果是很久之前的，也不要当成刚刚说的重复一遍。';
+      if(noT)nt+='没有时间标记的消息属于更早期的记录（时间已不可考），一律当成过去发生的事，绝不能描述成"刚刚""刚才"。';
+      sysInject+='\n\n'+nt;
+    }
+  }catch(e){}
   // 注入本机环境信息（IP/机器名/系统/桌面路径）
   try{const en=await window.pywebview.api.get_env();if(en)sysInject+='\n\n【这台电脑的环境信息】'+en+'。用户问起IP、电脑名、系统、文件位置时基于此回答。';}catch(e){}
   try{const sn=await window.pywebview.api.env_sense();if(sn)sysInject+='\n\n'+sn+'\n以上是你"此刻对这台电脑的体感"，你可以自然地据此关心用户（太晚提醒早睡、显卡烫提醒散热、用户很久没操作可以撒个娇），但不要机械罗列这些数字，把它当成你自己的身体感觉。';}catch(e){}
@@ -864,12 +916,13 @@ async function send(){
   }catch(e){}
   try{
     const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:abortCtrl.signal,
-      body:JSON.stringify({model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...msgs.filter(m=>m.role==='user'||m.content).map(m=>({role:m.role,content:m.content})).slice(-HIST_TURNS)],stream:true,keep_alive:'10m',options:{num_ctx:8192}})});
+      body:JSON.stringify({model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...buildHistMsgs()],stream:true,keep_alive:'10m',options:{num_ctx:8192}})});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const reader=r.body.getReader(),dec=new TextDecoder();let buf='';
     while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop();for(const line of lines){if(!line.trim())continue;try{const j=JSON.parse(line);if(j.message){if(j.message.thinking)ai.think+=j.message.thinking;if(j.message.content)ai.content+=j.message.content}}catch(e){}}updateLast()}
   }catch(e){if(abortCtrl.signal.aborted){ai.content+='\n\n*[已停止]*'}else{ai.content='⚠️ 错误：'+e.message}}
   ai.pending=false;busy=false;toggleBtn();
+  ai.content=stripTimeMarks(ai.content).trim();
   // —— 插件：回复里写了表情包代号就换成真图 ——
   await applyStickerTag(ai);
   saveCurrentChat();render();
