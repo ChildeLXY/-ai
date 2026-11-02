@@ -1137,7 +1137,7 @@ def env_sense():
             user_state = "用户正在电脑前操作"
         lines = [
             "【你此刻对这台电脑的体感】",
-            "现在时间：%02d:%02d:%02d，%d月%d日 星期%s（%s）" % (hh, now.tm_min, now.tm_sec, now.tm_mon, now.tm_mday, weekdays[now.tm_wday], circ),
+            "今天：%d月%d日 星期%s，%s" % (now.tm_mon, now.tm_mday, weekdays[now.tm_wday], circ),
             "电脑已开机：%d小时%d分" % (up_h, up_m),
             "用户空闲：%d秒（%s）" % (idle, user_state),
             "当前活动窗口：%s" % (aw[:40] if aw else "（无）"),

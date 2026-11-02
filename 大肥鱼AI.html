@@ -142,12 +142,34 @@ body.main-mode #msgs,body.main-mode .input-area{background:transparent}
 .msg:hover .msg-actions{opacity:.7}
 .msg-actions button{background:none;border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;color:var(--text)}
 .msg-actions button:hover{background:var(--hover)}
-.input-area{padding:8px 24px 20px;flex-shrink:0}
+.input-area{padding:8px 24px 20px;flex-shrink:0;position:relative}
 .box{max-width:800px;margin:0 auto;background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.04));backdrop-filter:blur(24px) saturate(200%);-webkit-backdrop-filter:blur(24px) saturate(200%);border:1px solid rgba(255,255,255,.18);border-radius:24px;padding:14px 18px;display:flex;gap:8px;align-items:flex-end;box-shadow:0 12px 40px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.05)}
 .box:focus-within{border-color:var(--accent)}
 textarea{flex:1;border:none;outline:none;resize:none;font-size:15px;font-family:inherit;line-height:1.5;max-height:200px;background:transparent;color:var(--text)}
 button.send{background:linear-gradient(135deg,var(--accent),#5d7bff);color:#fff;border:none;width:36px;height:36px;border-radius:12px;cursor:pointer;font-size:16px;flex-shrink:0;box-shadow:0 4px 12px rgba(77,107,254,.35),inset 0 1px 0 rgba(255,255,255,.25)}
 .hint{text-align:center;font-size:11px;color:var(--text2);margin-top:6px}
+/* ---- 用户发表情包：选择面板 ---- */
+button.emj-btn{background:transparent;border:none;width:32px;height:36px;flex-shrink:0;cursor:pointer;font-size:19px;line-height:1;opacity:.62;transition:.2s;padding:0}
+button.emj-btn:hover{opacity:1;transform:scale(1.08)}
+.emj-panel{position:absolute;left:24px;right:24px;bottom:calc(100% - 6px);max-width:800px;margin:0 auto;max-height:min(56vh,430px);display:none;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 14px 44px rgba(0,0,0,.22);overflow:hidden;z-index:700}
+.emj-panel.on{display:flex}
+.emj-head{display:flex;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.emj-q{flex:1;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:9px;padding:7px 10px;font-size:13px;outline:none;font-family:inherit}
+.emj-q:focus{border-color:var(--accent)}
+.emj-x{border:none;background:transparent;color:var(--text2);cursor:pointer;font-size:15px;padding:2px 4px;line-height:1}
+.emj-tabs{display:flex;gap:6px;padding:8px 12px;overflow-x:auto;border-bottom:1px solid var(--border);flex-shrink:0;scrollbar-width:none}
+.emj-tabs::-webkit-scrollbar{display:none}
+.emj-tab{border:1px solid var(--border);background:transparent;color:var(--text2);border-radius:14px;padding:3px 11px;font-size:12px;cursor:pointer;white-space:nowrap;font-family:inherit;transition:.15s}
+.emj-tab:hover{background:var(--hover)}
+.emj-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.emj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:6px;padding:10px 12px;overflow-y:auto;flex:1;align-content:start}
+.emj-cell{position:relative;aspect-ratio:1/1;border-radius:10px;background:var(--hover);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
+.emj-cell:hover{outline:2px solid var(--accent);outline-offset:-2px}
+.emj-cell img{width:100%;height:100%;object-fit:contain;display:block}
+.emj-cell .emj-ph{font-size:11px;color:var(--text2);padding:4px;text-align:center;line-height:1.3;word-break:break-all;max-height:100%;overflow:hidden}
+.emj-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--border);font-size:12px;color:var(--text2);flex-shrink:0}
+.emj-more{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;padding:3px 12px;font-size:12px;cursor:pointer;font-family:inherit}
+.emj-more:hover{background:var(--hover)}
 .typing::after{content:'\2588';animation:b 1s infinite}
 @keyframes b{50%{opacity:0}}
 .drop-hint{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(77,107,254,.08);border:3px dashed var(--accent);z-index:999;display:none;align-items:center;justify-content:center;font-size:20px;font-weight:600;color:var(--accent)}
@@ -291,6 +313,7 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
     <button id="searchBtn" class="hbtn" onclick="toggleSearch()">离线</button>
     <button id="kbBtn" class="hbtn" onclick="toggleKb()">知识库</button>
     <button id="wbBtn" class="hbtn" onclick="toggleWb()">工作模式</button>
+    <button id="dtBtn" class="hbtn" onclick="toggleDeepThink()" title="开：认真拆问题、逐条核对；关：人格优先、不啰嗦分析">深度思考</button>
     <div class="spacer"></div>
     <span class="token-info" id="tokenInfo"></span>
     <button class="icon-btn" onclick="doScreenshot()" title="截图提问">📷</button>
@@ -314,7 +337,17 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
     </div>
   </div>
   <div class="input-area">
+    <div class="emj-panel" id="emjPanel">
+      <div class="emj-head">
+        <input class="emj-q" id="emjQ" placeholder="搜表情包：摸鱼 / 无语 / 晚安 / 开心" oninput="emjDebounce()">
+        <button class="emj-x" onclick="toggleEmojiPanel(false)" title="关闭">✕</button>
+      </div>
+      <div class="emj-tabs" id="emjTabs"></div>
+      <div class="emj-grid" id="emjGrid"></div>
+      <div class="emj-foot"><span id="emjInfo">…</span><button class="emj-more" id="emjMore" onclick="emjMore()">加载更多</button></div>
+    </div>
     <div class="box">
+      <button class="emj-btn" id="emjBtn" onclick="toggleEmojiPanel()" title="发表情包（322 张本地图库）">😺</button>
       <textarea id="input" rows="1" placeholder="输入消息，回车发送...可拖入文件"></textarea>
       <button class="send" id="stopBtn" onclick="stopGen()" title="停止" style="display:none;background:#e53e3e">■</button>
       <button class="send" id="sendBtn" onclick="send()">↑</button>
@@ -418,19 +451,24 @@ const MODELS=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐�
 let MODEL='qwen2.5vl:7b',displayMode='balanced',replyLang='zh-CN';
 let msgs=[],busy=false,abortCtrl=null,chats=[],currentId=null,webSearchOn=false,searchEngine='duckduckgo',pendingFiles=[],kbOn=false,chatsLoaded=false,wbOn=false,wbStop=false;
 const HIST_TURNS=16;  // 送进模型的最近消息条数，防止长对话越聊越慢
+const HIST_AI=2;      // 其中最多带几条"我自己的回复"，见 buildHistMsgs 里的说明
 // ===== 消息时间：每条消息记下真实发生时刻，用来区分"刚刚"和"昨晚" =====
 // ts 为毫秒时间戳，随消息一起存进 chats.json；老消息没有 ts 时按"时间不详"处理
 function _hms(ts){const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 function _dayGap(ts){const a=new Date(ts),b=new Date();a.setHours(0,0,0,0);b.setHours(0,0,0,0);return Math.round((b-a)/86400000)}
-function timeTag(ts){                       // 给模型看的：今天 12:48 / 昨天 23:40 / 3天前 09:12 / 11-01 23:40
+function _seg(ts){const h=new Date(ts).getHours();       // 时段：只用在深夜/凌晨这类有意义的场合
+  if(h<6)return'凌晨';if(h>=23)return'深夜';if(h<11)return'早上';if(h>=18)return'晚上';return''}
+function timeTag(ts){                       // 给模型看的：今天 / 昨天 深夜 / 3天前 / 11-01
+  // 故意不带钟点：模型看到 "今天 14:12" 就会在回复里模仿报时，人机感很重
   if(!ts)return'';
   const n=_dayGap(ts),d=new Date(ts),Y=new Date().getFullYear();
   const md=(d.getMonth()+1)+'-'+String(d.getDate()).padStart(2,'0');
-  if(n===0)return'今天 '+_hms(ts);
-  if(n===1)return'昨天 '+_hms(ts);
-  if(n===2)return'前天 '+_hms(ts);
-  if(n>2&&n<7)return n+'天前 '+_hms(ts);
-  return(d.getFullYear()===Y?md:d.getFullYear()+'-'+md)+' '+_hms(ts);
+  const s=_seg(ts),sg=s?' '+s:'';
+  if(n===0)return'今天'+sg;
+  if(n===1)return'昨天'+sg;
+  if(n===2)return'前天'+sg;
+  if(n>2&&n<7)return n+'天前'+sg;
+  return(d.getFullYear()===Y?md:d.getFullYear()+'-'+md)+sg;
 }
 function timeUI(ts){                        // 界面上显示的：12:48 / 昨天 23:40 / 11月1日 23:40
   if(!ts)return'';
@@ -441,13 +479,59 @@ function timeUI(ts){                        // 界面上显示的：12:48 / 昨�
   return(d.getFullYear()===new Date().getFullYear()?'':d.getFullYear()+'年')+(d.getMonth()+1)+'月'+d.getDate()+'日';
 }
 function timeFull(ts){if(!ts)return'';const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+_hms(ts)+':'+String(d.getSeconds()).padStart(2,'0')}
+function _simJs(a,b){                        // 粗相似度：中文按 2 字切片算重合
+  const g=s=>{s=String(s||'').replace(/[^\u4e00-\u9fffA-Za-z0-9]/g,'');const r=[];for(let i=0;i<s.length-1;i++)r.push(s.slice(i,i+2));return r.length?r:[s]};
+  const A=new Set(g(a)),B=new Set(g(b));if(!A.size||!B.size)return 0;
+  let n=0;A.forEach(x=>{if(B.has(x))n++});return n/Math.min(A.size,B.size);
+}
+function _scrubTime(t){
+  // 历史正文里的钟点必须抹掉：模型会把"现在14:14"当成固定开头照着抄
+  // （实测它甚至在思考里写"每次回复都以现在14:14开头，因为之前的回复中时间是14:14"）
+  return String(t||'')
+    .replace(/(?:现在|此刻|当前|这会儿|时间|已经)\s*(?:是|到|快)?\s*(?:凌晨|早上|上午|中午|下午|傍晚|晚上|深夜)?\s*\d{1,2}\s*[:：点]\s*\d{0,2}\s*分?/g,'')
+    .replace(/(?:凌晨|早上|上午|中午|下午|傍晚|晚上|深夜)\s*\d{1,2}\s*[:：点]\s*\d{1,2}\s*分/g,'')
+    .replace(/\*\*\s*\*\*/g,'')                    // "现在是**中午11点43分**"删完会剩 ****
+    .replace(/^[\s，,、。．:：;；]+/gm,'')          // 行首被删空的标点
+    .replace(/^\s*(?:现在|此刻|当前|这会儿)\s*(?:是|已经)?\s*[，,。．]?\s*$/gm,'')   // 只剩"现在是"的空行
+    .replace(/[\s，,、]+(?=\n)/g,'')               // 行尾孤零零的逗号
+    .replace(/[ \t]{2,}/g,' ')
+    .replace(/\n{3,}/g,'\n\n')
+    .trim();
+}
 function buildHistMsgs(){                   // 送进模型的历史：每条前面带上它真实发生的时间
-  const list=msgs.filter(m=>m.role==='user'||m.content).slice(-HIST_TURNS);
-  return list.map(m=>{const t=m.ts?timeTag(m.ts):'';return{role:m.role,content:(t?'['+t+'] ':'')+(m.content||'')}});
+  let list=msgs.filter(m=>m.role==='user'||m.content).slice(-HIST_TURNS);
+  // 打断"复读循环"：同一段回答反复出现时只留最新的那条。
+  // 否则模型看到自己说过三遍同样的话，会认命一样再说第四遍，越说越死。
+  const ded=[];
+  for(const m of list){
+    if(m.role==='assistant'&&m.content){
+      const i=ded.findIndex(x=>x.role==='assistant'&&_simJs(x.content,m.content)>0.72);
+      if(i>=0)ded.splice(i,1);
+    }
+    ded.push(m);
+  }
+  // 只保留最近 2 条"我自己的回复"：模型最大的模仿对象就是自己。
+  // 实测 16 条全带时，三个完全不同的问题得到同一段"现在14:14…你加班到十点…"；
+  // 只留 2 条后，复读和"反复提旧事"都大幅减少，而用户说的话仍然完整保留。
+  const aiAt=[];
+  ded.forEach((m,i)=>{if(m.role==='assistant'&&m.content)aiAt.push(i)});
+  const dropAi=new Set(aiAt.length>HIST_AI?aiAt.slice(0,aiAt.length-HIST_AI):[]);
+  return ded.filter((m,i)=>!dropAi.has(i)).map(m=>{
+    const t=m.ts?timeTag(m.ts):'';
+    let c;
+    if(m.role==='assistant'){
+      c=_scrubTime(m.content||'');
+    }else{
+      c=(m.content||'');
+      // 用户发的表情包：图本身模型看不见，得用一句话告诉它发了什么
+      if(m.sticker)c=(c?c+'\n':'')+'（发了表情包「'+(m.stickerName||'表情')+'」）';
+    }
+    return{role:m.role,content:(t?'['+t+'] ':'')+c};
+  }).filter(m=>m.content);
 }
 const LANG_PROMPT={'zh-CN':'请始终使用简体中文回答。','zh-TW':'請始終使用繁體中文回答。','en':'Please always respond in English.','ja':'常に日本語で回答してください。'};
 function refreshModelSel(){const sel=document.getElementById('modelSel');sel.innerHTML='';MODELS.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=displayMode==='pro'?m.full:m.short;if(m.id===MODEL)o.selected=true;sel.appendChild(o)});sel.value=MODEL}
-async function changeModel(){MODEL=document.getElementById('modelSel').value;await preloadModel();try{await window.pywebview.api.save_setting('model',MODEL)}catch(e){}}
+async function changeModel(){MODEL=document.getElementById('modelSel').value;await preloadModel();try{await window.pywebview.api.save_setting('model',MODEL)}catch(e){}try{await probeModelCaps(MODEL);paintDeepThink()}catch(e){}}
 async function preloadModel(){
   const bar=document.getElementById('mlbar');const txt=document.getElementById('mlbarText');
   bar.classList.add('show');txt.classList.add('show');bar.style.width='15%';
@@ -604,6 +688,51 @@ function toggleWb(){
   else{wbStop=true;addSysMsg('⏹ 工作模式已停止');}
 }
 function addSysMsg(text){msgs.push({role:'assistant',content:text,think:'',ts:Date.now()});render();saveCurrentChat();}
+// —— 深度思考：插件存状态，这里只做开关和外观 ——
+let deepThink=false;
+// 模型有没有"思考链"：问 Ollama 的 capabilities，不靠名字猜（qwen3-vl / gpt-oss 这类会漏）
+const _capsCache={};
+async function probeModelCaps(id){
+  if(!id)return false;
+  if(id in _capsCache)return _capsCache[id];
+  let g=/^(qwen3|deepseek-r1|qwq|magistral|phi4-reasoning)/i.test(id);  // 服务没应答时的兜底
+  try{const c=await window.pywebview.api.model_caps(id);if(c&&c.ok)g=!!c.thinking;}catch(e){}
+  _capsCache[id]=g;return g;
+}
+function paintDeepThink(){
+  const b=document.getElementById('dtBtn');if(!b)return;
+  b.textContent=deepThink?'深度思考 · 开':'深度思考';
+  b.classList.toggle('on',deepThink);
+  const has=!!_capsCache[MODEL];
+  const hard=/(deepseek-r1|deepseek-reasoner|qwq)/i.test(MODEL);   // 天生推理，关不掉
+  b.title=!deepThink
+    ?('不做分析，人格优先（点一下打开深度思考）'+(hard?'　· 注意：这个模型天生会推理，思考链关不掉':''))
+    :(has?'认真拆问题、逐条核对，会显示💭思考过程（点一下关掉）'
+          :'认真拆问题、逐条核对（当前模型没有思考链，只靠提示词约束）');
+}
+async function toggleDeepThink(){
+  try{
+    const r=await window.pywebview.api.deep_think_set(!deepThink);
+    if(r&&r.ok){
+      deepThink=!!r.on;paintDeepThink();
+      const nm=(MODELS.find(m=>m.id===MODEL)||{}).short||MODEL;
+      if(!deepThink){
+        let m='💬 深度思考已关闭：不再分析，按大肥鱼的性格直接回。';
+        // R1 / QwQ 这类是天生推理模型，思考写死在模板里，think:false 也照样想
+        if(/(deepseek-r1|deepseek-reasoner|qwq)/i.test(MODEL))
+          m+='\n（不过「'+nm+'」天生就在推理，思考链关不掉，它脑子里还会过一遍，只是分析不会写进正文。）';
+        addSysMsg(m);
+      }
+      else{
+        const has=await probeModelCaps(MODEL);paintDeepThink();
+        addSysMsg(has
+          ?'🔬 深度思考已开启：接下来会先拆问题再回答，准确性优先。'
+          :'🔬 深度思考已开启：会先拆问题再回答，准确性优先。不过「'+nm+'」本身没有思考链，靠提示词约束，看不到💭思考过程；想看到就换成「思考」或「深度」。');
+      }
+    }
+    else addSysMsg('⚠️ 切换失败：'+((r&&r.error)||'插件没加载'));
+  }catch(e){addSysMsg('⚠️ 切换失败：'+e)}
+}
 async function agentLoop(task){
   let history='';
   for(let step=1;step<=8;step++){
@@ -714,7 +843,8 @@ function renameChat(i,e){if(e)e.stopPropagation();const c=chats[i];if(!c)return;
 function toggleFav(i,e){e.stopPropagation();chats[i].fav=!chats[i].fav;saveChats();renderList()}
 function saveCurrentChat(){
   if(msgs.filter(m=>m.role==='user').length===0)return;
-  const title=(msgs.find(m=>m.role==='user')?.content||'新对话').slice(0,24);
+  const fu=msgs.find(m=>m.role==='user');
+  const title=(fu?((fu.content||'').trim()||('表情包 · '+(fu.stickerName||'图'))):'新对话').slice(0,24);
   if(currentId){const c=chats.find(x=>x.id===currentId);if(c)c.msgs=JSON.parse(JSON.stringify(msgs))}
   else{currentId=Date.now();chats.unshift({id:currentId,title:title,msgs:JSON.parse(JSON.stringify(msgs))})}
   saveChats();renderList();
@@ -740,8 +870,8 @@ function render(){
     const d=document.createElement('div');d.className='msg'+(m.role==='user'?' user-row':'');const isU=m.role==='user';let inner='';
     let bubble='';
     if(!isU&&m.think)bubble+='<div class="think'+(m.pending?' open':'')+'" onclick="this.classList.toggle(\'open\')"><b>💭 思考过程</b><div class="think-c">'+esc(m.think)+'</div></div>';
-    bubble+='<div class="'+(isU?'ububble':'abubble')+'">'+md(m.content||'')+(m.pending?'<span class="typing"></span>':'')+'</div>';
-    if(!isU&&m.sticker)bubble+='<div class="sticker-wrap"><img src="'+m.sticker+'" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图"></div>';
+    bubble+=(m.content||m.pending)?'<div class="'+(isU?'ububble':'abubble')+'">'+md(m.content||'')+(m.pending?'<span class="typing"></span>':'')+'</div>':'';
+    if(m.sticker)bubble+='<div class="sticker-wrap'+(isU?' mine':'')+'"><img src="'+m.sticker+'" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图"></div>';
     if(!isU&&!m.pending&&m.content)bubble+='<div class="msg-actions"><button onclick="speakText(\''+btoa(unescape(encodeURIComponent(m.content.slice(0,500))))+'\')">🔊 朗读</button></div>';
     if(m.ts&&!m.pending)bubble+='<div class="msg-time" title="'+timeFull(m.ts)+'">'+timeUI(m.ts)+'</div>';
     const av=isU?'<img src="ds图片/user_avatar.jpg" onerror="this.style.display=&quot;none&quot;;this.parentNode.textContent=&quot;你&quot;" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图">':'<img src="ds图片/'+getAiAvatar()+'" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图">';
@@ -755,8 +885,8 @@ function updateLast(){
   const d=nodes[nodes.length-1];const m=msgs[msgs.length-1];if(!m)return;const isU=m.role==='user';let inner='';
   let bubble='';
   if(!isU&&m.think)bubble+='<div class="think'+(m.pending?' open':'')+'" onclick="this.classList.toggle(\'open\')"><b>💭 思考过程</b><div class="think-c">'+esc(m.think)+'</div></div>';
-  bubble+='<div class="'+(isU?'ububble':'abubble')+'">'+md(m.content||'')+(m.pending?'<span class="typing"></span>':'')+'</div>';
-  if(!isU&&m.sticker)bubble+='<div class="sticker-wrap"><img src="'+m.sticker+'" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图"></div>';
+  bubble+=(m.content||m.pending)?'<div class="'+(isU?'ububble':'abubble')+'">'+md(m.content||'')+(m.pending?'<span class="typing"></span>':'')+'</div>':'';
+  if(m.sticker)bubble+='<div class="sticker-wrap'+(isU?' mine':'')+'"><img src="'+m.sticker+'" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图"></div>';
   if(m.ts&&!m.pending)bubble+='<div class="msg-time" title="'+timeFull(m.ts)+'">'+timeUI(m.ts)+'</div>';
   d.querySelector('.body').innerHTML=bubble;updateTokenCount();box.scrollTop=box.scrollHeight;
 }
@@ -788,12 +918,13 @@ function uploadAvatar(input){const f=input.files[0];if(!f)return;if(f.size>5*102
 // 返回 true 表示成功挂上；只有代号没有正文也算成功（气泡里只显示图）。
 // 模型有时会模仿历史里的时间标记，回复中带上 [今天 12:48]，这里清掉免得用户困惑
 function stripTimeMarks(t){
+  const _SEG='(?:凌晨|早上|上午|中午|下午|傍晚|晚上|深夜)';
   return String(t||'')
-    .replace(/\[(?:今天|昨天|前天|\d+\s*天前|\d{4}-\d{1,2}-\d{1,2}|\d{1,2}-\d{1,2})\s+\d{1,2}:\d{2}\]/g,'')
+    .replace(new RegExp('\\[(?:今天|昨天|前天|刚刚|刚才|\\d+\\s*天前|\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}-\\d{1,2})(?:\\s+'+_SEG+')?(?:\\s+\\d{1,2}:\\d{2})?\\]','g'),'')
     .replace(/[ \t]+\n/g,'\n')
     .replace(/\n{3,}/g,'\n\n');
 }
-const _TIME_TAG=/^(?:今天|昨天|前天|刚刚|刚才|\d+\s*天前|\d{4}-\d{1,2}-\d{1,2}|\d{1,2}-\d{1,2})\s+\d{1,2}:\d{2}$/;
+const _TIME_TAG=/^(?:今天|昨天|前天|刚刚|刚才|\d+\s*天前|\d{4}-\d{1,2}-\d{1,2}|\d{1,2}-\d{1,2})(?:\s+(?:凌晨|早上|上午|中午|下午|傍晚|晚上|深夜))?(?:\s+\d{1,2}:\d{2})?$/;
 async function applyStickerTag(ai){
   try{
     const t=ai.content||'';
@@ -802,9 +933,7 @@ async function applyStickerTag(ai){
     if(mm&&_TIME_TAG.test(mm[1].trim()))return false;   // 结尾是时间标记，不是表情包代号
     if(!mm){const all=[...t.matchAll(/\[([^\]\[]{1,24})\]/g)];if(all.length)mm=all[all.length-1];}
     if(!mm||_TIME_TAG.test(mm[1].trim()))return false;
-    const sr=await window.pywebview.api.sticker_search(mm[1],'',1);
-    if(!sr||!sr.length)return false;            // 代号对不上任何一张图：当普通文字保留
-    const loc=await window.pywebview.api.sticker_local(sr[0].id);
+    const loc=await window.pywebview.api.sticker_resolve(mm[1]);
     if(!loc||!loc.ok||!loc.path)return false;   // 图没取到：不动原文，避免丢字
     ai.sticker='file:///'+String(loc.path).replace(/\\/g,'/');
     ai.content=(t.slice(0,mm.index)+t.slice(mm.index+mm[0].length)).trim();
@@ -813,11 +942,12 @@ async function applyStickerTag(ai){
 }
 async function send(){
   const inp=document.getElementById('input'),text=inp.value.trim();
-  if(!text||busy)return;
+  const stk=_pendSticker;_pendSticker=null;        // 这一轮顺带发的表情包（用户点图库发的）
+  if((!text&&!stk)||busy){if(!busy)_pendSticker=stk;return;}
   busy=true;toggleBtn();inp.value='';
   // 纯时间问题本地短路：直接用系统时钟回答，100% 准确，不给模型猜的机会
   const pureTimeQ=/^[\s，。？?！!]*(?:现在|当前|今天|此刻)?(?:的)?(?:系统|本机|本地|精确|准确|具体)?(?:的)?(?:时间|几点|几点了|日期|几号|多少号|星期几|周几|礼拜几)[\s，。？?！!]*$/.test(text.trim());
-  if(pureTimeQ){
+  if(pureTimeQ&&!stk){
     let tans='';
     try{const t=await window.pywebview.api.get_time();if(t)tans='现在是 '+t+'。（本机系统时钟，直接读取，准确无误 ⌚）';}catch(e){}
     if(tans){
@@ -826,29 +956,34 @@ async function send(){
       render();saveCurrentChat();busy=false;toggleBtn();return;
     }
   }
-  if(wbOn){msgs.push({role:'user',content:text,ts:Date.now()});render();saveCurrentChat();wbStop=false;await agentLoop(text);return;}
+  if(wbOn&&!stk){msgs.push({role:'user',content:text,ts:Date.now()});render();saveCurrentChat();wbStop=false;await agentLoop(text);return;}
   let userContent=text;
   if(pendingFiles.length){userContent+='\n\n[附件文件内容]\n';for(const f of pendingFiles){try{const r=await window.pywebview.api.read_file(f);userContent+='--- '+r.name+' ---\n'+r.text+'\n'}catch(e){}}pendingFiles=[]}
-  msgs.push({role:'user',content:userContent,ts:Date.now()});
+  msgs.push({role:'user',content:userContent,ts:Date.now(),
+             sticker:stk?stk.src:'',stickerName:stk?stk.name:''});
   const ai={role:'assistant',content:'',think:'',pending:true,ts:Date.now()};msgs.push(ai);render();
   abortCtrl=new AbortController();
   let sysInject=LANG_PROMPT[replyLang]||'';
-  // 注入当前时间，让大肥鱼知道现在几点/周几
-  try{const tn=await window.pywebview.api.get_time();if(tn)sysInject+='\n\n【系统时钟给出的当前准确时间（这是唯一权威依据，必须直接采信，不要从聊天记录里推算时间，也不要凭印象猜）】'+tn+'。用户问"现在几点/今天几号"时，就按这个直接回答。注意：历史对话中如果出现过与本次时间不一致的回答（例如"上午十点半""根据读图模型检测到"之类的旧内容），那些全部是作废的错误信息，严禁照抄其措辞和口头禅，一律以本次系统时钟为准。你可以结合时间主动关心用户（太晚提醒早睡、饭点提醒吃饭），但不要每次都机械报时间。';}catch(e){}
+  // 注入粗粒度时间：只说今天是几号星期几，不给钟点
+  // （给精确时刻模型就会复述"现在14:14"，人机感很重；用户真问时间有本地短路）
+  try{const tn=await window.pywebview.api.get_time_brief();if(tn)sysInject+='\n\n【今天是】'+tn+'。这只用来判断"你说的这件事是今天还是昨天"，不是聊天话题。'
+    +'回复里不要提日期、星期或时段，更不要出现任何具体钟点（如"现在14:14""十四点十六分"）。'
+    +'用户问现在几点/今天几号时，系统会直接回答，不用你答。';}catch(e){}
   // 说明历史消息头上的 [时间] 标记怎么用（配合 buildHistMsgs）
   try{let hasT=false,noT=false;for(const m of msgs){if(!m.content)continue;if(m.ts)hasT=true;else noT=true;}
     if(hasT||noT){
-      let nt='【聊天记录里的时间标记】历史消息开头方括号里写的是那条消息真实发生的时间（例如 "[昨天 23:40] 我睡不着"）。你能看到它，但用户看不到——所以你回复时绝不要自己写这种时间标记，也不要模仿这个格式。'
-        +'判断一件事是不是"刚刚发生"只看标记和上面的系统时钟，不要按对话顺序猜：相邻两条消息可能隔了几分钟，也可能隔了十几个小时。'
-        +'如果这件事发生的时间和你现在的时间差得远（比如标记是昨天深夜、现在是中午），那就是过去的事，只能用回忆的语气（"昨晚你说过…"），不能当成刚刚才说的。'
-        +'同样，你自己以前说过的话如果是很久之前的，也不要当成刚刚说的重复一遍。';
+      let nt='【聊天记录里的时间标记】历史消息开头方括号里是那条消息发生的日子（例如 "[昨天 深夜] 我睡不着"）。你能看到它，但用户看不到——所以你回复时绝不要自己写这种标记，也不要模仿这个格式。'
+        +'这些标记只用来判断一件事是"刚发生"还是"很久以前"：相邻两条消息可能只隔几分钟，也可能隔十几个小时，别按对话顺序猜。'
+        +'如果标记写的是昨天或更早，那就是过去的事，只能用回忆的语气（"昨晚你说过…"），不能当成刚刚才说的。'
+        +'同样，你自己以前说过的话如果是很久之前的，也不要当成刚刚说的重复一遍。'
+        +'注意：标记只到"哪一天"，没有钟点。不要根据它推测具体几点几分，也不要主动在回复里提时间。';
       if(noT)nt+='没有时间标记的消息属于更早期的记录（时间已不可考），一律当成过去发生的事，绝不能描述成"刚刚""刚才"。';
       sysInject+='\n\n'+nt;
     }
   }catch(e){}
   // 注入本机环境信息（IP/机器名/系统/桌面路径）
   try{const en=await window.pywebview.api.get_env();if(en)sysInject+='\n\n【这台电脑的环境信息】'+en+'。用户问起IP、电脑名、系统、文件位置时基于此回答。';}catch(e){}
-  try{const sn=await window.pywebview.api.env_sense();if(sn)sysInject+='\n\n'+sn+'\n以上是你"此刻对这台电脑的体感"，你可以自然地据此关心用户（太晚提醒早睡、显卡烫提醒散热、用户很久没操作可以撒个娇），但不要机械罗列这些数字，把它当成你自己的身体感觉。';}catch(e){}
+  try{const sn=await window.pywebview.api.env_sense();if(sn)sysInject+='\n\n'+sn+'\n以上是你"此刻对这台电脑的体感"，可以自然地据此关心用户（显卡烫提醒散热、用户很久没操作可以撒个娇），把它当成你自己的身体感觉，不要机械罗列这些数字，也不要在回复里念时间。';}catch(e){}
   // 用户问到文件/文件夹时，自动列出桌面（或提到的目录）
   if(/文件|文件夹|桌面|目录|有什么|列表|documents|downloads|下载|文档/i.test(text)){
     try{
@@ -875,12 +1010,41 @@ async function send(){
     if(pg)sysInject+='\n\n【你的人格设定（必须严格保持这个性格、语气和说话方式）】\n'+pg;
     if(displayMode==='pro'){const pw=await window.pywebview.api.load_setting('persona_work');if(pw)sysInject+='\n\n【当前为专业模式，叠加以下工作人格】\n'+pw;}
   }catch(e){}
+  // 一句话立规矩：别把前面聊过的事硬塞进每一轮回答（不然问什么都绕回"你加班到十点"）
+  sysInject+='\n\n【这一轮怎么聊】\n'
+    +'1. 用户这轮问什么，就先直接回答什么，别为了用上历史把话题拐回去。\n'
+    +'2. 回复里不要出现任何具体钟点；也不要主动提"你加班到几点""记得吃饭""别饿着"这类旧细节——除非用户这轮自己说到。\n'
+    +'3. 不要照抄历史里你自己的说法和排版：换个开头，别一句话一行，别用（小声）（揉揉眼睛）这类动作提示。\n'
+    +'4. 用户问一个陌生名词（比如某个产品、人名、软件）时，就先说认不认识，别扯到别的事上。';
+  // 用户自己发的表情包：模型在图库面板里挑的，正文里只有名字。告诉它这是张图，别装看不见。
+  // 只在真的有图时才加，平时零开销。
+  if(msgs.some(m=>m.role==='user'&&m.sticker))
+    sysInject+='\n\n【用户发的表情包】历史里写成「（发了表情包「名字」）」的，是用户真的甩了张图给你，不是让你念这句话。'
+      +'顺着那张图的情绪接一句就行；不要说你看不见图，也不要描述图片长什么样。'
+  // —— 深度思考模式：开=认真解决，关=人格优先不分析 ——
+  let dtTemp=0.85, dtThink=false, dtMax=0;
+  try{
+    const dt=await window.pywebview.api.deep_think_context();
+    if(dt&&dt.ok){
+      deepThink=!!dt.on;paintDeepThink();
+      if(dt.prompt)sysInject+='\n\n'+dt.prompt;
+      if(typeof dt.temperature==='number')dtTemp=dt.temperature;
+      if(dt.num_predict)dtMax=dt.num_predict;
+      // 只有真的支持思考链的模型才传 think，否则 Ollama 会直接 400 报错
+      dtThink=!!dt.think&&await probeModelCaps(MODEL);
+    }
+  }catch(e){}
   // 注入跨对话长期记忆
   try{
     const mem=await window.pywebview.api.load_memory();
     if(mem){
       let mtext='';
-      if(mem.facts&&mem.facts.length){mtext+='\n\n【你长期记住的关于这个用户的事实（跨所有对话）】\n- '+mem.facts.join('\n- ');}
+      if(mem.facts&&mem.facts.length){
+        // 只喂最近 12 条：以前是全量注入，条数一多模型会绕着这些"记住的事"打转
+        const fl=mem.facts.slice(-12);
+        mtext+='\n\n【你长期记住的关于这个用户的事实（跨所有对话）】\n- '+fl.join('\n- ')
+             +'\n这些是背景，不是这一轮的话题：用户问什么就先答什么，别为了用上记忆硬把话题拐回这些事。';
+      }
       if(mem.user)mtext+='\n用户的称呼：'+mem.user;
       if(mem.relationship)mtext+='\n你们的关系：'+mem.relationship;
       if(mtext)sysInject+=mtext;
@@ -910,13 +1074,18 @@ async function send(){
     const sc=await window.pywebview.api.soul_context(text);
     if(sc)sysInject+='\n\n'+sc;
   }catch(e){}
+  const ctxText=(stk?((stk.name||'')+' '+(text||'')).trim():text);   // 用户只发图时，用图名当语境
   try{
-    const sh=await window.pywebview.api.sticker_hint(text,4);
+    const sh=await window.pywebview.api.sticker_hint(ctxText,6);
     if(sh)sysInject+='\n\n【表情包】下面这几张你这次用得上，想配就在回复最后另起一行写它的名字（方括号括住，只写名字），不想配就不写，别勉强、也别自己编名字：\n'+sh;
   }catch(e){}
   try{
+    const _opts={num_ctx:8192,temperature:dtTemp};
+    if(dtMax>0)_opts.num_predict=dtMax;
+    const _body={model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...buildHistMsgs()],stream:true,keep_alive:'10m',options:_opts};
+    if(dtThink)_body.think=true;                 // 开深度思考且模型支持时才带，避免 400
     const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:abortCtrl.signal,
-      body:JSON.stringify({model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...buildHistMsgs()],stream:true,keep_alive:'10m',options:{num_ctx:8192}})});
+      body:JSON.stringify(_body)});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const reader=r.body.getReader(),dec=new TextDecoder();let buf='';
     while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop();for(const line of lines){if(!line.trim())continue;try{const j=JSON.parse(line);if(j.message){if(j.message.thinking)ai.think+=j.message.thinking;if(j.message.content)ai.content+=j.message.content}}catch(e){}}updateLast()}
@@ -932,7 +1101,7 @@ async function send(){
     const longReply=t.length>220;               // 长篇/正式回答不挂表情包
     const bad=t.startsWith('⚠️')||t.startsWith('*[')||!t.trim();
     if(!ai.sticker&&!longReply&&!bad){
-      window.pywebview.api.sticker_pick(text,t.slice(0,600),4,MODEL).then(function(pk){
+      window.pywebview.api.sticker_pick(ctxText,t.slice(0,600),10,MODEL).then(function(pk){
         if(pk&&pk.ok&&pk.path&&!ai.sticker){
           ai.sticker='file:///'+String(pk.path).replace(/\\/g,'/');
           render();saveCurrentChat();
@@ -941,7 +1110,7 @@ async function send(){
     }
   }catch(e){}
   // —— 插件：每轮判一次心情、记一下"它说过话了" ——
-  try{window.pywebview.api.mood_judge(text,(ai.content||'').slice(0,2000),'chat');window.pywebview.api.speak_up_note_spoke()}catch(e){}
+  try{window.pywebview.api.mood_judge(ctxText,(ai.content||'').slice(0,2000),'chat');window.pywebview.api.speak_up_note_spoke()}catch(e){}
   try{updateMoodWidget()}catch(e){}
   // 后台静默提炼长期记忆（不打断对话）
   try{
@@ -958,6 +1127,120 @@ document.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;document.get
   if(f.type.startsWith('image/')){const bar=document.getElementById('previewBar');bar.style.display='flex';const url=URL.createObjectURL(f);const t=document.createElement('div');t.className='pv-thumb';t.innerHTML='<img src="'+url+'"><div class="rm" onclick="this.parentNode.remove()">×</div>';bar.appendChild(t)}
 }});
 document.getElementById('input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+
+// ================= 用户发表情包（和 AI 共用同一套 322 张） =================
+// 图都是懒加载的：只下当前滚到的那几张，下过一次就永久在本机，之后秒开。
+var _pendSticker=null;                 // {src,name} —— 等 send() 取用
+var EMJ={on:false,emo:'',off:0,total:0,busy:false,loaded:false};
+var _emjQueue=[],_emjRun=0,_emjIO=null,_emjT=null;
+
+function toggleEmojiPanel(force){
+  const p=document.getElementById('emjPanel');if(!p)return;
+  const want=(force===undefined)?!EMJ.on:!!force;
+  EMJ.on=want;p.classList.toggle('on',want);
+  if(want){
+    emjTabs();
+    if(!EMJ.loaded)emjLoad(true);
+    const q=document.getElementById('emjQ');if(q)setTimeout(()=>q.focus(),60);
+  }
+}
+async function emjTabs(){
+  const box=document.getElementById('emjTabs');if(!box)return;
+  let list=[];try{list=await window.pywebview.api.sticker_emotions()||[]}catch(e){}
+  if(!Array.isArray(list))list=[];
+  box.innerHTML='';
+  const mk=(label,val)=>{
+    const b=document.createElement('button');
+    b.className='emj-tab'+(EMJ.emo===val?' on':'');
+    b.textContent=label;
+    b.onclick=function(){EMJ.emo=val;emjTabs();emjLoad(true)};
+    box.appendChild(b);
+  };
+  mk('全部','');list.forEach(e=>mk(e,e));
+}
+function emjDebounce(){clearTimeout(_emjT);_emjT=setTimeout(()=>emjLoad(true),260)}
+async function emjLoad(reset){
+  if(EMJ.busy)return;
+  EMJ.busy=true;
+  const grid=document.getElementById('emjGrid'),info=document.getElementById('emjInfo');
+  if(reset){EMJ.off=0;EMJ.total=0;EMJ.loaded=true;grid.innerHTML='';if(info)info.textContent='读取中…';}
+  const qv=((document.getElementById('emjQ')||{}).value||'').trim();
+  let r=null;
+  try{r=await window.pywebview.api.sticker_browse(EMJ.emo,qv,EMJ.off,48)}catch(e){}
+  EMJ.busy=false;
+  if(!r||!r.ok){if(info)info.textContent='表情包插件没起来'+((r&&r.error)?'：'+r.error:'');return}
+  EMJ.total=r.total||0;EMJ.off=(r.offset||0)+((r.items||[]).length);
+  emjAppend(r.items||[]);
+  if(info)info.textContent=EMJ.total?('共 '+EMJ.total+' 张　已显示 '+EMJ.off+' 张'):'没找到这张，换个关键词试试';
+  const more=document.getElementById('emjMore');
+  if(more){more.style.visibility=r.hasMore?'visible':'hidden'}
+}
+function emjMore(){emjLoad(false)}
+function emjAppend(items){
+  const grid=document.getElementById('emjGrid');if(!grid)return;
+  const frag=document.createDocumentFragment();
+  items.forEach(it=>{
+    const c=document.createElement('div');
+    c.className='emj-cell';c.dataset.sid=it.id;
+    c.title=(it.name||'')+(it.emotion?' · '+it.emotion:'')+(it.use?'\n'+it.use:'');
+    c.innerHTML='<span class="emj-ph">'+esc(it.name||'…')+'</span>';
+    c.onclick=function(){emjSend(it.id,it.name)};
+    frag.appendChild(c);
+  });
+  grid.appendChild(frag);
+  grid.querySelectorAll('.emj-cell').forEach(c=>{if(!c.dataset.seen){c.dataset.seen='1';emjObserve(c)}});
+}
+function emjObserve(cell){
+  if(!_emjIO){
+    const grid=document.getElementById('emjGrid');
+    _emjIO=new IntersectionObserver(function(es){
+      es.forEach(function(e){if(e.isIntersecting){_emjIO.unobserve(e.target);_emjQueue.push(e.target);emjPump()}});
+    },{root:grid,rootMargin:'300px'});
+  }
+  _emjIO.observe(cell);
+}
+function emjPump(){
+  while(_emjRun<4&&_emjQueue.length){
+    const cell=_emjQueue.shift();
+    if(!cell||!cell.isConnected)continue;
+    _emjRun++;
+    window.pywebview.api.sticker_local(cell.dataset.sid).then(function(r){
+      _emjRun--;
+      if(r&&r.ok&&r.path&&cell.isConnected){
+        const im=document.createElement('img');
+        im.src='file:///'+String(r.path).replace(/\\/g,'/');
+        cell.innerHTML='';cell.appendChild(im);
+      }
+      emjPump();
+    }).catch(function(){_emjRun--;emjPump()});
+  }
+}
+async function emjSend(id,name){
+  if(busy){alert('等这条回复说完再发～');return}
+  toggleEmojiPanel(false);
+  let r=null;
+  try{r=await window.pywebview.api.sticker_local(id)}catch(e){}
+  if(!r||!r.ok||!r.path){alert('这张图取不到：'+((r&&r.error)||'网络或索引问题'));return}
+  _pendSticker={src:'file:///'+String(r.path).replace(/\\/g,'/'),name:name||''};
+  send();
+}
+document.addEventListener('click',function(e){
+  if(!EMJ.on)return;
+  const p=document.getElementById('emjPanel'),b=document.getElementById('emjBtn');
+  if((p&&p.contains(e.target))||(b&&b.contains(e.target)))return;
+  toggleEmojiPanel(false);
+},true);
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&EMJ.on)toggleEmojiPanel(false)});
+// 滚到底自动续一页，省得一直点「加载更多」
+(function(){
+  const g=document.getElementById('emjGrid');if(!g)return;
+  g.addEventListener('scroll',function(){
+    if(!EMJ.on||EMJ.busy)return;
+    const more=document.getElementById('emjMore');
+    if(more&&more.style.visibility==='hidden')return;
+    if(g.scrollTop+g.clientHeight>=g.scrollHeight-180)emjLoad(false);
+  });
+})();
 
 // ================= 本地插件 UI：心情挂饰 + 主动搭话 =================
 (function(){
@@ -1477,6 +1760,40 @@ async function hubSRecall(){
   if(box)box.textContent=(typeof r==='string'&&r)?r:'没想起什么相关的';
 }
 
+// ================== 深度思考 ==================
+_hubViews.deep_think={
+  icon:'🔬',name:'深度思考',sub:'开：认真拆问题；关：人格优先、不做分析',
+  mount:function(b){
+    b.innerHTML=
+      '<div class="pg-card"><div class="pg-h"><span>模式</span><span class="pg-badge" id="dtBadge">…</span></div>'
+      +'<div class="pg-note" id="dtStat">读取中…</div>'
+      +'<div class="pg-row"><button class="opt" id="dtSw" onclick="hubDToggle()">切换</button></div>'
+      +'<div class="pg-note" style="margin-top:6px">切换即时生效，不用重启。聊天窗口顶部也有一个「深度思考」按钮。</div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>这一轮会注入的指令</span></div><div class="pg-view" id="dtPrompt">读取中…</div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>两种模式的区别</span></div><div class="pg-note">'
+      +'<b>开</b>：先拆问题 → 逐条核对 → 给能直接用的结论，准确性排在可爱前面；用「思考 / 深度 / 深度ProMax」这类模型时会额外打开思考链，气泡里能看到 💭 思考过程。<br>'
+      +'<b>关</b>：不分析、不列步骤、不自查，人格和情绪优先，默认短句，宁可回一句有性格的话也不写正确的废话。</div></div>';
+  },
+  refresh:async function(){
+    const s=await pgCall('deep_think_state');
+    if(!s||s.__err||s.ok===false){pgTxt('dtBadge','不可用');pgTxt('dtStat',(s&&(s.__err||s.error))||'插件没加载');return}
+    pgTxt('dtBadge',s.label);
+    pgTxt('dtStat',s.note||'');
+    const b=document.getElementById('dtSw');if(b)b.textContent=s.on?'关掉':'打开';
+    const c=await pgCall('deep_think_context');
+    const p=document.getElementById('dtPrompt');
+    if(p)p.textContent=(c&&c.prompt)||'读不到提示词';
+  }
+};
+async function hubDToggle(){
+  const s=await pgCall('deep_think_state');
+  const on=!!(s&&s.on);
+  const r=await pgCall('deep_think_set',!on);
+  if(r&&r.ok){deepThink=!!r.on;paintDeepThink();pgToast(deepThink?'🔬 已开启深度思考':'💬 已关闭，回到人格模式')}
+  else pgToast('切换失败：'+((r&&(r.error||r.__err))||''));
+  hubRefresh();
+}
+
 // ================== 表情包 ==================
 _hubViews.nekowhale_stickers={
   icon:'🐱',name:'表情包',sub:'322 张标注好的表情，本地检索',
@@ -1683,6 +2000,8 @@ async function boot(){
     const mi=await window.pywebview.api.load_setting('mutterMin');const miEl=document.getElementById('mutterMin');if(miEl)miEl.value=mi||'20';
     const nn=await window.pywebview.api.load_setting('ai_name');const nnEl=document.getElementById('aiNameInput');if(nnEl)nnEl.value=nn||'';
     const md=await window.pywebview.api.load_setting('model');if(md&&MODELS.some(m=>m.id===md)){MODEL=md;refreshModelSel()}
+    try{const ds=await window.pywebview.api.deep_think_state();if(ds&&ds.ok){deepThink=!!ds.on;paintDeepThink()}}catch(e){}
+    try{await probeModelCaps(MODEL);paintDeepThink()}catch(e){}
   }catch(e){setThemeMode('auto')}
 }
 boot();checkConn();render();

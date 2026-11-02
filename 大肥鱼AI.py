@@ -1021,7 +1021,7 @@ def load_memory():
     """读取跨对话长期记忆，不存在则初始化。"""
     try:
         if os.path.exists(memory_file):
-            with open(memory_file, "r", encoding="utf-8") as f:
+            with open(memory_file, "r", encoding="utf-8-sig") as f:   # 容 BOM，否则记忆会静默读空
                 m = json.load(f)
             if isinstance(m, dict):
                 m.setdefault("user", "")
@@ -1081,6 +1081,58 @@ def remember_fact(text):
     save_memory(m)
     return "ok"
 
+_MEM_JUNK = re.compile(
+    r"记忆整理器|提炼出|只输出|输出规则|这段对话|下面的对话|已记录|要求我作为|需要提炼"
+    r"|^(?:首先|现在|然后|接下来|所以|因此|总之|综上|关键点|注意|分析|我理解|我需要|让我|我认为"
+    r"|用户说|我：|大肥鱼：|大肥：|AI：|助手：|对话)"
+)
+# 一次性的事 vs 长期偏好：命中前者又没命中后者就不入库
+_MEM_EVENT = re.compile(r"(加班到|吃了|去了|遇到|感到|被骂|考了|看完|刚才|刚刚|今天|昨天|昨晚|今晚|今早|前天|上周|这次)")
+_MEM_PREF = re.compile(r"(喜欢|不喜欢|讨厌|习惯|总是|经常|一般|通常|每天|常常|偏好|在意|重视|想学|打算|一直)")
+
+
+def _mem_key(s):
+    """去掉标点后的字二元组，用来算相似度。"""
+    s = re.sub(r"[^\u4e00-\u9fffA-Za-z0-9]", "", str(s or ""))
+    return set(s[i:i + 2] for i in range(len(s) - 1)) or ({s} if s else set())
+
+
+def _mem_sim(a, b):
+    A, B = _mem_key(a), _mem_key(b)
+    if not A or not B:
+        return 0.0
+    return len(A & B) / float(max(1, min(len(A), len(B))))
+
+
+def _mem_clean(line):
+    """把模型吐的一行整理成入库格式；不像事实就返回空串。
+
+    小模型经常不按格式：整段吐思考过程、复述对话、把"必须以用户开头"写成"用户：xxx"。
+    以前不过滤就逐行入库，记忆里塞满「首先，用户要求我作为…」，而且这些每轮都会重新注入，
+    模型就绕回去反复提前面聊过的事（问"认识豆包吗"也能绕到"你加班到十点"）。
+    """
+    s = re.sub(r"^[\-\*\u2022\d\.\s、]+", "", str(line or "")).strip()
+    if not s:
+        return ""
+    # 模型把"以用户开头"理解成"用户：xxx"，这层壳要剥掉，否则真事实也会被当成对话记录丢掉
+    s = re.sub(r"^(?:用户|主人)\s*[：:]\s*", "", s)
+    s = re.sub(r"^(?:用户|主人)\s*", "", s)
+    s = s.strip(" 　。．.,，")
+    if not (4 <= len(s) <= 60):
+        return ""
+    if _MEM_JUNK.search(s):
+        return ""
+    if s.count("：") + s.count(":") >= 1:      # 还剩冒号，多半是对话记录/AI自我叙述
+        return ""
+    if re.match(r"^(?:我|你|大肥鱼|大肥)", s):
+        return ""
+    if _MEM_EVENT.search(s) and not _MEM_PREF.search(s):
+        return ""                               # "加班到十点，感到疲惫"这类一次性事件
+    if not re.match(r"^[\u4e00-\u9fffA-Za-z]", s):
+        return ""
+    return ("用户" + s)[:60]
+
+
 def reflect_memory(conv_text, model="qwen3:4b"):
     """让模型从一段对话里提炼值得长期记住的事实，合并进记忆。后台静默调用。"""
     try:
@@ -1090,15 +1142,20 @@ def reflect_memory(conv_text, model="qwen3:4b"):
         cur = load_memory()
         facts_now = "；".join(cur["facts"][-15:])
         prompt = (
-            "你是大肥鱼的记忆整理器。从下面这段用户和AI的对话里，提炼【值得跨会话长期记住】的关于用户的事实"
-            "（偏好、习惯、名字、项目、关系、在意的事）。只输出事实条目，每条一行，10~40字；"
-            "已经记录过的不要重复；如果没有新事实，只输出 NONE。\n"
+            "你是大肥鱼的记忆整理器。从下面这段对话里，提炼【值得跨会话长期记住】的关于用户的事实。\n"
+            "只记长期有效的东西：称呼、身份职业、长期偏好、习惯、正在做的项目、重要的人和关系、在意的事。\n"
+            "不要记一次性的事：今天加班到几点、今天很累、今天吃了什么、刚刚说了哪句话——这些过一天就没意义。\n"
+            "只记用户明确说过的事，不要从行为推测偏好（用户说「加班到十点」不等于「用户喜欢十点前睡觉」）。\n"
+            "每行一条，必须以「用户」开头，10~40 字；不要编号，不要写分析过程，不要复述对话，"
+            "不要解释你在做什么，不要输出规则或思考。\n"
+            "已经记录过的不要重复；如果没有新的长期事实，只输出 NONE。\n"
             "已记录：" + (facts_now or "无") + "\n\n对话：\n" + conv_text
         )
         data = json.dumps({
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
+            "think": False,
             "options": {"num_predict": 200}
         }).encode("utf-8")
         req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
@@ -1110,19 +1167,16 @@ def reflect_memory(conv_text, model="qwen3:4b"):
             return "none"
         added = 0
         for line in out.split("\n"):
-            line = re.sub(r"^[\-\*\d\.\s]+", "", line).strip()
-            if not line or line.upper().startswith("NONE") or len(line) < 6:
+            s = _mem_clean(line)
+            if not s:
                 continue
-            dup = False
-            for f in cur["facts"]:
-                if line in f or f in line:
-                    dup = True
-                    break
-            if not dup:
-                cur["facts"].append(line[:120])
-                added += 1
-        if len(cur["facts"]) > 60:
-            cur["facts"] = cur["facts"][-60:]
+            # 同一件事说法的细微差别也要算重："用户加班到十点，感到疲惫" vs "用户在对话中提到加班到十点"
+            if any(_mem_sim(s, f) >= 0.62 for f in cur["facts"]):
+                continue
+            cur["facts"].append(s)
+            added += 1
+        if len(cur["facts"]) > 40:
+            cur["facts"] = cur["facts"][-40:]
         if added:
             save_memory(cur)
         return "added:%d" % added
@@ -1213,7 +1267,7 @@ def test_persona(persona, user_msg, model="qwen3:4b"):
         return "（测试失败：" + str(e) + "）"
 
 def get_time():
-    """返回当前本地时间的中文描述，供主对话注入，让AI知道现在几点/周几。"""
+    """返回当前本地时间的精确描述。只用于用户主动问「现在几点」，界面也会用到。"""
     try:
         import datetime
         now = datetime.datetime.now()
@@ -1228,6 +1282,54 @@ def get_time():
         return "%d年%d月%d日 %s %s%d点%02d分" % (now.year, now.month, now.day, week, tz, h, now.minute)
     except Exception:
         return ""
+
+def get_time_brief():
+    """给对话注入用的粗粒度时间：只到「几月几日 星期几」，深夜/凌晨额外标一下。
+
+    故意不给钟点：模型看到「14点16分」就会在回复里复述「现在14:14」，人机感很重。
+    精确时间留给 get_time()，用户真问几点时前端直接答，不经过模型。
+    """
+    try:
+        import datetime
+        now = datetime.datetime.now()
+        week = ["星期一","星期二","星期三","星期四","星期五","星期六","星期日"][now.weekday()]
+        s = "%d月%d日 %s" % (now.month, now.day, week)
+        h = now.hour
+        if h < 6:
+            s += "（凌晨，主人可能该睡了）"
+        elif h >= 23:
+            s += "（深夜，主人可能该睡了）"
+        return s
+    except Exception:
+        return ""
+
+_MODEL_CAPS = {}
+
+def model_caps(model=None):
+    """查这个模型到底支不支持思考链——以 Ollama /api/show 返回的 capabilities 为准。
+
+    为什么不靠名字猜：qwen3-vl、gpt-oss、deepseek-v3.1 这些新模型的命名跟不上正则，
+    而猜错的后果很硬——给不支持的模型传 think=true，Ollama 直接 400，整轮对话发不出去。
+    「不支持」也不代表不能用深度思考：那时只是没有独立的思考链，靠提示词约束。
+    """
+    try:
+        m = str(model or "").strip()
+        if not m:
+            return {"ok": False, "error": "没指定模型"}
+        if m in _MODEL_CAPS:
+            return _MODEL_CAPS[m]
+        req = urllib.request.Request(
+            "http://127.0.0.1:11434/api/show",
+            json.dumps({"model": m}).encode("utf-8"),
+            {"Content-Type": "application/json"})
+        d = json.loads(urllib.request.urlopen(req, timeout=10).read().decode("utf-8"))
+        caps = d.get("capabilities") or []
+        out = {"ok": True, "model": m, "caps": caps,
+               "thinking": "thinking" in caps, "vision": "vision" in caps}
+        _MODEL_CAPS[m] = out
+        return out
+    except Exception as e:
+        return {"ok": False, "error": repr(e)}
 
 def get_env():
     """返回本机环境信息，供主对话注入，让AI知道IP、机器名、系统、桌面路径等。"""
@@ -1369,7 +1471,9 @@ def env_sense():
         else: user_state = "用户正在电脑前操作"
         lines = [
             "【你此刻对这台电脑的体感】",
-            "现在时间：%02d:%02d:%02d，%d月%d日 星期%s（%s）" % (hh, now.tm_min, now.tm_sec, now.tm_mon, now.tm_mday, weekdays[now.tm_wday], circ),
+            # 这里只给"几月几日星期几 + 生物钟"，不给钟点：
+            # 原先写成 "现在时间：14:14:23" 精确到秒，模型会直接在回复里念"现在14:14"
+            "今天：%d月%d日 星期%s，%s" % (now.tm_mon, now.tm_mday, weekdays[now.tm_wday], circ),
             "电脑已开机：%d小时%d分" % (up_h, up_m),
             "用户空闲：%d秒（%s）" % (idle, user_state),
             "当前活动窗口：%s" % (aw[:40] if aw else "（无）"),
@@ -1553,7 +1657,7 @@ window.expose(*([_safe_api(_f) for _f in (
               load_chats, save_chats, delete_chat_disk, web_search, repo_search, read_file, run_python, kb_search, open_kb,
               take_screenshot, read_clipboard, write_clipboard, extract_url, tts_speak, gen_title, open_folder, pick_avatar, save_avatar, save_setting, load_setting,
               load_memory, save_memory, remember_fact, reflect_memory, pet_mutter,
-              gen_persona, test_persona, get_time, get_env, list_dir, env_sense,
+              gen_persona, test_persona, get_time, get_time_brief, get_env, list_dir, env_sense, model_caps,
               screen_size, mouse_click, type_text, press_key, agent_decide, plugin_list,
               plugin_set_enabled)]
               + [_safe_api(_f) for _f in PLUGIN_APIS]
@@ -1809,6 +1913,43 @@ def _run_selftest():
                     data["hubtest"] = got or "超时"
             except Exception as _e:
                 data["hubtest_error"] = _tb.format_exc()
+
+        # 用户发表情包：打开面板截图；DFY_EMJCLICK=1 时再点一张发出去
+        if os.environ.get("DFY_EMJTEST") == "1":
+            try:
+                window.evaluate_js("try{closePluginHub()}catch(e){}")
+                window.evaluate_js("toggleEmojiPanel(true)")
+                _st = {}
+                for _i in range(30):                      # 最多等 12s，等首屏图下下来
+                    time.sleep(0.4)
+                    try:
+                        _st = json.loads(window.evaluate_js(
+                            "JSON.stringify({on:EMJ.on,emo:EMJ.emo,total:EMJ.total,off:EMJ.off,"
+                            "cells:document.querySelectorAll('#emjGrid .emj-cell').length,"
+                            "imgs:document.querySelectorAll('#emjGrid img').length,"
+                            "tabs:document.querySelectorAll('.emj-tab').length,"
+                            "info:(document.getElementById('emjInfo')||{}).textContent})") or "{}")
+                    except Exception:
+                        _st = {}
+                    if _st.get("imgs", 0) >= 10:
+                        break
+                data["emj_panel"] = _st
+                _img = _grab_window(_win_hwnd())
+                _p1 = os.path.join(cache_dir, "_emj_panel.png")
+                _img.save(_p1, "PNG")
+                data["emj_panel_shot"] = _p1
+                if os.environ.get("DFY_EMJCLICK") == "1":
+                    window.evaluate_js("document.querySelector('#emjGrid .emj-cell').click()")
+                    time.sleep(25.0)
+                    data["emj_after"] = window.evaluate_js(
+                        "JSON.stringify(msgs.slice(-3).map(function(m){return {r:m.role,c:(m.content||'').slice(0,60),"
+                        "s:(m.sticker||'').slice(-24),n:m.stickerName||''}}))")
+                    _img2 = _grab_window(_win_hwnd())
+                    _p2 = os.path.join(cache_dir, "_emj_sent.png")
+                    _img2.save(_p2, "PNG")
+                    data["emj_sent_shot"] = _p2
+            except Exception:
+                data["emj_error"] = _tb.format_exc()
 
         # 截图（仅 DFY_SHOT=插件id 时跑，用来核对界面）
         _shot = os.environ.get("DFY_SHOT")
