@@ -5,6 +5,11 @@
 <title>大肥鱼AI · By Childe</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+/* pywebview 的 text_select=True 会让全页可选；界面部分保持"点不中"，
+   只有聊天正文、输入框、代码块允许选中复制。 */
+body{-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+#msgs,.msgs,.abubble,.ububble,.msg-time,.abubble *,.ububble *,.toast,.emj-q,textarea,input,pre,code,code *,.pg-body,.pg-body *{-webkit-user-select:text!important;user-select:text!important}
+textarea,input{-webkit-user-drag:auto}
 :root{--bg:#f7f7f8;--card:#fff;--border:#e8e8e8;--text:#1a1a1a;--text2:#6b6b6b;--accent:#4d6bfe;--accent-light:#eef1ff;--hover:#f0f0f2;--shadow:0 2px 12px rgba(0,0,0,.06)}
 [data-theme="dark"]{--bg:#131316;--card:#1c1c21;--border:#2e2e35;--text:#e8e8ea;--text2:#9a9aa3;--accent:#7b9aff;--accent-light:#252a4a;--hover:#26262e;--shadow:0 2px 12px rgba(0,0,0,.3)}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;font-size:15px;line-height:1.7;overflow:hidden}

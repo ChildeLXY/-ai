@@ -1536,6 +1536,10 @@ window = webview.create_window(
     width=1280,
     height=860,
     resizable=True,
+    # pywebview 默认 text_select=False，会往 body 注入 user-select:none，
+    # 结果整个页面一个字都选不中（Ctrl+C 也就没用了）。
+    # 打开它，再在 HTML 里把界面部分设回不可选，只留聊天正文可选。
+    text_select=True,
 )
 
 # 必须在 webview.start() 之前打补丁：它要改 BrowserForm 的 __init__ / on_close
@@ -1666,6 +1670,11 @@ _SELFTEST_JS = r"""
     apiCount: (window.pywebview && window.pywebview.api) ? Object.keys(window.pywebview.api).length : 0,
     theme: document.documentElement.getAttribute('data-theme'),
     bodyBg: getComputedStyle(document.body).backgroundColor,
+    // 文本能否选中：body 应为 none（界面），.msgs/气泡应为 text（聊天内容）
+    selBody: getComputedStyle(document.body).userSelect || getComputedStyle(document.body).webkitUserSelect,
+    selMsgs: q('msgs') ? (getComputedStyle(q('msgs')).userSelect || getComputedStyle(q('msgs')).webkitUserSelect) : null,
+    selBubble: document.querySelector('.abubble') ? (getComputedStyle(document.querySelector('.abubble')).userSelect || getComputedStyle(document.querySelector('.abubble')).webkitUserSelect) : null,
+    selInput: q('input') ? (getComputedStyle(q('input')).userSelect || getComputedStyle(q('input')).webkitUserSelect) : null,
     sidebar: info('sidebar'), header: info('header') , msgs: info('msgs'),
     input: info('input'), sendBtn: info('sendBtn'), emptyState: info('emptyState'),
     chatCount: (typeof chats !== 'undefined' && chats) ? chats.length : null,
