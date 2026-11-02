@@ -52,3 +52,6 @@ pet_repo/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# 本机专用的首次推送脚本（含代理端口，不进仓库）
+_首次推GitHub.bat
