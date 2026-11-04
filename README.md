@@ -47,7 +47,7 @@ ollama pull qwen3:4b      # 推荐，快、够用
 | `qwen3:4b` | 最快，但常复述 prompt、不爱挑表情包 | 4 GB 显存以内 / 纯 CPU 也行 |
 | `qwen3:8b` | 更强，稍慢 | 8 GB |
 | `deepseek-r1:8b` | 爱推理，最慢 | 8 GB |
-| `qwen3:30b` | 最强，需大内存 | 18 GB+ |
+| `qwen3.6:35b` | 最强（35B-A3B MoE，能看图，思考链可开关） | 21 GB 磁盘；8 GB 显存 + 16 GB 内存（专家卸载），实测生成 45 tok/s |
 
 ### 3. 安装 Python 依赖
 

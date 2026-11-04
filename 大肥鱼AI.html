@@ -452,7 +452,7 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
 </div>
 <script>
 const API='http://localhost:11434';
-const MODELS=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐：说话自然、会挑表情包）'},{id:'qwen3:4b',short:'快速',full:'Qwen3 - 4B（最快，但不爱挑表情包）'},{id:'qwen3:8b',short:'深度',full:'Qwen3 - 8B（更强，稍慢）'},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（慢，爱推理）'},{id:'qwen3:30b',short:'深度ProMax',full:'Qwen3 - 30B（最强，较慢，需18G内存）'}];
+const MODELS=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐：说话自然、会挑表情包）'},{id:'qwen3:4b',short:'快速',full:'Qwen3 - 4B（最快，但不爱挑表情包）'},{id:'qwen3:8b',short:'深度',full:'Qwen3 - 8B（更强，稍慢）'},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（慢，爱推理）'},{id:'qwen3.6:35b',short:'深度ProMax',full:'Qwen3.6 - 35B-A3B（最强，能看图，思考链可开关）'}];
 let MODEL='qwen2.5vl:7b',displayMode='balanced',replyLang='zh-CN';
 let msgs=[],busy=false,abortCtrl=null,chats=[],currentId=null,webSearchOn=false,searchEngine='duckduckgo',pendingFiles=[],kbOn=false,chatsLoaded=false,wbOn=false,wbStop=false;
 const HIST_TURNS=16;  // 送进模型的最近消息条数，防止长对话越聊越慢
@@ -695,6 +695,13 @@ function toggleWb(){
 function addSysMsg(text){msgs.push({role:'assistant',content:text,think:'',ts:Date.now()});render();saveCurrentChat();}
 // —— 深度思考：插件存状态，这里只做开关和外观 ——
 let deepThink=false;
+// 有些模型传 think:false 会把推理直接写进正文（qwen3 初代、R1、qwq 都是），
+// 这种只能一直开着思考链；qwen3.6 之后修好了，传 false 既干净又快。
+function _leaksNoThink(id){
+  const m=String(id||'').toLowerCase();
+  if(/^qwen3\.[6-9]|^qwen[4-9]/.test(m))return false;        // 3.6 及以后：关掉是安全的
+  return /^(qwen3|deepseek-r1|qwq|magistral|phi4-reasoning)/.test(m);
+}
 // 模型有没有"思考链"：问 Ollama 的 capabilities，不靠名字猜（qwen3-vl / gpt-oss 这类会漏）
 const _capsCache={};
 async function probeModelCaps(id){
@@ -1089,14 +1096,15 @@ async function send(){
     const _opts={num_ctx:8192,temperature:dtTemp};
     if(dtMax>0)_opts.num_predict=dtMax;
     const _body={model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...buildHistMsgs()],stream:true,keep_alive:'60m',options:_opts};
-    // 思考型模型（qwen3/R1 等）必须让它在思考通道里想，不能传 think:false：
-    // 实测 qwen3:4b 同一句话，think=false 会把它"想的过程"直接写进正文
-    // （正文 751 字全是"好的，用户发了…我需要…"，还不能看），而且慢 2.5 倍；
-    // think=true 时正文只有 12 字、耗时 29s。加 /no_think 也没用（更糟，1244 字）。
-    // 所以：能思考的模型一律 think=true，要不要显示思考由界面决定（见下面 dtKeepThink）。
-    // 不支持思考链的模型（如灵动 qwen2.5vl）传了会 400，必须先探测。
+    // 思考链怎么传，要分模型：
+    // · qwen3 / R1 这一代：传 think:false 会把"想的过程"直接写进正文（实测 751 字，
+    //   全是"好的，用户发了…我需要…"），所以只能一直 think=true，关深度思考时
+    //   照收思考但不显示（见下面的 dtThink 判断）。
+    // · qwen3.6 及以后：think:false 很干净，不会泄漏，而且快得夸张
+    //   （实测同一句话 0.7s，think=true 要 23s），所以关深度思考时直接传 false。
+    // 判断用 _leaksNoThink()，别再用"一律 true"这种一刀切，否则 3.6 会被拖慢 30 倍。
     const _hasThink=await probeModelCaps(MODEL);
-    if(_hasThink)_body.think=true;
+    if(_hasThink)_body.think=(dtThink||_leaksNoThink(MODEL));
     // 思考链和正文共用 num_predict 这一个预算：预算小了会被思考吃光，正文只剩几个字。
     if(_hasThink&&(!_opts.num_predict||_opts.num_predict<3000))_opts.num_predict=3000;
     const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:abortCtrl.signal,
