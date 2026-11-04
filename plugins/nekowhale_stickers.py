@@ -807,7 +807,9 @@ def sticker_pick(user_text, ai_text="", limit=10, model=None):
         out = _ctx.chat(
             [{"role": "system", "content": _PICK_SYS},
              {"role": "user", "content": msg}],
-            model=model, timeout=25, num_predict=8, think=False)
+            # 超时给足：如果刚好在切模型（大模型还占着内存），Ollama 要先卸载再加载，
+            # 25 秒会直接超时，表现为"突然不发表情包了"（日志里是 [ctx] chat 失败: timed out）
+            model=model, timeout=45, num_predict=8, think=False)
     except Exception as e:
         return {"ok": False, "error": "选图失败: %r" % (e,)}
     raw = str(out or "")

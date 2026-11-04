@@ -536,14 +536,31 @@ function buildHistMsgs(){                   // 送进模型的历史：每条前
 }
 const LANG_PROMPT={'zh-CN':'请始终使用简体中文回答。','zh-TW':'請始終使用繁體中文回答。','en':'Please always respond in English.','ja':'常に日本語で回答してください。'};
 function refreshModelSel(){const sel=document.getElementById('modelSel');sel.innerHTML='';MODELS.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=displayMode==='pro'?m.full:m.short;if(m.id===MODEL)o.selected=true;sel.appendChild(o)});sel.value=MODEL}
-async function changeModel(){MODEL=document.getElementById('modelSel').value;await preloadModel();try{await window.pywebview.api.save_setting('model',MODEL)}catch(e){}try{await probeModelCaps(MODEL);paintDeepThink()}catch(e){}}
+// 大模型（MoE 几十 GB）驻留时会把内存吃到见底：实测 35B 占 16GB 内存，
+// 导致切回灵动后每次加载都慢到选图调用超时（表现就是"突然不发表情包了"）。
+// 所以大模型只保活 15 分钟，并且切走时立刻卸载。
+function _heavyModel(id){return /qwen3\.[6-9]|qwen[4-9]|:30b|:32b|:70b|:72b/i.test(String(id||''))}
+function _keepAliveFor(id){return _heavyModel(id)?'15m':'60m'}
+async function unloadModel(id){
+  if(!id)return;
+  try{await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:id,messages:[{role:'user',content:'.'}],stream:false,keep_alive:'0s',options:{num_predict:1}})});}catch(e){}
+}
+async function changeModel(){
+  const prev=MODEL;
+  MODEL=document.getElementById('modelSel').value;
+  // 从重模型切走时先卸掉它，把 16GB 内存还回去
+  if(prev&&prev!==MODEL&&_heavyModel(prev))await unloadModel(prev);
+  await preloadModel();
+  try{await window.pywebview.api.save_setting('model',MODEL)}catch(e){}try{await probeModelCaps(MODEL);paintDeepThink()}catch(e){}
+}
 async function preloadModel(){
   const bar=document.getElementById('mlbar');const txt=document.getElementById('mlbarText');
   bar.classList.add('show');txt.classList.add('show');bar.style.width='15%';
   const m=MODELS.find(x=>x.id===MODEL);txt.textContent='正在加载 '+(m?m.short:MODEL)+'...';
   let w=15;const anim=setInterval(()=>{if(w<80){w+=2;bar.style.width=w+'%'}else{clearInterval(anim)}},300);
   // num_ctx 必须和正式对话一致（8192），否则 ollama 会按默认上下文加载一次、真正聊天时再重载一遍
-  try{await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,messages:[{role:'user',content:'.'}],stream:false,keep_alive:'60m',options:{num_predict:1,num_ctx:8192}})})}catch(e){}
+  try{await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,messages:[{role:'user',content:'.'}],stream:false,keep_alive:_keepAliveFor(MODEL),options:{num_predict:1,num_ctx:8192}})})}catch(e){}
   const check=setInterval(async()=>{
     try{
       const ps=await fetch('http://localhost:11434/api/ps');const pd=await ps.json();
@@ -1095,7 +1112,7 @@ async function send(){
   try{
     const _opts={num_ctx:8192,temperature:dtTemp};
     if(dtMax>0)_opts.num_predict=dtMax;
-    const _body={model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...buildHistMsgs()],stream:true,keep_alive:'60m',options:_opts};
+    const _body={model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...buildHistMsgs()],stream:true,keep_alive:_keepAliveFor(MODEL),options:_opts};
     // 思考链怎么传，要分模型：
     // · qwen3 / R1 这一代：传 think:false 会把"想的过程"直接写进正文（实测 751 字，
     //   全是"好的，用户发了…我需要…"），所以只能一直 think=true，关深度思考时
