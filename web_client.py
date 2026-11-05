@@ -252,6 +252,99 @@ def lan_ip():
         return "127.0.0.1"
 
 
+def _lan_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("223.5.5.5", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
+# ---------------------------------------------------------------- App 下载
+# 手机没有数据线时的安装通道：同一个 WiFi 下打开 /dl/ 直接下 APK
+DL_DIR = os.path.join(BASE, "downloads")
+APK_PATH = os.path.join(DL_DIR, "dafeiyu.apk")
+
+_DL_PAGE = """<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>安装 大肥鱼AI</title>
+<style>
+:root{--bg:#05070e;--card:#0d1424;--line:#1c2740;--text:#e9eefb;--dim:#7d8cab;--acc:#8ecbff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(120% 80% at 50% 0%,#0f1a33,#05070e 60%);color:var(--text);
+font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh;
+padding:calc(36px + env(safe-area-inset-top)) 20px 40px}
+.head{display:flex;align-items:center;gap:13px;margin-bottom:22px}
+.avatar{width:56px;height:56px;border-radius:16px;background:linear-gradient(140deg,#2a4b8d,#8ecbff);
+display:grid;place-items:center;font-size:26px;box-shadow:0 8px 22px rgba(142,203,255,.25)}
+h1{font-size:20px;font-weight:600}.sub{color:var(--dim);font-size:12.5px;margin-top:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
+.btn{display:block;text-align:center;padding:15px;border-radius:12px;text-decoration:none;
+background:linear-gradient(135deg,#2f6fc4,#8ecbff);color:#03101f;font-weight:600;font-size:15.5px;
+box-shadow:0 8px 22px rgba(94,166,255,.28)}
+.meta{display:flex;gap:10px;margin-top:12px;color:var(--dim);font-size:12px;flex-wrap:wrap}
+ol{color:var(--dim);font-size:13.5px;line-height:2;padding-left:20px}
+b{color:var(--text)}
+.tip{color:#5d6b88;font-size:12px;line-height:1.75;margin-top:10px}
+</style></head><body>
+<div class="head"><div class="avatar">🐋</div>
+<div><h1>大肥鱼AI</h1><div class="sub">Android 客户端 · __SIZE__</div></div></div>
+<div class="card">
+  <a class="btn" href="/dl/dafeiyu.apk">↓ 下载 APK</a>
+  <div class="meta"><span>v0.1.0</span><span>Android 8.0+</span><span>本地推理 · 可离线</span></div>
+  <div class="tip">下载完点开安装，系统可能提示"未知来源"，允许即可。</div>
+</div>
+<div class="card">
+  <ol>
+    <li>先装这个 APK（约 6 MB）</li>
+    <li>打开 App，它会引导你下载模型</li>
+    <li>模型约 <b>2.4 GB</b>，从这台电脑直传，两三分钟</li>
+    <li>装完断网也能聊</li>
+  </ol>
+  <div class="tip">模型下载地址已内置，确保手机和电脑在同一个 WiFi。</div>
+</div>
+</body></html>"""
+
+
+async def handle_dl_page(request):
+    size = "未打包"
+    if os.path.exists(APK_PATH):
+        mb = os.path.getsize(APK_PATH) / 1024 / 1024
+        size = ("%.0f KB" % (mb * 1024)) if mb < 1 else ("%.1f MB" % mb)
+    return web.Response(text=_DL_PAGE.replace("__SIZE__", size),
+                        content_type="text/html", charset="utf-8")
+
+
+async def handle_apk(request):
+    if not os.path.exists(APK_PATH):
+        return web.Response(status=404, text="APK 还没打包")
+    return web.FileResponse(APK_PATH, headers={
+        "Content-Type": "application/vnd.android.package-archive",
+        "Content-Disposition": 'attachment; filename="dafeiyu.apk"',
+        "Cache-Control": "no-cache",
+    })
+
+
+# 手机端首次启动要下的模型（GGUF）。直接用 Ollama 已下载的 blob，不额外占磁盘。
+MODEL_GGUF = os.environ.get(
+    "DFY_MODEL_GGUF",
+    r"D:\本地部署大肥鱼环境\models\blobs\sha256-3a859c4dca6883593e389a08987f04762f2a374d475cabc1538360473a72b1da",
+)
+
+
+async def handle_model(request):
+    if not os.path.exists(MODEL_GGUF):
+        return web.Response(status=404, text="模型文件不存在")
+    return web.FileResponse(MODEL_GGUF, headers={
+        "Content-Type": "application/octet-stream",
+        "Cache-Control": "no-cache",
+    })
+
+
 def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8848
     app = web.Application()
@@ -263,6 +356,10 @@ def main():
 
     app.router.add_get("/site/", _site)
     app.router.add_static("/site/", os.path.join(BASE, "site"), show_index=False)
+    # App 下载通道（没有数据线时，手机同 WiFi 直接下载安装）
+    app.router.add_get("/dl/", handle_dl_page)
+    app.router.add_get("/dl/dafeiyu.apk", handle_apk)
+    app.router.add_get("/dl/model.gguf", handle_model)
     app.router.add_get("/api/state", handle_state)
     app.router.add_get("/api/chat", handle_chat)
     app.router.add_post("/api/new", handle_new)

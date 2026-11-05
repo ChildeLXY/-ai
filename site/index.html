@@ -340,7 +340,7 @@ footer{padding:54px clamp(20px,6vw,90px) 100px;border-top:1px solid var(--line);
       <span>扫码下载</span>
     </div>
     <div class="dl-group">
-      <a class="dl-item" href="https://gitee.com/liu-xingyuec/dafeiyu-ai-local/releases" target="_blank" rel="noopener">
+      <a class="dl-item" data-dl href="downloads/dafeiyu-ai-v1.0.0-win64.exe" download="dafeiyu-ai-v1.0.0-win64.exe">
         <span class="i">🪟</span><span><b>PC 下载</b><small>Windows 10 / 11</small></span>
       </a>
       <a class="dl-item" href="https://gitee.com/liu-xingyuec/dafeiyu-ai-local" target="_blank" rel="noopener">
@@ -440,10 +440,10 @@ footer{padding:54px clamp(20px,6vw,90px) 100px;border-top:1px solid var(--line);
         <div class="os"><b>Windows</b><span>10 / 11 · 64 位</span></div>
         <h3>大肥鱼AI 桌面版</h3>
         <div class="ver">版本 v1.0.0 · 约 24 MB · 更新于 2026-11</div>
-        <a class="btn b-main" href="https://gitee.com/liu-xingyuec/dafeiyu-ai-local/releases" target="_blank" rel="noopener">↓ 下载安装包</a>
+        <a class="btn b-main" data-dl href="downloads/dafeiyu-ai-v1.0.0-win64.exe" download="dafeiyu-ai-v1.0.0-win64.exe">↓ 下载安装包</a>
         <a class="btn b-ghost" href="https://gitee.com/liu-xingyuec/dafeiyu-ai-local" target="_blank" rel="noopener">从源码运行</a>
         <p class="dl-note" style="margin-top:12px">
-          下载后解压，运行 <code>start.ps1</code> 即可。想自己编译就克隆仓库，按 README 装依赖。<br>
+          下载后双击运行即可，无需安装。想自己编译就克隆仓库，按 README 装依赖。<br>
           模型文件（4~22 GB）不在安装包里，首次启动会引导下载。
         </p>
       </div>
@@ -589,6 +589,19 @@ document.querySelectorAll('.card').forEach(card=>{
     es.forEach(e=>{if(e.isIntersecting){play();io2.disconnect()}});
   },{threshold:.35});
   io2.observe(box);
+})();
+</script>
+
+<script>
+/* 下载链接继承分享参数：否则子请求会被判定为「链接不完整」 */
+(function(){
+  var sc = new URLSearchParams(location.search).get('sharecode');
+  if(!sc) return;
+  document.querySelectorAll('a[data-dl]').forEach(function(a){
+    var base = a.getAttribute('href');
+    if(!base || base.indexOf('http') === 0) return;
+    a.href = base + (base.indexOf('?') > -1 ? '&' : '?') + 'sharecode=' + encodeURIComponent(sc);
+  });
 })();
 </script>
 </body>

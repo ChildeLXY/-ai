@@ -117,7 +117,6 @@ plugins/               插件目录，一个 .py 就是一个插件
   __init__.py          插件加载器 + PluginContext
   _bili_common.py      两个 B 站插件共用的底座（下划线开头，不算插件）
   _bili_bridge.py      本地 MCP 子进程桥
-pet.pyw                tkinter 桌宠
 pet_mutter_watcher.py  碎碎念守望者（独立进程，定时让桌宠冒一句话）
 ds图片/                图标、头像、桌宠图素材
 start.ps1 / *.bat      启动脚本

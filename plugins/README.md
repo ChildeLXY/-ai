@@ -188,4 +188,4 @@ pg-badge / pg-input / pg-num / pg-chk / pg-thumbs / pg-bar / pg-item / pg-list`�
 ## 还没移植的
 
 `dsh-onebot-qq` / `dsh-qq-bridge`（QQ 收发，你本地已有 `D:\大肥鱼QQ\qqbot.py`）、
-`dshmarket`（插件市场）、`dsh-pet`（已有 `pet.pyw`）、`dsh-local-ai`（本来就直连 Ollama）。
+`dshmarket`（插件市场）、`dsh-pet`（需自行 clone）、`dsh-local-ai`（本来就直连 Ollama）。
