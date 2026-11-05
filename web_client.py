@@ -345,6 +345,19 @@ async def handle_model(request):
     })
 
 
+# 桌宠动作包（90+ 随机小剧场），App 里点一下就能下
+PACK_ZIP = os.path.join(DL_DIR, "petpack.zip")
+
+
+async def handle_petpack(request):
+    if not os.path.exists(PACK_ZIP):
+        return web.Response(status=404, text="动作包还没生成")
+    return web.FileResponse(PACK_ZIP, headers={
+        "Content-Type": "application/zip",
+        "Cache-Control": "no-cache",
+    })
+
+
 def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8848
     app = web.Application()
@@ -360,6 +373,7 @@ def main():
     app.router.add_get("/dl/", handle_dl_page)
     app.router.add_get("/dl/dafeiyu.apk", handle_apk)
     app.router.add_get("/dl/model.gguf", handle_model)
+    app.router.add_get("/dl/petpack.zip", handle_petpack)
     app.router.add_get("/api/state", handle_state)
     app.router.add_get("/api/chat", handle_chat)
     app.router.add_post("/api/new", handle_new)
