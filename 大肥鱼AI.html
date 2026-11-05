@@ -321,6 +321,7 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
     <button id="searchBtn" class="hbtn" onclick="toggleSearch()">离线</button>
     <button id="kbBtn" class="hbtn" onclick="toggleKb()">知识库</button>
     <button id="wbBtn" class="hbtn" onclick="toggleWb()">工作模式</button>
+    <button id="updBtn" class="hbtn" onclick="checkUpdate()" title="检查 Gitee 上有没有新版本">⟳</button>
     <button id="dtBtn" class="hbtn" onclick="toggleDeepThink()" title="开：认真拆问题、逐条核对；关：人格优先、不啰嗦分析">深度思考</button>
     <div class="spacer"></div>
     <span class="token-info" id="tokenInfo"></span>
@@ -739,6 +740,25 @@ async function probeModelVision(id){
   let g=/vl|vision/i.test(id);
   try{const c=await window.pywebview.api.model_caps(id);if(c&&c.ok)g=!!c.vision;}catch(e){}
   _visCache[id]=g;return g;
+}
+// —— 更新按钮：检查 Gitee 上的新提交，一键快进合并 ——
+let _updBusy=false;
+async function checkUpdate(){
+  const b=document.getElementById('updBtn');
+  if(_updBusy)return;
+  _updBusy=true;b.disabled=true;b.textContent='…';
+  try{
+    const r=await window.pywebview.api.check_update();
+    if(!r||!r.ok){alert('检查更新失败：\n'+((r&&r.error)||'未知错误'));return;}
+    if(r.behind===0){b.textContent='✓';setTimeout(()=>{b.textContent='⟳'},1600);return;}
+    const go=confirm('Gitee 上有 '+r.behind+' 个新提交：\n\n'+(r.log||'(读不到提交说明)')+'\n\n现在更新吗？更新后需要关掉应用重开一次。');
+    if(!go)return;
+    b.textContent='↓';
+    const u=await window.pywebview.api.do_update();
+    if(u&&u.ok)alert('已更新到最新版。\n请关掉应用重新打开一次生效。\n\n'+(u.out||''));
+    else alert('更新失败（本地可能有未提交的改动）：\n'+((u&&u.out)||'未知错误'));
+  }catch(e){alert('出错：'+e);}
+  finally{b.disabled=false;if(b.textContent!=='✓')b.textContent='⟳';_updBusy=false;}
 }
 function paintDeepThink(){
   const b=document.getElementById('dtBtn');if(!b)return;

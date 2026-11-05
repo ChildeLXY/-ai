@@ -1353,6 +1353,52 @@ def get_time_brief():
 
 _MODEL_CAPS = {}
 
+def _git(*args, timeout=40):
+    """跑一条 git 命令（不弹黑窗）。返回 (返回码, 输出)。"""
+    try:
+        flags = 0
+        if os.name == "nt":
+            flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        p = subprocess.run(["git", "-C", _repo_dir()] + list(args),
+                           capture_output=True, text=True, timeout=timeout,
+                           encoding="utf-8", errors="replace", creationflags=flags)
+        return p.returncode, ((p.stdout or "") + (p.stderr or "")).strip()
+    except Exception as e:
+        return -1, str(e)
+
+
+def _repo_dir():
+    """仓库目录。优先用模块级 base（应用里一定有），兜底再算 __file__。"""
+    try:
+        return base
+    except NameError:
+        return os.path.dirname(os.path.abspath(__file__))
+
+
+def check_update():
+    """看看 Gitee 上有没有比本地新的提交（只 fetch，不改工作区）。"""
+    rc, out = _git("fetch", "--quiet", "origin")
+    if rc != 0:
+        return {"ok": False, "error": "拉取失败（网络？）: " + out[-200:]}
+    rc2, cnt = _git("rev-list", "--count", "HEAD..origin/master")
+    if rc2 != 0:
+        return {"ok": False, "error": out and cnt[-200:] or "读不到远端分支"}
+    try:
+        n = int((cnt or "0").split()[0])
+    except Exception:
+        n = 0
+    log = ""
+    if n:
+        _, log = _git("log", "--oneline", "HEAD..origin/master", "-8")
+    return {"ok": True, "behind": n, "log": log}
+
+
+def do_update():
+    """快进合并到远端最新（--ff-only，本地有改动就拒绝，不会冲掉你的代码）。"""
+    rc, out = _git("pull", "--ff-only", "origin", "master", timeout=120)
+    return {"ok": rc == 0, "out": out[-600:]}
+
+
 def model_caps(model=None):
     """查这个模型到底支不支持思考链——以 Ollama /api/show 返回的 capabilities 为准。
 
@@ -1710,6 +1756,7 @@ window.expose(*([_safe_api(_f) for _f in (
               take_screenshot, read_clipboard, write_clipboard, extract_url, tts_speak, gen_title, open_folder, pick_avatar, save_avatar, save_setting, load_setting,
               load_memory, save_memory, remember_fact, reflect_memory, pet_mutter,
               gen_persona, test_persona, get_time, get_time_brief, get_env, list_dir, env_sense, model_caps,
+              check_update, do_update,
               screen_size, mouse_click, type_text, press_key, agent_decide, plugin_list,
               plugin_set_enabled)]
               + [_safe_api(_f) for _f in PLUGIN_APIS]
