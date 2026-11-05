@@ -452,7 +452,7 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
 </div>
 <script>
 const API='http://localhost:11434';
-const MODELS=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐：说话自然、会挑表情包）'},{id:'qwen3:4b',short:'快速',full:'Qwen3 - 4B（最快，但不爱挑表情包）'},{id:'qwen3:8b',short:'深度',full:'Qwen3 - 8B（更强，稍慢）'},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（慢，爱推理）'},{id:'qwen3.6:35b',short:'深度ProMax',full:'Qwen3.6 - 35B-A3B（最强，能看图，思考链可开关）'}];
+const MODELS=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐：说话自然、会挑表情包）'},{id:'qwen3-vl:4b-instruct',short:'轻快',full:'Qwen3-VL - 4B Instruct（省 1.5G 显存、更快，挑图同样准）'},{id:'qwen3:4b',short:'快速',full:'Qwen3 - 4B（最快，但不爱挑表情包）'},{id:'qwen3:8b',short:'深度',full:'Qwen3 - 8B（更强，稍慢）'},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（慢，爱推理）'},{id:'qwen3.6:35b',short:'深度ProMax',full:'Qwen3.6 - 35B-A3B（最强，能看图，思考链可开关）'}];
 let MODEL='qwen2.5vl:7b',displayMode='balanced',replyLang='zh-CN';
 let msgs=[],busy=false,abortCtrl=null,chats=[],currentId=null,webSearchOn=false,searchEngine='duckduckgo',pendingFiles=[],kbOn=false,chatsLoaded=false,wbOn=false,wbStop=false;
 const HIST_TURNS=16;  // 送进模型的最近消息条数，防止长对话越聊越慢
