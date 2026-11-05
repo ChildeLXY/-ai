@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# 大肥鱼AI 原版前端（pywebview + HTML）单文件打包
+# 大肥鱼AI 前端（pywebview + HTML）单文件打包
 block_cipher = None
 
 a = Analysis(
