@@ -374,6 +374,41 @@ def read_file(path):
     except Exception as e:
         return {"name": os.path.basename(path), "text": "[读取失败: " + str(e) + "]"}
 
+def read_image(path):
+    """把图片读成 base64 给模型"看"（Ollama 的 images 字段要的就是这个）。
+
+    以前附件一律走 read_file() 当文字读，图片会变成"[不支持 .png]"，
+    等于模型根本没看见图。这里单独做一个图片通道。
+    顺手压一下：原图动辄 4K，直接塞进去既费 token 又慢。
+    """
+    try:
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"):
+            return {"ok": False, "error": "不是图片: " + ext}
+        data = open(path, "rb").read()
+        try:
+            import io
+            from PIL import Image
+            im = Image.open(io.BytesIO(data))
+            # GIF 动图取第一帧；超过 1280 长的缩一下（1024~1280 对识别够用）
+            im.seek(0)
+            im = im.convert("RGB")
+            if max(im.size) > 1280:
+                im.thumbnail((1280, 1280), Image.LANCZOS)
+            buf = io.BytesIO()
+            im.save(buf, format="JPEG", quality=85)
+            data = buf.getvalue()
+        except Exception:
+            pass                      # 没有 PIL 或解不开就原样发
+        if len(data) > 8 * 1024 * 1024:
+            return {"ok": False, "error": "图片太大（压缩后仍超过 8MB）"}
+        import base64
+        return {"ok": True, "b64": base64.b64encode(data).decode("ascii"),
+                "name": os.path.basename(path), "bytes": len(data)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 def run_python(code):
     try:
         proc = subprocess.run(
@@ -1671,7 +1706,7 @@ def selftest_report(payload):
 
 
 window.expose(*([_safe_api(_f) for _f in (
-              load_chats, save_chats, delete_chat_disk, web_search, repo_search, read_file, run_python, kb_search, open_kb,
+              load_chats, save_chats, delete_chat_disk, web_search, repo_search, read_file, read_image, run_python, kb_search, open_kb,
               take_screenshot, read_clipboard, write_clipboard, extract_url, tts_speak, gen_title, open_folder, pick_avatar, save_avatar, save_setting, load_setting,
               load_memory, save_memory, remember_fact, reflect_memory, pet_mutter,
               gen_persona, test_persona, get_time, get_time_brief, get_env, list_dir, env_sense, model_caps,

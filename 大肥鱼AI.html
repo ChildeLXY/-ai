@@ -10,6 +10,9 @@
 body{-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
 #msgs,.msgs,.abubble,.ububble,.msg-time,.abubble *,.ububble *,.toast,.emj-q,textarea,input,pre,code,code *,.pg-body,.pg-body *{-webkit-user-select:text!important;user-select:text!important}
 textarea,input{-webkit-user-drag:auto}
+/* 用户发来的图片（走 images 通道传给模型的那些，按原图缩略显示） */
+.img-wrap{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.img-wrap img{max-width:140px;max-height:140px;border-radius:10px;border:1px solid var(--border);object-fit:cover;cursor:zoom-in;display:block}
 :root{--bg:#f7f7f8;--card:#fff;--border:#e8e8e8;--text:#1a1a1a;--text2:#6b6b6b;--accent:#4d6bfe;--accent-light:#eef1ff;--hover:#f0f0f2;--shadow:0 2px 12px rgba(0,0,0,.06)}
 [data-theme="dark"]{--bg:#131316;--card:#1c1c21;--border:#2e2e35;--text:#e8e8ea;--text2:#9a9aa3;--accent:#7b9aff;--accent-light:#252a4a;--hover:#26262e;--shadow:0 2px 12px rgba(0,0,0,.3)}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;font-size:15px;line-height:1.7;overflow:hidden}
@@ -452,7 +455,7 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
 </div>
 <script>
 const API='http://localhost:11434';
-const MODELS=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐：说话自然、会挑表情包）'},{id:'qwen3-vl:4b-instruct',short:'轻快',full:'Qwen3-VL - 4B Instruct（省 1.5G 显存、更快，挑图同样准）'},{id:'qwen3:4b',short:'快速',full:'Qwen3 - 4B（最快，但不爱挑表情包）'},{id:'qwen3:8b',short:'深度',full:'Qwen3 - 8B（更强，稍慢）'},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（慢，爱推理）'},{id:'qwen3.6:35b',short:'深度ProMax',full:'Qwen3.6 - 35B-A3B（最强，能看图，思考链可开关）'}];
+const MODELS=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐：说话自然、会挑表情包）'},{id:'qwen3-vl:4b-instruct',short:'轻快',full:'Qwen3-VL - 4B Instruct（省 1.5G 显存、更快，挑图同样准）'},{id:'qwen3.6:35b',short:'深度ProMax',full:'Qwen3.6 - 35B-A3B（最强，能看图，思考链可开关）'}];
 let MODEL='qwen2.5vl:7b',displayMode='balanced',replyLang='zh-CN';
 let msgs=[],busy=false,abortCtrl=null,chats=[],currentId=null,webSearchOn=false,searchEngine='duckduckgo',pendingFiles=[],kbOn=false,chatsLoaded=false,wbOn=false,wbStop=false;
 const HIST_TURNS=16;  // 送进模型的最近消息条数，防止长对话越聊越慢
@@ -728,6 +731,15 @@ async function probeModelCaps(id){
   try{const c=await window.pywebview.api.model_caps(id);if(c&&c.ok)g=!!c.thinking;}catch(e){}
   _capsCache[id]=g;return g;
 }
+// 模型能不能"看图"：问 Ollama 的 capabilities（vision），名字里带 vl/vision 的兜底
+const _visCache={};
+async function probeModelVision(id){
+  if(!id)return false;
+  if(id in _visCache)return _visCache[id];
+  let g=/vl|vision/i.test(id);
+  try{const c=await window.pywebview.api.model_caps(id);if(c&&c.ok)g=!!c.vision;}catch(e){}
+  _visCache[id]=g;return g;
+}
 function paintDeepThink(){
   const b=document.getElementById('dtBtn');if(!b)return;
   b.textContent=deepThink?'深度思考 · 开':'深度思考';
@@ -899,6 +911,7 @@ function render(){
     const d=document.createElement('div');d.className='msg'+(m.role==='user'?' user-row':'');const isU=m.role==='user';let inner='';
     let bubble='';
     if(!isU&&m.think)bubble+='<div class="think'+(m.pending?' open':'')+'" onclick="this.classList.toggle(\'open\')"><b>💭 思考过程</b><div class="think-c">'+esc(m.think)+'</div></div>';
+    if(m.imgs&&m.imgs.length)bubble+='<div class="img-wrap">'+m.imgs.map(p=>'<img src="file:///'+String(p).replace(/\\/g,'/')+'" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图">').join('')+'</div>';
     bubble+=(m.content||m.pending)?'<div class="'+(isU?'ububble':'abubble')+'">'+md(m.content||'')+(m.pending?'<span class="typing"></span>':'')+'</div>':'';
     if(m.sticker)bubble+='<div class="sticker-wrap'+(isU?' mine':'')+'"><img src="'+m.sticker+'" onclick="event.stopPropagation();showLightbox(this.src)" title="点击查看大图"></div>';
     if(!isU&&!m.pending&&m.content)bubble+='<div class="msg-actions"><button onclick="speakText(\''+btoa(unescape(encodeURIComponent(m.content.slice(0,500))))+'\')">🔊 朗读</button></div>';
@@ -987,8 +1000,34 @@ async function send(){
   }
   if(wbOn&&!stk){msgs.push({role:'user',content:text,ts:Date.now()});render();saveCurrentChat();wbStop=false;await agentLoop(text);return;}
   let userContent=text;
-  if(pendingFiles.length){userContent+='\n\n[附件文件内容]\n';for(const f of pendingFiles){try{const r=await window.pywebview.api.read_file(f);userContent+='--- '+r.name+' ---\n'+r.text+'\n'}catch(e){}}pendingFiles=[]}
-  msgs.push({role:'user',content:userContent,ts:Date.now(),
+  let _imgPaths=[];                                  // 本轮要发给模型的图片（本地路径）
+  if(pendingFiles.length){
+    const _textFiles=[];
+    for(const f of pendingFiles){
+      if(/\.(png|jpe?g|webp|bmp|gif)$/i.test(f))_imgPaths.push(f);else _textFiles.push(f);
+    }
+    if(_imgPaths.length&&!(await probeModelVision(MODEL))){
+      const m=MODELS.find(x=>x.id===MODEL);
+      alert('当前模型「'+(m?m.short:MODEL)+'」看不了图片。\n\n请先在顶部模型菜单切到带 VL 的（灵动 / 轻快），再发这张图。');
+      busy=false;toggleBtn();                        // 图片留在附件里，换完模型重发即可
+      return;
+    }
+    if(_textFiles.length){
+      userContent+='\n\n[附件文件内容]\n';
+      for(const f of _textFiles){try{const r=await window.pywebview.api.read_file(f);userContent+='--- '+r.name+' ---\n'+r.text+'\n'}catch(e){}}
+    }
+    if(_imgPaths.length)userContent+='\n\n（发了 '+_imgPaths.length+' 张图片）';
+    pendingFiles=[];
+  }
+  // 图片走 base64 单独通道（Ollama 的 images 字段），不再当文字拼进 prompt
+  const _imgB64=[];
+  for(const p of _imgPaths){
+    try{const r=await window.pywebview.api.read_image(p);
+      if(r&&r.ok)_imgB64.push(r.b64);
+      else console.warn('读图失败',p,r&&r.error);
+    }catch(e){}
+  }
+  msgs.push({role:'user',content:userContent,ts:Date.now(),imgs:_imgPaths.slice(),
              sticker:stk?stk.src:'',stickerName:stk?stk.name:''});
   const ai={role:'assistant',content:'',think:'',pending:true,ts:Date.now()};msgs.push(ai);render();
   abortCtrl=new AbortController();
@@ -1113,6 +1152,10 @@ async function send(){
     const _opts={num_ctx:8192,temperature:dtTemp};
     if(dtMax>0)_opts.num_predict=dtMax;
     const _body={model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...buildHistMsgs()],stream:true,keep_alive:_keepAliveFor(MODEL),options:_opts};
+    // 图片只挂在"这一轮"的用户消息上：历史里只留"（发了 N 张图片）"，
+    // 否则每一轮都要把 base64 重新发一遍，又慢又费 token
+    if(_imgB64.length){const _lastM=_body.messages[_body.messages.length-1];
+      if(_lastM&&_lastM.role==='user')_lastM.images=_imgB64;}
     // 思考链怎么传，要分模型：
     // · qwen3 / R1 这一代：传 think:false 会把"想的过程"直接写进正文（实测 751 字，
     //   全是"好的，用户发了…我需要…"），所以只能一直 think=true，关深度思考时
@@ -1293,7 +1336,9 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&EMJ.on)togg
    +'#moodPanel .bar{height:5px;border-radius:3px;background:linear-gradient(90deg,#7cc4ff,#4d6bfe)}'
    +'#moodPanel .tl{border-top:1px solid #eee;margin-top:10px;padding-top:8px;max-height:190px;overflow:auto}'
    +'#moodPanel .tl div{margin:5px 0;color:#666;font-size:12px}'
-   +'.sticker-wrap{margin-top:6px}.sticker-wrap img{width:120px;height:120px;object-fit:contain;border-radius:10px;cursor:zoom-in}';
+   +'.sticker-wrap{margin-top:6px}.sticker-wrap img{width:120px;height:120px;object-fit:contain;border-radius:10px;cursor:zoom-in}'
+   +'.img-wrap{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}'
+   +'.img-wrap img{max-width:140px;max-height:140px;border-radius:10px;border:1px solid var(--border);object-fit:cover;cursor:zoom-in;display:block}';
   document.head.appendChild(st);
   const w=document.createElement('div');w.id='moodWidget';
   w.innerHTML='<span class="mw-face">🙂</span><span class="mw-txt">一般</span>';
