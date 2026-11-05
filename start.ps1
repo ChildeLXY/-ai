@@ -55,3 +55,12 @@ $watcherRunning = Get-CimInstance Win32_Process -Filter "Name='pythonw.exe' or N
 if (-not $watcherRunning) {
     Start-Process $pythonw -ArgumentList (Join-Path $dir "pet_mutter_watcher.py") -WorkingDirectory $dir -WindowStyle Hidden
 }
+
+# 网页客户端：手机/平板/PC 用浏览器就能聊（默认 8848）
+# 不想要的话，把下面这段注释掉，或者设环境变量 DFY_NO_WEB=1
+if ($env:DFY_NO_WEB -ne "1") {
+    $webRunning = Get-CimInstance Win32_Process -Filter "Name='pythonw.exe' or Name='python.exe'" | Where-Object { $_.CommandLine -like "*web_client.py*" }
+    if (-not $webRunning) {
+        Start-Process $pythonw_ai -ArgumentList (Join-Path $dir "web_client.py"), "8848" -WorkingDirectory $dir -WindowStyle Hidden
+    }
+}
