@@ -256,6 +256,13 @@ def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8848
     app = web.Application()
     app.router.add_get("/", handle_index)
+    # 官网/下载页也挂在这儿：手机访问 http://<本机IP>:8848/site/ 就能看
+    # 注意顺序：先给 /site/ 一个精确处理，否则 aiohttp 的 static 会返回目录列表（不认 index.html）
+    async def _site(_req):
+        return web.FileResponse(os.path.join(BASE, "site", "index.html"))
+
+    app.router.add_get("/site/", _site)
+    app.router.add_static("/site/", os.path.join(BASE, "site"), show_index=False)
     app.router.add_get("/api/state", handle_state)
     app.router.add_get("/api/chat", handle_chat)
     app.router.add_post("/api/new", handle_new)

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>大肥鱼AI · 住在你电脑里的鲸鱼娘</title>
+<meta name="description" content="大肥鱼AI —— 完全本地运行的桌面 AI 助手。会聊天、会发表情包、有心情有记忆，数据不出本机。">
+<link rel="icon" href="assets/favicon.ico">
+<style>
+:root{
+  --ink:#05070e;--card:rgba(16,22,38,.72);--line:rgba(140,190,255,.16);
+  --text:#eef3ff;--dim:#94a3c2;--acc:#8ecbff;--acc2:#4d6bfe;
+  --gold:#ffd79a;--gold2:#f0b45a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;overflow-x:clip}
+body{background:var(--ink);color:var(--text);overflow-x:hidden;
+  font:16px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased}
+::selection{background:rgba(142,203,255,.3)}
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:#243049;border-radius:4px}
+a{color:inherit}
+
+/* ================= 顶部导航 ================= */
+nav{position:fixed;top:0;left:0;right:0;height:68px;z-index:60;display:flex;align-items:center;
+  padding:0 clamp(16px,4vw,54px);gap:24px;transition:.35s}
+nav::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,7,14,.92),rgba(5,7,14,0));
+  pointer-events:none}
+nav.solid::before{background:rgba(5,7,14,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.brand{position:relative;display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:1px;
+  font-size:19px;white-space:nowrap;z-index:2}
+.brand img{width:34px;height:34px;border-radius:9px;box-shadow:0 0 22px rgba(77,107,254,.5)}
+.brand em{font-style:normal;font-size:10px;letter-spacing:2.5px;color:var(--dim);font-weight:400;
+  align-self:flex-end;margin-bottom:3px}
+.menu{position:relative;z-index:2;display:flex;gap:34px;margin:0 auto;font-size:15px;color:#c8d5f0}
+.menu a{text-decoration:none;position:relative;padding:4px 0;transition:.2s}
+.menu a:hover{color:#fff}
+.menu a::after{content:'';position:absolute;left:50%;right:50%;bottom:-4px;height:2px;
+  background:linear-gradient(90deg,var(--acc),var(--gold));transition:.28s;border-radius:2px}
+.menu a:hover::after{left:0;right:0}
+.dl-btn{position:relative;z-index:2;display:inline-flex;align-items:center;gap:8px;padding:11px 26px;
+  border-radius:6px;font-size:14.5px;font-weight:700;text-decoration:none;white-space:nowrap;
+  color:#2a1c06;background:linear-gradient(135deg,var(--gold),var(--gold2));
+  box-shadow:0 8px 26px rgba(240,180,90,.36);transition:.22s}
+.dl-btn:hover{transform:translateY(-1px);box-shadow:0 12px 32px rgba(240,180,90,.55)}
+@media(max-width:900px){.menu{display:none}}
+
+/* ================= 主视觉 ================= */
+.hero{position:relative;min-height:100vh;min-height:100svh;display:flex;align-items:center;
+  padding:96px clamp(20px,6vw,90px) 190px;overflow:hidden}
+.sky{position:absolute;inset:0;z-index:-3;
+  background:
+    radial-gradient(1100px 760px at 74% 34%,rgba(74,132,255,.34),transparent 62%),
+    radial-gradient(760px 620px at 88% 12%,rgba(160,120,255,.22),transparent 60%),
+    radial-gradient(900px 700px at 10% 88%,rgba(40,90,180,.2),transparent 62%),
+    linear-gradient(170deg,#080d1c 0%,#060a16 58%,#04060c 100%)}
+.stars{position:absolute;inset:0;z-index:-2;opacity:.6;
+  background-image:
+    radial-gradient(1.6px 1.6px at 18% 26%,#fff,transparent),
+    radial-gradient(1.2px 1.2px at 66% 14%,#cfe4ff,transparent),
+    radial-gradient(1.4px 1.4px at 38% 62%,#fff,transparent),
+    radial-gradient(1px 1px at 84% 48%,#bcd7ff,transparent),
+    radial-gradient(1.3px 1.3px at 6% 72%,#fff,transparent),
+    radial-gradient(1.1px 1.1px at 54% 84%,#d6e6ff,transparent),
+    radial-gradient(1.5px 1.5px at 94% 24%,#fff,transparent),
+    radial-gradient(1px 1px at 28% 92%,#fff,transparent);
+  animation:tw 7s ease-in-out infinite alternate}
+@keyframes tw{from{opacity:.32}to{opacity:.72}}
+/* 地平线光带 */
+.horizon{position:absolute;left:-10%;right:-10%;bottom:120px;height:1px;z-index:-1;
+  background:linear-gradient(90deg,transparent,rgba(142,203,255,.55),transparent);
+  box-shadow:0 0 60px 18px rgba(77,107,254,.22)}
+
+.hero-inner{position:relative;z-index:3;display:grid;grid-template-columns:1.02fr .98fr;
+  align-items:center;gap:30px;width:100%;max-width:1320px;margin:0 auto}
+
+/* 文案 */
+.tag{display:inline-flex;align-items:center;gap:9px;font-size:12px;letter-spacing:2.4px;color:var(--acc);
+  border:1px solid var(--line);border-radius:999px;padding:6px 15px;margin-bottom:26px;
+  background:rgba(142,203,255,.06);backdrop-filter:blur(4px)}
+.tag i{width:6px;height:6px;border-radius:50%;background:var(--acc);box-shadow:0 0 10px var(--acc);
+  animation:pl 2s infinite}
+@keyframes pl{50%{opacity:.3;transform:scale(.75)}}
+h1{font-size:clamp(46px,6.4vw,88px);line-height:1;letter-spacing:-2px;font-weight:900;
+  background:linear-gradient(180deg,#fff 18%,#a8c8ff 92%);-webkit-background-clip:text;background-clip:text;
+  color:transparent;text-shadow:0 20px 60px rgba(77,107,254,.25)}
+h1 small{display:block;font-size:clamp(14px,1.5vw,19px);font-weight:400;letter-spacing:8px;
+  color:var(--dim);-webkit-text-fill-color:var(--dim);margin-top:18px}
+.lead{margin:28px 0 0;color:var(--dim);max-width:31em;font-size:16.5px}
+.lead b{color:#dfe9ff;font-weight:600}
+.facts{display:flex;gap:22px;flex-wrap:wrap;margin-top:34px;font-size:13px;color:#7f8fae}
+.facts span::before{content:'◆';font-size:8px;color:var(--acc);margin-right:8px;vertical-align:2px}
+
+/* 立绘舞台 */
+.stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:min(64vh,560px)}
+.halo{position:absolute;width:min(86%,470px);aspect-ratio:1;border-radius:50%;
+  background:radial-gradient(circle,rgba(120,170,255,.5),rgba(77,107,254,.14) 46%,transparent 68%);
+  filter:blur(16px);animation:br 6.5s ease-in-out infinite}
+@keyframes br{50%{transform:scale(1.07);opacity:.85}}
+.ring{position:absolute;width:min(94%,530px);aspect-ratio:1;border-radius:50%;
+  border:1px solid rgba(142,203,255,.2);animation:sp 30s linear infinite}
+.ring:nth-of-type(2){width:min(74%,410px);border-color:rgba(255,215,154,.14);animation-direction:reverse;animation-duration:22s}
+.ring::before{content:'';position:absolute;top:-3.5px;left:50%;width:7px;height:7px;border-radius:50%;
+  background:var(--acc);box-shadow:0 0 14px var(--acc)}
+@keyframes sp{to{transform:rotate(360deg)}}
+.char{position:relative;width:min(92%,460px);z-index:2;
+  filter:drop-shadow(0 40px 70px rgba(0,0,0,.65)) drop-shadow(0 0 40px rgba(77,107,254,.28));
+  animation:fl 5.6s ease-in-out infinite;transition:transform .25s ease-out}
+@keyframes fl{50%{transform:translateY(-18px)}}
+/* 悬浮小卡 */
+.float-card{position:absolute;z-index:1;border-radius:12px;overflow:hidden;border:1px solid rgba(142,203,255,.28);
+  box-shadow:0 26px 60px rgba(0,0,0,.6);opacity:.92;background:#0a1020}
+.float-card img{display:block;width:100%}
+.fc1{width:186px;left:-2%;top:14%;transform:rotate(-7deg);animation:fl2 7s ease-in-out infinite}
+.fc2{width:150px;right:-3%;bottom:12%;transform:rotate(6deg);animation:fl3 8s ease-in-out infinite}
+@keyframes fl2{50%{transform:rotate(-7deg) translateY(-12px)}}
+@keyframes fl3{50%{transform:rotate(6deg) translateY(12px)}}
+
+/* ================= 底部下载组（星铁式） ================= */
+.hero-dl{position:absolute;left:0;right:0;bottom:calc(34px + env(safe-area-inset-bottom));z-index:5;
+  display:flex;align-items:flex-end;justify-content:center;gap:18px;padding:0 24px;flex-wrap:wrap}
+.qr-box{display:flex;flex-direction:column;align-items:center;gap:7px}
+.qr-box img{width:88px;height:88px;border-radius:8px;background:#fff;padding:5px;
+  box-shadow:0 10px 26px rgba(0,0,0,.5)}
+.qr-box span{font-size:11px;color:#8fa0bf;letter-spacing:.5px}
+.dl-group{display:flex;gap:2px;border-radius:10px;overflow:hidden;background:rgba(10,16,32,.86);
+  border:1px solid rgba(142,203,255,.22);backdrop-filter:blur(8px);box-shadow:0 16px 40px rgba(0,0,0,.5)}
+.dl-item{display:flex;align-items:center;gap:11px;padding:12px 22px;text-decoration:none;transition:.2s;
+  border-right:1px solid rgba(142,203,255,.12)}
+.dl-item:last-child{border:0}
+.dl-item:hover{background:rgba(142,203,255,.12)}
+.dl-item .i{font-size:19px;line-height:1}
+.dl-item b{display:block;font-size:14px;font-weight:600}
+.dl-item small{display:block;font-size:11px;color:#7f90ae;margin-top:1px}
+.ver-tag{position:absolute;right:clamp(20px,5vw,60px);bottom:calc(38px + env(safe-area-inset-bottom));
+  text-align:right;font-size:11.5px;color:#6f7f9d;line-height:1.9;z-index:5}
+.ver-tag b{color:#b9c8e4;font-weight:600;font-size:12.5px}
+
+/* 右侧页码点 */
+.dots{position:absolute;right:26px;top:50%;transform:translateY(-50%);z-index:5;
+  display:flex;flex-direction:column;gap:14px}
+.dots a{width:8px;height:8px;border-radius:50%;border:1px solid rgba(142,203,255,.5);transition:.25s}
+.dots a.on{background:var(--acc);box-shadow:0 0 12px var(--acc);border-color:var(--acc)}
+
+@media(max-width:1020px){
+  /* 手机上不要绝对定位：内容会溢出、下载组被挤出屏幕，改成正常文档流 */
+  /* ⚠ 关键：.hero 基础样式是 display:flex，不改的话 .hero-dl 会变成并排的第二个 flex 项，
+     被挤到右边压住文案（这个坑踩过一次） */
+  .hero{display:block;padding:88px 18px 56px;min-height:auto}
+  .hero-inner{grid-template-columns:1fr;text-align:center;gap:4px}
+  .stage{order:-1;min-height:auto;margin-bottom:6px}
+  .char{width:min(54%,230px)}
+  .halo{width:min(74%,310px)}
+  .ring{width:min(82%,350px)}
+  .ring:nth-of-type(2){width:min(62%,270px)}
+  .fc1,.fc2{display:none}
+  .lead{margin-left:auto;margin-right:auto;font-size:15.5px}
+  .facts{justify-content:center;gap:14px;margin-top:24px}
+  .hero-dl{position:static;width:100%;max-width:340px;margin:34px auto 0;
+    flex-direction:column;align-items:center;gap:14px;padding:0}
+  .dl-group{flex-direction:column;width:100%}
+  .dl-item{border-right:0;border-bottom:1px solid rgba(142,203,255,.12);justify-content:center;padding:13px 18px}
+  .dl-item:last-child{border-bottom:0}
+  .ver-tag,.dots{display:none}
+  h1{font-size:clamp(38px,10.5vw,54px)}
+  h1 small{font-size:12.5px;letter-spacing:4px;margin-top:12px}
+}
+
+/* ================= 通用区块 ================= */
+section{padding:clamp(72px,9vw,128px) clamp(20px,6vw,90px);position:relative}
+.wrap{max-width:1180px;margin:0 auto}
+.eyebrow{font-size:11.5px;letter-spacing:4px;color:var(--acc);margin-bottom:14px;text-transform:uppercase}
+h2{font-size:clamp(26px,3.3vw,40px);letter-spacing:-.5px;line-height:1.28;font-weight:800}
+h2 em{font-style:normal;background:linear-gradient(90deg,var(--acc),var(--gold));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--dim);margin-top:14px;max-width:46em}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-top:52px}
+.card{position:relative;padding:26px 24px 28px;border-radius:18px;border:1px solid var(--line);
+  background:var(--card);backdrop-filter:blur(10px);overflow:hidden;transition:.28s}
+.card::after{content:'';position:absolute;inset:0;opacity:0;transition:.28s;
+  background:linear-gradient(140deg,rgba(142,203,255,.11),transparent 55%)}
+.card:hover{transform:translateY(-4px);border-color:rgba(142,203,255,.4);box-shadow:0 22px 48px rgba(0,0,0,.5)}
+.card:hover::after{opacity:1}
+.ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:21px;
+  margin-bottom:16px;border:1px solid rgba(142,203,255,.28);
+  background:linear-gradient(135deg,rgba(142,203,255,.2),rgba(77,107,254,.12))}
+.card h3{font-size:16.5px;margin-bottom:8px}
+.card p{color:var(--dim);font-size:13.8px;line-height:1.75}
+
+.shot{margin-top:52px;border-radius:20px;overflow:hidden;border:1px solid var(--line);
+  box-shadow:0 44px 96px rgba(0,0,0,.66);background:#0a0f1c}
+.bar{display:flex;align-items:center;gap:7px;padding:11px 15px;background:#0d1424;border-bottom:1px solid var(--line)}
+.bar i{width:10px;height:10px;border-radius:50%;background:#2c3a55}
+.bar i:nth-child(1){background:#ff5f57}.bar i:nth-child(2){background:#febc2e}.bar i:nth-child(3){background:#28c840}
+.bar span{margin-left:10px;font-size:12px;color:#5d6b88}
+.shot img{display:block;width:100%}
+
+.dl-wrap{margin-top:52px;display:grid;grid-template-columns:1.15fr .85fr;gap:18px}
+.dl-main{padding:34px 32px;border-radius:20px;position:relative;overflow:hidden;
+  border:1px solid rgba(255,215,154,.28);
+  background:linear-gradient(150deg,rgba(255,215,154,.1),rgba(16,22,38,.9))}
+.dl-main::before{content:'';position:absolute;width:300px;height:300px;right:-80px;top:-100px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,215,154,.26),transparent 66%)}
+.dl-main .os{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--dim);margin-bottom:16px}
+.dl-main .os b{color:var(--text);font-size:15px}
+.dl-main h3{font-size:24px;margin-bottom:6px}
+.dl-main .ver{font-size:12.5px;color:var(--dim);margin-bottom:24px}
+.dl-main .btn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;
+  padding:14px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:11px;
+  transition:.2s}
+.b-main{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#2a1c06;
+  box-shadow:0 10px 30px rgba(240,180,90,.34)}
+.b-main:hover{transform:translateY(-2px)}
+.b-ghost{border:1px solid var(--line);color:var(--text);background:rgba(255,255,255,.03)}
+.b-ghost:hover{background:rgba(142,203,255,.1)}
+.dl-note{font-size:12px;color:#6b7a99;line-height:1.85}
+.side{padding:26px 24px;border-radius:20px;border:1px solid var(--line);background:var(--card)}
+.side h4{font-size:13px;letter-spacing:1.5px;color:var(--acc);margin-bottom:16px}
+.req{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:9px 0;color:var(--dim);
+  border-bottom:1px dashed rgba(142,203,255,.13)}
+.req:last-child{border:0}
+.req b{color:var(--text);font-weight:500;text-align:right}
+@media(max-width:860px){.dl-wrap{grid-template-columns:1fr}}
+
+footer{padding:54px clamp(20px,6vw,90px) 100px;border-top:1px solid var(--line);color:#5d6b88;font-size:12.5px}
+.fwrap{max-width:1180px;margin:0 auto;display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.fwrap a{color:#7d8cab;text-decoration:none}
+.fwrap a:hover{color:var(--acc)}
+
+.reveal{opacity:0;transform:translateY(26px);transition:.75s cubic-bezier(.2,.7,.3,1)}
+.reveal.in{opacity:1;transform:none}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="brand"><img src="assets/favicon.ico" alt="">大肥鱼AI<em>BY CHILDE</em></div>
+  <div class="menu">
+    <a href="#feature">特色</a>
+    <a href="#shots">界面</a>
+    <a href="#download">下载</a>
+    <a href="https://gitee.com/liu-xingyuec/dafeiyu-ai-local" target="_blank" rel="noopener">源码</a>
+  </div>
+  <a class="dl-btn" href="#download">↓ 下载应用</a>
+</nav>
+
+<!-- ================= 首屏 ================= -->
+<header class="hero" id="top">
+  <div class="sky"></div><div class="stars"></div><div class="horizon"></div>
+
+  <div class="hero-inner">
+    <div>
+      <div class="tag"><i></i>完全本地运行 · 数据不出本机</div>
+      <h1>大肥鱼AI<small>住在你电脑里的鲸鱼娘</small></h1>
+      <p class="lead">
+        一个跑在你自己显卡上的桌面 AI 助手。会聊天、会发表情包、有心情也有记忆，
+        <b>断网也照常说话</b>，所有对话只存在你的硬盘里。
+      </p>
+      <div class="facts">
+        <span>Windows 10 / 11</span><span>本地模型</span><span>开源 MIT</span><span>免费</span>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="halo"></div>
+      <div class="ring"></div>
+      <div class="ring"></div>
+      <img class="char" src="assets/char.png" alt="大肥鱼">
+      <div class="float-card fc1"><img src="assets/shot-sticker.png" alt="表情包面板"></div>
+      <div class="float-card fc2"><img src="assets/ciallo.jpg" alt="Ciallo"></div>
+    </div>
+  </div>
+
+  <!-- 底部下载组 -->
+  <div class="hero-dl">
+    <div class="qr-box">
+      <img src="assets/qr.png" alt="扫码打开仓库">
+      <span>扫码下载</span>
+    </div>
+    <div class="dl-group">
+      <a class="dl-item" href="https://gitee.com/liu-xingyuec/dafeiyu-ai-local/releases" target="_blank" rel="noopener">
+        <span class="i">🪟</span><span><b>PC 下载</b><small>Windows 10 / 11</small></span>
+      </a>
+      <a class="dl-item" href="https://gitee.com/liu-xingyuec/dafeiyu-ai-local" target="_blank" rel="noopener">
+        <span class="i">📦</span><span><b>源码下载</b><small>MIT 开源仓库</small></span>
+      </a>
+      <a class="dl-item" href="#download">
+        <span class="i">📖</span><span><b>安装说明</b><small>配置与模型</small></span>
+      </a>
+    </div>
+  </div>
+
+  <div class="ver-tag">
+    <b>版本 v1.0.0</b><br>
+    安装包约 24 MB · 模型需另下<br>
+    Windows 10/11 64 位
+  </div>
+
+  <div class="dots">
+    <a href="#top" class="on"></a><a href="#feature"></a><a href="#download"></a>
+  </div>
+</header>
+
+<!-- ================= 特色 ================= -->
+<section id="feature">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Features</div>
+      <h2>她不只是个聊天框，<em>是真的住在这儿</em></h2>
+      <p class="sub">没有账号，没有云端，没有「服务繁忙请稍后再试」。模型、记忆、情绪都在本地。</p>
+    </div>
+    <div class="grid">
+      <div class="card reveal"><div class="ico">🔒</div><h3>数据不出本机</h3>
+        <p>对话、记忆、截图全部留在本地磁盘。拔掉网线她照样陪你说话，不存在「上传到服务器」这回事。</p></div>
+      <div class="card reveal"><div class="ico">💬</div><h3>会发表情包</h3>
+        <p>内置 322 张表情包，按情绪自己挑。你甩图给她，她也会回一张，而不是干巴巴一句「哈哈」。</p></div>
+      <div class="card reveal"><div class="ico">🌡️</div><h3>有心情，会记仇</h3>
+        <p>开心、踏实、心疼、吃醋……六维情绪随对话变化，也会记住你说过的事，过几天还能想起来。</p></div>
+      <div class="card reveal"><div class="ico">🧩</div><h3>插件生态</h3>
+        <p>B 站追更、直播、深度思考、知识库、代码执行……插件中心点一下就能装，也能自己写。</p></div>
+      <div class="card reveal"><div class="ico">🐋</div><h3>桌面桌宠</h3>
+        <p>独立的小家伙在桌面角落待着，会自己碎碎念，双击还能聊两句，不抢你的窗口焦点。</p></div>
+      <div class="card reveal"><div class="ico">⚡</div><h3>模型可换</h3>
+        <p>4B 轻快、7B 均衡、35B 重推理，随时切换。8GB 显存就能跑，不需要昂贵显卡。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 界面 ================= -->
+<section id="shots">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Preview</div>
+      <h2>看看她在<em>你屏幕上</em>的样子</h2>
+      <p class="sub">深色界面，玻璃质感，能挑表情包、能记住你、能开一堆插件。</p>
+    </div>
+    <div class="shot reveal">
+      <div class="bar"><i></i><i></i><i></i><span>大肥鱼AI · 表情包面板</span></div>
+      <img src="assets/shot-sticker.png" alt="表情包面板截图">
+    </div>
+  </div>
+</section>
+
+<!-- ================= 下载 ================= -->
+<section id="download">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Download</div>
+      <h2>下载 <em>大肥鱼AI</em></h2>
+      <p class="sub">绿色免安装，解压即用。模型需要单独下载，首次启动会引导你。</p>
+    </div>
+
+    <div class="dl-wrap">
+      <div class="dl-main reveal">
+        <div class="os"><b>Windows</b><span>10 / 11 · 64 位</span></div>
+        <h3>大肥鱼AI 桌面版</h3>
+        <div class="ver">版本 v1.0.0 · 约 24 MB · 更新于 2026-11</div>
+        <a class="btn b-main" href="https://gitee.com/liu-xingyuec/dafeiyu-ai-local/releases" target="_blank" rel="noopener">↓ 下载安装包</a>
+        <a class="btn b-ghost" href="https://gitee.com/liu-xingyuec/dafeiyu-ai-local" target="_blank" rel="noopener">从源码运行</a>
+        <p class="dl-note" style="margin-top:12px">
+          下载后解压，运行 <code>start.ps1</code> 即可。想自己编译就克隆仓库，按 README 装依赖。<br>
+          模型文件（4~22 GB）不在安装包里，首次启动会引导下载。
+        </p>
+      </div>
+      <div class="side reveal">
+        <h4>系统要求</h4>
+        <div class="req"><span>操作系统</span><b>Windows 10 / 11 64 位</b></div>
+        <div class="req"><span>内存</span><b>8 GB 以上</b></div>
+        <div class="req"><span>显存</span><b>4 GB 起，推荐 8 GB</b></div>
+        <div class="req"><span>磁盘</span><b>30 GB（含模型）</b></div>
+        <div class="req"><span>运行环境</span><b>Ollama + Python 3.10+</b></div>
+        <div class="req"><span>网络</span><b>仅首次下载模型需要</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="fwrap">
+    <div>© 2026 大肥鱼AI · By Childe · 以 MIT 协议开源</div>
+    <div>
+      第三方致谢：<a href="https://github.com/MerZlin/dsh-pet-indesktop" target="_blank" rel="noopener">dsh-pet</a>（MIT）·
+      表情包图源 kiriyuki.com ·
+      <a href="https://gitee.com/liu-xingyuec/dafeiyu-ai-local" target="_blank" rel="noopener">Gitee</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+const nav=document.getElementById('nav');
+addEventListener('scroll',()=>nav.classList.toggle('solid',scrollY>40),{passive:true});
+
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}
+}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach((el,i)=>{
+  el.style.transitionDelay=(i%6*60)+'ms';io.observe(el);
+});
+
+// 立绘轻微视差
+const ch=document.querySelector('.char');
+addEventListener('mousemove',e=>{
+  const x=(e.clientX/innerWidth-.5),y=(e.clientY/innerHeight-.5);
+  ch.style.transform=`translate(${x*12}px,${y*12}px)`;
+},{passive:true});
+
+// 右侧页码点跟随滚动
+const secs=['#top','#feature','#download'];
+const dots=[...document.querySelectorAll('.dots a')];
+addEventListener('scroll',()=>{
+  const y=scrollY+innerHeight*.4;
+  let idx=0;
+  secs.forEach((s,i)=>{const el=document.querySelector(s);if(el&&el.offsetTop<=y)idx=i});
+  dots.forEach((d,i)=>d.classList.toggle('on',i===idx));
+},{passive:true});
+</script>
+</body>
+</html>
