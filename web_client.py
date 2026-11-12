@@ -12,6 +12,7 @@
     python web_client.py            # 默认 0.0.0.0:8848
     python web_client.py 8899       # 换端口
 """
+import api_base
 import asyncio
 import json
 import os
@@ -26,7 +27,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("DFY_DATA_DIR") or r"D:\本地部署大肥鱼环境\data"
 WEB_CHATS = os.path.join(DATA_DIR, "web_chats.json")
 SETTINGS = os.path.join(DATA_DIR, "settings.json")
-OLLAMA = "http://127.0.0.1:11434"
+# 地址每次请求动态取（运行中切云端/本地要立刻生效）
 
 MODELS = [
     {"id": "qwen2.5vl:7b", "short": "灵动", "note": "说话自然、会挑表情包"},
@@ -48,7 +49,7 @@ async def caps(sess, model):
     if model in _caps_cache:
         return _caps_cache[model]
     try:
-        async with sess.post(OLLAMA + "/api/show", json={"model": model}) as r:
+        async with sess.post(api_base.url("/api/show"), json={"model": model}) as r:
             d = await r.json()
         c = d.get("capabilities") or []
         v = {"thinking": "thinking" in c, "vision": "vision" in c}
@@ -201,7 +202,7 @@ async def handle_send(request):
     try:
         timeout = ClientTimeout(total=900)
         async with ClientSession(timeout=timeout) as sess:
-            async with sess.post(OLLAMA + "/api/chat", json=payload) as r:
+            async with sess.post(api_base.url("/api/chat"), json=payload) as r:
                 if r.status != 200:
                     err = (await r.text())[:300]
                     await resp.write(("data: " + json.dumps({"error": err}) + "\n\n").encode())
@@ -294,18 +295,21 @@ b{color:var(--text)}
 <div class="head"><div class="avatar">🐋</div>
 <div><h1>大肥鱼AI</h1><div class="sub">Android 客户端 · __SIZE__</div></div></div>
 <div class="card">
-  <a class="btn" href="/dl/dafeiyu.apk">↓ 下载 APK</a>
-  <div class="meta"><span>v0.1.0</span><span>Android 8.0+</span><span>本地推理 · 可离线</span></div>
-  <div class="tip">下载完点开安装，系统可能提示"未知来源"，允许即可。</div>
+  <a class="btn" href="/dl/dafeiyu-full.apk">↓ 完整版 · 模型已内置（2.4 GB）</a>
+  <div class="meta"><span>2.4 GB</span><span>装完不用联网</span><span>推荐</span></div>
+  <div class="tip">装好后打开 App，点「从安装包释放模型」，等它把模型摊开（约 1~2 分钟）。</div>
+  <a class="btn" href="/dl/dafeiyu.apk"
+     style="margin-top:10px;background:transparent;border:1px solid #1c2740;color:#7d8cab;font-weight:400;box-shadow:none">
+    轻量版 · 15 MB（模型从电脑下）
+  </a>
 </div>
 <div class="card">
   <ol>
-    <li>先装这个 APK（约 6 MB）</li>
-    <li>打开 App，它会引导你下载模型</li>
-    <li>模型约 <b>2.4 GB</b>，从这台电脑直传，两三分钟</li>
-    <li>装完断网也能聊</li>
+    <li>完整版：下载 2.4GB → 安装 → App 内释放模型 → 能用</li>
+    <li>轻量版：下载 15MB → 安装 → 从电脑拉模型</li>
+    <li>手机需要预留约 <b>5 GB</b> 空间（APK + 解压出来的模型各一份）</li>
   </ol>
-  <div class="tip">模型下载地址已内置，确保手机和电脑在同一个 WiFi。</div>
+  <div class="tip">系统提示"未知来源"时允许即可。装之前建议先卸掉旧版。</div>
 </div>
 </body></html>"""
 
@@ -325,6 +329,19 @@ async def handle_apk(request):
     return web.FileResponse(APK_PATH, headers={
         "Content-Type": "application/vnd.android.package-archive",
         "Content-Disposition": 'attachment; filename="dafeiyu.apk"',
+        "Cache-Control": "no-cache",
+    })
+
+
+FULL_APK = os.path.join(DL_DIR, "dafeiyu-full.apk")
+
+
+async def handle_apk_full(request):
+    if not os.path.exists(FULL_APK):
+        return web.Response(status=404, text="完整版还没打包")
+    return web.FileResponse(FULL_APK, headers={
+        "Content-Type": "application/vnd.android.package-archive",
+        "Content-Disposition": 'attachment; filename="dafeiyu-full.apk"',
         "Cache-Control": "no-cache",
     })
 
@@ -372,6 +389,7 @@ def main():
     # App 下载通道（没有数据线时，手机同 WiFi 直接下载安装）
     app.router.add_get("/dl/", handle_dl_page)
     app.router.add_get("/dl/dafeiyu.apk", handle_apk)
+    app.router.add_get("/dl/dafeiyu-full.apk", handle_apk_full)
     app.router.add_get("/dl/model.gguf", handle_model)
     app.router.add_get("/dl/petpack.zip", handle_petpack)
     app.router.add_get("/api/state", handle_state)

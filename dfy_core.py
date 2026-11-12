@@ -9,6 +9,7 @@ dfy_core —— 大肥鱼AI 的后端核心（无 UI 依赖）。
 - ASSET_DIR = 打包内 ds图片（avatar.jpg 等静态素材）或源码目录 ds图片
 - 旧版设置/头像在 桌面\\大肥鱼AI\\ds图片\\，首次运行自动迁移到 DATA_DIR
 """
+import api_base
 import os
 import re
 import sys
@@ -448,7 +449,7 @@ _TAG_RE = re.compile(r"闲聊|创作|实时")
 
 def _pick_planner_model(default_model):
     try:
-        req = urllib.request.Request("http://localhost:11434/api/ps")
+        req = urllib.request.Request(api_base.url("/api/ps"))
         with _LOCAL_OPENER.open(req, timeout=3) as r:
             models = json.loads(r.read().decode("utf-8")).get("models", [])
         if models:
@@ -494,7 +495,7 @@ def _ollama_chat_once(messages, model, timeout=30, num_predict=32, think=None, i
                                  num_predict=num_predict, temperature=0,
                                  think=think)
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
+    req = urllib.request.Request(api_base.url("/api/chat"), data=data,
                                  headers={"Content-Type": "application/json"})
     with _LOCAL_OPENER.open(req, timeout=timeout) as r:
         out = json.loads(r.read().decode("utf-8"))
@@ -585,7 +586,7 @@ def ollama_stream(messages, model, num_ctx=None, keep_alive=None, timeout=600):
     if "qwen3" in m or "r1" in m:
         payload["think"] = False
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
+    req = urllib.request.Request(api_base.url("/api/chat"), data=data,
                                  headers={"Content-Type": "application/json"})
     with _LOCAL_OPENER.open(req, timeout=timeout) as r:
         for raw in r:
@@ -606,7 +607,7 @@ def ollama_stream(messages, model, num_ctx=None, keep_alive=None, timeout=600):
 
 def ollama_alive():
     try:
-        req = urllib.request.Request("http://localhost:11434/api/tags")
+        req = urllib.request.Request(api_base.url("/api/tags"))
         with _LOCAL_OPENER.open(req, timeout=4) as r:
             json.loads(r.read().decode("utf-8"))
         return True
@@ -616,7 +617,7 @@ def ollama_alive():
 
 def model_loaded(model):
     try:
-        req = urllib.request.Request("http://localhost:11434/api/ps")
+        req = urllib.request.Request(api_base.url("/api/ps"))
         with _LOCAL_OPENER.open(req, timeout=4) as r:
             data = json.loads(r.read().decode("utf-8"))
         return any(str(m.get("name") or "") == model for m in data.get("models", []))
@@ -1274,7 +1275,7 @@ def agent_decide(task, history="", step=0):
              {"role": "user", "content": user_msg, "images": [img_b64]}],
             stream=False, num_predict=300, temperature=0.1)
         data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
+        req = urllib.request.Request(api_base.url("/api/chat"), data=data,
                                      headers={"Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=120) as r:
             result = json.loads(r.read().decode("utf-8"))

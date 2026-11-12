@@ -311,7 +311,7 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
     <div class="pd-title">插件窗口</div>
     <div class="pd-row" id="pluginDockRow"></div>
   </div>
-  <div class="side-footer">本地部署 - 数据不出本机</div>
+  <div class="side-footer" id="sideFoot">本地部署 - 数据不出本机</div>
 </aside>
 <div class="main">
   <div class="header">
@@ -369,8 +369,9 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
     <h2>设置 <button class="close" onclick="closeSettings()">✕</button></h2>
     <div class="stabs">
       <button class="stab on" id="stab-general" onclick="switchTab('general')">通用</button>
-      <button class="stab" id="stab-persona" onclick="switchTab('persona')">人格卡 🐳</button>
-    </div>
+        <button class="stab" id="stab-persona" onclick="switchTab('persona')">人格卡 🐳</button>
+        <button class="stab" id="stab-cloud" onclick="switchTab('cloud')">云端模型 ☁</button>
+      </div>
     <div id="page-general">
     <div class="set-row"><div class="set-label">显示模式</div><div class="opt-group" id="modeGroup"><button class="opt" data-mode="balanced" onclick="setMode('balanced')">均衡模式</button><button class="opt" data-mode="pro" onclick="setMode('pro')">专业模式</button></div></div>
     <div class="set-row"><div class="set-label">AI 名字 <span style="color:var(--text2);font-weight:400">—— 给大肥鱼起个名字，永久生效</span></div>
@@ -452,12 +453,74 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
       <div id="personaPreview" class="pc-preview" style="display:none"></div>
     </div>
 
+    <!-- ── 云端模型：默认关闭，开起来才会把对话发到第三方 ── -->
+    <div id="page-cloud" style="display:none">
+      <div class="set-row" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="set-label" style="margin:0">接入云端模型</div>
+        <button class="opt" id="cloudToggle" onclick="cloudToggle()">当前：本地模式（点此开启）</button>
+        <span id="cloudState" style="font-size:12px;color:var(--text2)"></span>
+      </div>
+      <div style="background:rgba(229,62,62,.10);border:1px solid rgba(229,62,62,.28);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.7;color:var(--text);margin:4px 0 12px">
+        ⚠️ 开启后，<b>人格卡、长期记忆和聊天内容会发送给第三方</b>，与本项目「数据不出本机」的默认定位相反。
+        API Key 只存在本机 <code>cloud_config.json</code>，不写日志、不进聊天记录。关掉即刻回到纯本地。
+      </div>
+      <div class="set-row"><div class="set-label">快速选一个免费渠道 <span style="color:var(--text2);font-weight:400">—— 自动填好地址和模型，你只填 Key</span></div>
+        <select id="cloudPreset" onchange="cloudPresetPick()" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:13px;outline:none;box-sizing:border-box">
+          <option value="">自定义（自己填下面的地址）</option>
+          <option value="deepseek">DeepSeek 官方 · 新用户送约 500 万 Token（推荐）</option>
+          <option value="deepseek_r1">DeepSeek 官方 · R1 推理版</option>
+          <option value="zhipu">智谱 GLM-4-Flash · 永久免费 · 国内直连</option>
+          <option value="siliconflow">硅基流动 Qwen3-8B · 永久免费 · 国内直连</option>
+          <option value="siliconflow_r1">硅基流动 DeepSeek-R1 蒸馏 7B · 免费</option>
+          <option value="bailian">阿里云百炼 qwen-plus · 每模型 100 万 Token</option>
+          <option value="openrouter">OpenRouter 免费模型 · 50 次/天 · 需代理</option>
+          <option value="groq">Groq Llama 3.3 70B · 快 · 需代理</option>
+          <option value="google">Google Gemini Flash · 多模态 · 需代理</option>
+        </select>
+      </div>
+      <div class="set-row"><div class="set-label">接口地址 <span style="color:var(--text2);font-weight:400">—— 直接粘贴完整 API 地址即可，不用自己补 /v1 或 /chat/completions</span></div>
+        <input id="cloudBase" type="text" placeholder="例如 https://api.deepseek.com/v1/chat/completions（或只填到 /v1、甚至只填域名）" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:13px;outline:none;box-sizing:border-box">
+      </div>
+      <div class="set-row"><div class="set-label">API Key <span style="color:var(--text2);font-weight:400">—— 只存本机，页面不回显</span></div>
+        <input id="cloudKey" type="password" placeholder="sk-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:13px;outline:none;box-sizing:border-box">
+      </div>
+      <div class="set-row"><div class="set-label">模型名</div>
+        <input id="cloudModel" type="text" placeholder="deepseek-chat" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:13px;outline:none;box-sizing:border-box">
+      </div>
+      <div class="set-row"><div class="set-label">出网代理 <span style="color:var(--text2);font-weight:400">—— 国内 API 留空；访问 OpenAI 可填 http://127.0.0.1:7897</span></div>
+        <input id="cloudProxy" type="text" placeholder="留空直连" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:13px;outline:none;box-sizing:border-box">
+      </div>
+      <div class="set-row" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="cloudVision"> 支持看图</label>
+        <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="cloudThink"> 支持思考链</label>
+        <span style="font-size:12px;color:var(--text2)">按厂商能力勾，错了只影响按钮提示</span>
+      </div>
+      <div class="set-row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:13px;display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="cloudFallback"> 云端出任何问题都自动用本地模型代答
+        </label>
+        <span style="font-size:12px;color:var(--text2)">限流/断网会先重试两次；仍不行就回落，并在回复开头写明云端报错的原因</span>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center">
+        <button class="opt" onclick="cloudSave()">💾 保存并应用</button>
+        <button class="opt" onclick="cloudTest()">🔌 测试连接</button>
+        <button class="opt" onclick="cloudGoLocal()" style="border-color:rgba(47,158,104,.55);color:#2f9e68">↩ 立即回到纯本地</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-top:6px">「立即回到纯本地」不用保存、不用测试，点一下当场生效；云端配置会留着，下次想用再点开启。</div>
+      <div id="cloudMsg" style="margin-top:12px;font-size:12.5px;line-height:1.7;color:var(--text2)"></div>
+    </div>
+
   </div>
 </div>
 <script>
-const API='http://localhost:11434';
-const MODELS=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐：说话自然、会挑表情包）'},{id:'qwen3-vl:4b-instruct',short:'轻快',full:'Qwen3-VL - 4B Instruct（省 1.5G 显存、更快，挑图同样准）'},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（爱推理，看不了图）'},{id:'qwen3.6:35b',short:'深度ProMax',full:'Qwen3.6 - 35B-A3B（最强，能看图，思考链可开关）'}];
+let API='http://localhost:11434';   // 云端模式开启时，boot() 会改成 127.0.0.1:11435
+// 本地模型清单只此一份，MODELS 永远是它的副本。
+// （以前是先写 MODELS 再 slice 出 LOCAL_MODELS，一旦某次加载时 MODELS 已被
+//   换成云端那一项，快照就跟着被污染，退不回本地时下拉一直是"云端"。）
+const LOCAL_PRESET=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐：说话自然、会挑表情包）'},{id:'qwen3-vl:4b-instruct',short:'轻快',full:'Qwen3-VL - 4B Instruct（省 1.5G 显存、更快，挑图同样准）'},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（爱推理，看不了图）'},{id:'qwen3.6:35b',short:'深度ProMax',full:'Qwen3.6 - 35B-A3B（最强，能看图，思考链可开关）'}];
+const MODELS=LOCAL_PRESET.slice();
 let MODEL='qwen2.5vl:7b',displayMode='balanced',replyLang='zh-CN';
+let cloudEnabled=false;             // 云端模式当前是否真的开着（以后端配置为准）
 let msgs=[],busy=false,abortCtrl=null,chats=[],currentId=null,webSearchOn=false,searchEngine='duckduckgo',pendingFiles=[],kbOn=false,chatsLoaded=false,wbOn=false,wbStop=false;
 const HIST_TURNS=16;  // 送进模型的最近消息条数，防止长对话越聊越慢
 const HIST_AI=2;      // 其中最多带几条"我自己的回复"，见 buildHistMsgs 里的说明
@@ -564,10 +627,10 @@ async function preloadModel(){
   const m=MODELS.find(x=>x.id===MODEL);txt.textContent='正在加载 '+(m?m.short:MODEL)+'...';
   let w=15;const anim=setInterval(()=>{if(w<80){w+=2;bar.style.width=w+'%'}else{clearInterval(anim)}},300);
   // num_ctx 必须和正式对话一致（8192），否则 ollama 会按默认上下文加载一次、真正聊天时再重载一遍
-  try{await fetch('http://localhost:11434/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,messages:[{role:'user',content:'.'}],stream:false,keep_alive:_keepAliveFor(MODEL),options:{num_predict:1,num_ctx:8192}})})}catch(e){}
+  try{await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,messages:[{role:'user',content:'.'}],stream:false,keep_alive:_keepAliveFor(MODEL),options:{num_predict:1,num_ctx:8192}})})}catch(e){}
   const check=setInterval(async()=>{
     try{
-      const ps=await fetch('http://localhost:11434/api/ps');const pd=await ps.json();
+      const ps=await fetch(API+'/api/ps');const pd=await ps.json();
       const loaded=(pd.models||[]).some(x=>x.name===MODEL);
       if(loaded){clearInterval(check);clearInterval(anim);bar.style.width='100%';txt.textContent='加载完成 ✓';
         setTimeout(()=>{bar.classList.remove('show');txt.classList.remove('show');bar.style.width='0'},600)}
@@ -582,10 +645,219 @@ function closeSettings(){document.getElementById('settingsModal').classList.remo
 function switchTab(t){
   document.getElementById('stab-general').classList.toggle('on',t==='general');
   document.getElementById('stab-persona').classList.toggle('on',t==='persona');
+  document.getElementById('stab-cloud').classList.toggle('on',t==='cloud');
   document.getElementById('page-general').style.display=t==='general'?'':'none';
   document.getElementById('page-persona').style.display=t==='persona'?'':'none';
+  document.getElementById('page-cloud').style.display=t==='cloud'?'':'none';
   if(t==='persona')loadPersona();
+  if(t==='cloud')loadCloudCfg();
 }
+// ---------------- 云端模型（兼容代理） ----------------
+// 都是正规 OpenAI-compatible 端点，走官方免费额度，不需要逆向网页版 / 交出账号登录态
+const CLOUD_PRESETS={
+  deepseek:{b:'https://api.deepseek.com/v1',m:'deepseek-chat',px:'',v:false,t:false,n:'DeepSeek',ph:'sk- 开头，35 位'},
+  deepseek_r1:{b:'https://api.deepseek.com/v1',m:'deepseek-reasoner',px:'',v:false,t:true,n:'DeepSeek',ph:'sk- 开头，35 位'},
+  zhipu:{b:'https://open.bigmodel.cn/api/paas/v4',m:'glm-4-flash',px:'',v:false,t:false,n:'智谱 BigModel',ph:'32 位ID.16 位密钥，共 49 位'},
+  siliconflow:{b:'https://api.siliconflow.cn/v1',m:'Qwen/Qwen3-8B',px:'',v:false,t:false,n:'硅基流动',ph:'sk- 开头'},
+  siliconflow_r1:{b:'https://api.siliconflow.cn/v1',m:'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B',px:'',v:false,t:true,n:'硅基流动',ph:'sk- 开头'},
+  bailian:{b:'https://dashscope.aliyuncs.com/compatible-mode/v1',m:'qwen-plus',px:'',v:false,t:false,n:'阿里百炼',ph:'sk- 开头'},
+  openrouter:{b:'https://openrouter.ai/api/v1',m:'meta-llama/llama-3.3-70b-instruct:free',px:'http://127.0.0.1:7897',v:false,t:false,n:'OpenRouter',ph:'sk-or-v1- 开头'},
+  groq:{b:'https://api.groq.com/openai/v1',m:'llama-3.3-70b-versatile',px:'http://127.0.0.1:7897',v:false,t:false,n:'Groq',ph:'gsk_ 开头'},
+  google:{b:'https://generativelanguage.googleapis.com/v1beta/openai/',m:'gemini-2.5-flash',px:'http://127.0.0.1:7897',v:true,t:false,n:'Google AI Studio',ph:'AIza 开头'}
+};
+
+function cloudPresetPick(){
+  const sel=document.getElementById('cloudPreset'),p=CLOUD_PRESETS[sel.value];
+  if(!p)return;
+  const baseEl=document.getElementById('cloudBase'),keyEl=document.getElementById('cloudKey');
+  const oldHost=(baseEl.value.trim().split('/')[2]||'');
+  const newHost=(p.b.split('/')[2]||'');
+  const switched=oldHost && oldHost!==newHost;      // 换了平台就必须换 Key
+  baseEl.value=p.b;
+  document.getElementById('cloudModel').value=p.m;
+  document.getElementById('cloudProxy').value=p.px;
+  document.getElementById('cloudVision').checked=p.v;
+  document.getElementById('cloudThink').checked=p.t;
+  keyEl.placeholder=p.ph||'粘贴该平台的 API Key';
+  if(switched){ keyEl.value=''; }
+  cloudMsg('已填入「'+sel.options[sel.selectedIndex].text+'」。'
+           +(switched?'已清空上一个平台的 Key —— 各家的 Key 不通用，请粘贴 '+p.n+' 的 Key（'+p.ph+'）：':'请填 API Key（'+p.ph+'），')
+           +'再点「保存并应用」和「测试连接」。'
+           +(p.px?' 海外渠道已自动填代理端口 7897，需要先开着代理。':''),true);
+}
+
+function cloudMsg(t,ok){const e=document.getElementById('cloudMsg');if(e){e.textContent=t;e.style.color=ok?'#2f9e68':'#e53e3e'}}
+
+async function loadCloudCfg(){
+  try{
+    const c=await window.pywebview.api.cloud_config_get();
+    document.getElementById('cloudBase').value=c.base_url||'';
+    document.getElementById('cloudKey').value=c.api_key||'';
+    document.getElementById('cloudModel').value=c.model||'';
+    document.getElementById('cloudProxy').value=c.proxy||'';
+    document.getElementById('cloudVision').checked=!!c.vision;
+    document.getElementById('cloudThink').checked=!!c.thinking;
+    document.getElementById('cloudFallback').checked=c.fallback_local!==false;
+    document.getElementById('cloudPreset').value='';   // 预设只是填充器，不落盘
+    cloudEnabled=!!c.enabled;                          // 以后端配置为准，不看按钮文字
+    document.getElementById('cloudToggle').textContent=c.enabled
+      ?'当前：云端已开启（点此关闭）':'当前：本地模式（点此开启）';
+    document.getElementById('cloudState').textContent=c.enabled
+      ?('走 '+c.base+(c.proxy_alive?' · 代理已就绪':' · 代理未启动，已自动改用本地'))
+      :'对话只在本机 Ollama 上跑';
+  }catch(e){cloudMsg('读取配置失败：'+e,false)}
+}
+
+// 开关本身就该是有用的：点一下立刻写盘生效，不用再找「保存并应用」
+async function cloudToggle(){
+  const want=!cloudEnabled;
+  if(want){
+    const base=document.getElementById('cloudBase').value.trim();
+    if(!/^https?:\/\//i.test(base)){
+      cloudMsg('先把接口地址填对（http:// 或 https:// 开头），或者从上面的「快速选渠道」里挑一个免费平台。',false);
+      return;
+    }
+    if(!document.getElementById('cloudKey').value.trim()){
+      cloudMsg('开启前先填 API Key（'+providerKeyFormat(base)+'）。也可以先从上面的「快速选渠道」里挑一个免费平台。',false);
+      return;
+    }
+  }
+  try{
+    const f=cloudForm(); f.enabled=want;
+    const r=await window.pywebview.api.cloud_config_save(JSON.stringify(f));
+    if(!r.ok){cloudMsg('切换失败：'+r.msg,false);return}
+    await applyCloudConfig();
+    await loadCloudCfg();
+    cloudMsg(want
+      ?('已开启云端：请求会发到 '+finalUrl(document.getElementById('cloudBase').value))
+      :'已回到纯本地：请求走 127.0.0.1:11434，云端地址和 Key 都还留着',true);
+  }catch(e){cloudMsg('切换失败：'+e,false)}
+}
+
+function cloudForm(){
+  return {
+    enabled: cloudEnabled,
+    base_url: document.getElementById('cloudBase').value.trim(),
+    api_key: document.getElementById('cloudKey').value,
+    model: document.getElementById('cloudModel').value.trim()||'deepseek-chat',
+    proxy: document.getElementById('cloudProxy').value.trim(),
+    vision: document.getElementById('cloudVision').checked,
+    thinking: document.getElementById('cloudThink').checked,
+    fallback_local: document.getElementById('cloudFallback').checked
+  };
+}
+
+async function cloudSave(){
+  try{
+    const f=cloudForm();
+    if(f.enabled){
+      if(!/^https?:\/\//i.test(f.base_url||'')){
+        cloudMsg('接口地址要以 http:// 或 https:// 开头。可以直接粘贴完整地址，例如 https://api.deepseek.com/v1/chat/completions',false);
+        return;
+      }
+      if(!f.api_key.trim()){
+        cloudMsg('云端已开启但 API Key 是空的。请粘贴该平台的 API Key（'+providerKeyFormat(f.base_url)+'）再保存。',false);
+        return;
+      }
+      const w=keyHostWarn(f.base_url,f.api_key);
+      if(w && !confirm(w+'\n\n仍要保存吗？（这样存下去，对话里大概率会报 401）'))return;
+    }
+    // 关闭云端不做任何校验：地址写歪了、Key 清空了，都必须能痛痛快快退出去
+    const r=await window.pywebview.api.cloud_config_save(JSON.stringify(f));
+    if(!r.ok){cloudMsg('保存失败：'+r.msg,false);return}
+    await applyCloudConfig();
+    await loadCloudCfg();
+    cloudMsg((r.msg||'已保存')+(f.enabled?' · 实际请求：'+finalUrl(f.base_url):' · 请求已回到 127.0.0.1:11434'),true);
+  }catch(e){cloudMsg('保存失败：'+e,false)}
+}
+
+// 点一下立刻回本地：不保存、不校验、不等测试
+async function cloudGoLocal(){
+  try{
+    await window.pywebview.api.cloud_config_save(JSON.stringify({enabled:false}));
+    await applyCloudConfig();
+    await loadCloudCfg();
+    cloudMsg('已回到纯本地：接下来的请求都走 127.0.0.1:11434，云端地址和 Key 都还留着，随时能再开。',true);
+  }catch(e){cloudMsg('切换失败：'+e,false)}
+}
+
+// 保存前先看 Key 的格式和地址对不对得上——401 里绝大多数是"张冠李戴"
+function keyHostWarn(b,k){
+  b=(b||'').toLowerCase(); k=(k||'').trim();
+  if(!k||k==='********')return '';
+  const sk=k.indexOf('sk-')===0;
+  if(b.indexOf('bigmodel')>=0)
+    return /^[0-9a-fA-F]{32}\.[A-Za-z0-9_-]{16}$/.test(k)?''
+      :'这是智谱的地址，但 Key 不是智谱格式。智谱的 Key 是「32 位ID.16 位密钥」共 49 位、中间一个点，别家的 Key 用不了。';
+  if(b.indexOf('deepseek')>=0&&!sk)
+    return '这是 DeepSeek 的地址，Key 却不是 sk- 开头——多半是把别家（比如智谱）的 Key 复制过来了，两家不通用。';
+  if(b.indexOf('siliconflow')>=0&&!sk)
+    return '这是硅基流动的地址，Key 应该以 sk- 开头。';
+  if(b.indexOf('dashscope')>=0&&!sk)
+    return '这是阿里百炼的地址，Key 应该以 sk- 开头。';
+  if(b.indexOf('openrouter')>=0&&k.indexOf('sk-or-v1-')!==0)
+    return 'OpenRouter 的 Key 以 sk-or-v1- 开头。';
+  if(b.indexOf('groq')>=0&&k.indexOf('gsk_')!==0)
+    return 'Groq 的 Key 以 gsk_ 开头。';
+  if(b.indexOf('googleapis')>=0&&k.indexOf('AIza')!==0)
+    return 'Google AI Studio 的 Key 以 AIza 开头。';
+  return '';
+}
+
+// 地址只填到哪一层都行，这里把它补成真正会请求的完整地址（与 cloud_proxy.upstream_url 一致）
+function finalUrl(b){
+  let u=(b||'').trim().replace(/\/+$/,'');
+  if(!u)return '';
+  if(/\/chat\/completions$/.test(u))return u;
+  try{
+    const p=new URL(u);
+    if(!p.pathname.replace(/\//g,''))u+='/v1';
+  }catch(e){}
+  return u+'/chat/completions';
+}
+
+function providerKeyFormat(b){
+  b=(b||'').toLowerCase();
+  if(b.indexOf('bigmodel')>=0)return '智谱：32 位ID.16 位密钥，共 49 位';
+  if(b.indexOf('openrouter')>=0)return 'OpenRouter：sk-or-v1- 开头';
+  if(b.indexOf('groq')>=0)return 'Groq：gsk_ 开头';
+  if(b.indexOf('googleapis')>=0)return 'Google：AIza 开头';
+  return 'sk- 开头';
+}
+
+async function cloudTest(){
+  cloudMsg('正在测试…',true);
+  try{
+    const r=await window.pywebview.api.cloud_test();
+    cloudMsg(r.ok?('✅ 通了 · '+(r.model||'')+' 回复：'+(r.reply||'(空)')):('❌ '+r.msg),r.ok);
+  }catch(e){cloudMsg('测试失败：'+e,false)}
+}
+
+async function applyCloudConfig(){
+  try{
+    const c=await window.pywebview.api.cloud_config_get();
+    cloudEnabled=!!c.enabled;
+    API=c.base;
+    if(c.enabled){
+      MODELS.splice(0,MODELS.length,{id:c.model,short:'云端',full:c.model+'（第三方 API）'});
+      MODEL=c.model;
+    }else{
+      // 从写死的本地清单还原，不复用任何快照——快照被云端项污染过就会退不回来
+      MODELS.splice(0,MODELS.length,...LOCAL_PRESET.map(m=>({...m})));
+      if(!MODELS.some(m=>m.id===MODEL))MODEL=MODELS[0].id;
+    }
+    refreshModelSel();
+    const f=document.getElementById('sideFoot');
+    if(f)f.textContent=c.enabled?'☁ 云端模型已开启 · 对话会离开本机':'本地部署 - 数据不出本机';
+    Object.keys(_capsCache).forEach(k=>delete _capsCache[k]);
+    Object.keys(_visCache).forEach(k=>delete _visCache[k]);
+  }catch(e){
+    // 读配置失败时也必须能显示本地模型，否则下拉会一直挂在"云端"上
+    if(!MODELS.some(m=>m.id===MODEL)){MODEL=LOCAL_PRESET[0].id}
+    try{MODELS.splice(0,MODELS.length,...LOCAL_PRESET.map(m=>({...m})));refreshModelSel()}catch(_){}
+  }
+}
+
 async function loadPersona(){
   try{
     const g=await window.pywebview.api.load_setting('persona_global');
@@ -1169,6 +1441,9 @@ async function send(){
     if(sh)sysInject+='\n\n【表情包】下面这几张你这次用得上，想配就在回复最后另起一行写它的名字（方括号括住，只写名字），不想配就不写，别勉强、也别自己编名字：\n'+sh;
   }catch(e){}
   try{
+    // 兜底：模型名不在当前可选列表里（典型场景：刚从云端切回本地，页面还没重载，
+    // MODEL 仍是 deepseek-chat），直接发出去 Ollama 只会 404，先换成本地第一个模型。
+    if(!MODELS.some(m=>m.id===MODEL)){MODEL=MODELS[0].id;try{refreshModelSel()}catch(e){}}
     const _opts={num_ctx:8192,temperature:dtTemp};
     if(dtMax>0)_opts.num_predict=dtMax;
     const _body={model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...buildHistMsgs()],stream:true,keep_alive:_keepAliveFor(MODEL),options:_opts};
@@ -2093,6 +2368,7 @@ async function waitApi(){
 }
 async function boot(){
   await waitApi();
+  try{await applyCloudConfig()}catch(e){}
   await loadChats();
   try{renderPluginDock()}catch(e){}
   // 默认打开主对话
@@ -2108,6 +2384,11 @@ async function boot(){
     try{const ds=await window.pywebview.api.deep_think_state();if(ds&&ds.ok){deepThink=!!ds.on;paintDeepThink()}}catch(e){}
     try{await probeModelCaps(MODEL);paintDeepThink()}catch(e){}
   }catch(e){setThemeMode('auto')}
+  // 支持 file:///.../大肥鱼AI.html#cloud 打开就停在某个设置页（截图、排查用）
+  try{
+    const _h=(location.hash||'').replace('#','');
+    if(_h&&document.getElementById('page-'+_h))switchTab(_h);
+  }catch(e){}
 }
 boot();checkConn();render();
 </script>

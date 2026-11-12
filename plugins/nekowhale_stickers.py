@@ -811,6 +811,7 @@ def sticker_pick(user_text, ai_text="", limit=10, model=None):
             # 25 秒会直接超时，表现为"突然不发表情包了"（日志里是 [ctx] chat 失败: timed out）
             model=model, timeout=45, num_predict=8, think=False)
     except Exception as e:
+        _ctx.log(PLUGIN_ID, "选图调用失败: %r（模型=%s）" % (e, model))
         return {"ok": False, "error": "选图失败: %r" % (e,)}
     raw = str(out or "")
     pick_i = None
@@ -824,6 +825,7 @@ def sticker_pick(user_text, ai_text="", limit=10, model=None):
                 pick_i = i
                 break
     if pick_i is None:
+        _ctx.log(PLUGIN_ID, "模型没给出序号（模型=%s）返回=%r" % (model, raw[:60]))
         return {"ok": False, "error": "模型没给出序号", "raw": raw[:40]}
     it = cand[pick_i]
     loc = sticker_local(it["id"])

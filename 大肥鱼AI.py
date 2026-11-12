@@ -1,3 +1,4 @@
+import api_base
 import webview
 import os
 import ctypes
@@ -5,6 +6,7 @@ import threading
 import time
 import json
 import urllib.request
+import urllib.error
 import urllib.parse
 import subprocess
 import sys
@@ -570,7 +572,7 @@ def _pick_planner_model(default_model):
     用主对话模型本身（思考关掉做分类，首次加载后主对话直接复用，同样不引入第二模型）。
     PLANNER_MODEL 只在极端兜底时才会被用到。"""
     try:
-        req = urllib.request.Request("http://localhost:11434/api/ps")
+        req = urllib.request.Request(api_base.url("/api/ps"))
         with _LOCAL_OPENER.open(req, timeout=3) as r:
             models = json.loads(r.read().decode("utf-8")).get("models", [])
         if models:
@@ -641,7 +643,7 @@ def _ollama_chat_once(messages, model, timeout=30, num_predict=32, think=None):
                                  num_predict=num_predict, temperature=0,
                                  think=think)
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
+    req = urllib.request.Request(api_base.url("/api/chat"), data=data,
                                  headers={"Content-Type": "application/json"})
     with _LOCAL_OPENER.open(req, timeout=timeout) as r:
         out = json.loads(r.read().decode("utf-8"))
@@ -889,7 +891,7 @@ def agent_decide(task, history="", step=0):
              {"role": "user", "content": user_msg, "images": [img_b64]}],
             stream=False, num_predict=300, temperature=0.1)
         data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
+        req = urllib.request.Request(api_base.url("/api/chat"), data=data,
                                      headers={"Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=120) as r:
             result = json.loads(r.read().decode("utf-8"))
@@ -1006,7 +1008,7 @@ def gen_title(first_msg, model="qwen3:4b"):
             model,
             [{"role": "user", "content": "用不超过8个字数概括这句话的主题，只输出标题：" + first_msg[:100]}],
             stream=False, num_predict=40)).encode("utf-8")
-        req = urllib.request.Request("http://localhost:11434/api/chat", data=data, headers={"Content-Type": "application/json"})
+        req = urllib.request.Request(api_base.url("/api/chat"), data=data, headers={"Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=30) as r:
             result = json.loads(r.read().decode("utf-8"))
         title = result.get("message", {}).get("content", "").strip().strip('"').strip()
@@ -1213,7 +1215,7 @@ def reflect_memory(conv_text, model="qwen3:4b"):
         data = json.dumps(llm_params.payload(
             model, [{"role": "user", "content": prompt}],
             stream=False, num_predict=200, think=False)).encode("utf-8")
-        req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
+        req = urllib.request.Request(api_base.url("/api/chat"), data=data,
                                      headers={"Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=60) as r:
             result = json.loads(r.read().decode("utf-8"))
@@ -1262,7 +1264,7 @@ def pet_mutter(model="qwen3:4b"):
         data = json.dumps(llm_params.payload(
             model, [{"role": "user", "content": prompt}],
             stream=False, num_predict=60)).encode("utf-8")
-        req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
+        req = urllib.request.Request(api_base.url("/api/chat"), data=data,
                                      headers={"Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=60) as r:
             result = json.loads(r.read().decode("utf-8"))
@@ -1285,7 +1287,7 @@ def gen_persona(style, model="qwen3:4b"):
         data = json.dumps(llm_params.payload(
             model, [{"role": "user", "content": prompt}],
             stream=False, num_predict=250)).encode("utf-8")
-        req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
+        req = urllib.request.Request(api_base.url("/api/chat"), data=data,
                                      headers={"Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=90) as r:
             result = json.loads(r.read().decode("utf-8"))
@@ -1304,7 +1306,7 @@ def test_persona(persona, user_msg, model="qwen3:4b"):
             model, [{"role": "system", "content": sys_p},
                     {"role": "user", "content": user_msg}],
             stream=False, num_predict=150)).encode("utf-8")
-        req = urllib.request.Request("http://localhost:11434/api/chat", data=data,
+        req = urllib.request.Request(api_base.url("/api/chat"), data=data,
                                      headers={"Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=90) as r:
             result = json.loads(r.read().decode("utf-8"))
@@ -1399,6 +1401,97 @@ def do_update():
     return {"ok": rc == 0, "out": out[-600:]}
 
 
+# ---------------------------------------------------------------- 云端模型
+def _proxy_alive():
+    import socket
+    s = socket.socket()
+    s.settimeout(0.6)
+    try:
+        s.connect(("127.0.0.1", 11435))
+        return True
+    except Exception:
+        return False
+    finally:
+        s.close()
+
+
+def _ensure_proxy():
+    """配置改成云端时，顺手把兼容代理拉起来；不用用户手动开窗口。"""
+    if _proxy_alive():
+        return True
+    try:
+        import subprocess
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cloud_proxy.py")
+        subprocess.Popen([sys.executable, p],
+                         cwd=os.path.dirname(p),
+                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        for _ in range(20):
+            time.sleep(0.2)
+            if _proxy_alive():
+                return True
+    except Exception:
+        pass
+    return _proxy_alive()
+
+
+def get_api_base():
+    """前端拿这个决定 fetch 往哪打。"""
+    return api_base.base()
+
+
+def cloud_config_get():
+    c = api_base.config()
+    c["api_key"] = "*" * 8 if c.get("api_key") else ""   # 不回显完整 key
+    c["base"] = api_base.base()
+    c["proxy_alive"] = _proxy_alive()
+    return c
+
+
+def cloud_config_save(cfg_json):
+    """设置页保存。开启云端时自动启动代理，关闭时不必停（无害，纯透传）。"""
+    try:
+        c = json.loads(cfg_json) if isinstance(cfg_json, str) else dict(cfg_json or {})
+    except Exception as e:
+        return {"ok": False, "msg": "配置格式不对：%s" % e}
+    if c.get("api_key") == "*" * 8:
+        c.pop("api_key")           # 页面没改 key
+    saved = api_base.save_config(c)
+    alive = _ensure_proxy() if saved.get("enabled") else True
+    return {"ok": True, "enabled": saved.get("enabled"),
+            "base": api_base.base(), "proxy_alive": alive,
+            "msg": ("已开启，兼容代理已就绪" if alive else "配置已存，但代理没起来，请手动运行 cloud_proxy.py")
+            if saved.get("enabled") else "已关闭，恢复纯本地"}
+
+
+def cloud_test():
+    """从前端点「测试连接」：走完整链路发一句 hi。"""
+    c = api_base.config()
+    if not c.get("enabled"):
+        return {"ok": False, "msg": "云端未开启"}
+    _ensure_proxy()
+    body = llm_params.payload(c.get("model"),
+                              [{"role": "user", "content": "hi"}],
+                              stream=False, num_predict=8)
+    try:
+        req = urllib.request.Request(
+            api_base.url("/api/chat"), json.dumps(body).encode("utf-8"),
+            {"Content-Type": "application/json"})
+        with api_base.opener().open(req, timeout=45) as r:
+            d = json.loads(r.read().decode("utf-8"))
+        reply = (d.get("message") or {}).get("content", "")
+        return {"ok": True, "reply": reply[:120], "model": c.get("model")}
+    except urllib.error.HTTPError as e:
+        # 代理已经把错误翻成人话了，直接从响应体里取，别只显示 "HTTP Error 502"
+        try:
+            j = json.loads(e.read().decode("utf-8", errors="replace"))
+            msg = j.get("error") or str(e)
+        except Exception:
+            msg = str(e)
+        return {"ok": False, "msg": str(msg)[:400]}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)[:300]}
+
+
 def model_caps(model=None):
     """查这个模型到底支不支持思考链——以 Ollama /api/show 返回的 capabilities 为准。
 
@@ -1413,7 +1506,7 @@ def model_caps(model=None):
         if m in _MODEL_CAPS:
             return _MODEL_CAPS[m]
         req = urllib.request.Request(
-            "http://127.0.0.1:11434/api/show",
+            api_base.url("/api/show"),
             json.dumps({"model": m}).encode("utf-8"),
             {"Content-Type": "application/json"})
         d = json.loads(urllib.request.urlopen(req, timeout=10).read().decode("utf-8"))
@@ -1648,6 +1741,25 @@ window = webview.create_window(
     text_select=True,
 )
 
+# DFY_START_TAB=cloud：窗口一打开就停在指定设置页（截图、复现问题时用）
+def _jump_start_tab():
+    tab = os.environ.get("DFY_START_TAB")
+    if not tab:
+        return
+    try:
+        # 云端那类页面在设置弹窗里，得先 openSettings 再切 tab。
+        # 延迟交给页面自己做：loaded 时脚本可能还没执行完。
+        window.evaluate_js(
+            "setTimeout(function(){try{openSettings();switchTab(%r)}catch(e){}},1500)" % tab)
+    except Exception:
+        pass
+
+
+try:
+    window.events.loaded += _jump_start_tab
+except Exception:
+    pass
+
 # 必须在 webview.start() 之前打补丁：它要改 BrowserForm 的 __init__ / on_close
 _install_net_guards()
 
@@ -1756,8 +1868,9 @@ window.expose(*([_safe_api(_f) for _f in (
               take_screenshot, read_clipboard, write_clipboard, extract_url, tts_speak, gen_title, open_folder, pick_avatar, save_avatar, save_setting, load_setting,
               load_memory, save_memory, remember_fact, reflect_memory, pet_mutter,
               gen_persona, test_persona, get_time, get_time_brief, get_env, list_dir, env_sense, model_caps,
-              check_update, do_update,
-              screen_size, mouse_click, type_text, press_key, agent_decide, plugin_list,
+                check_update, do_update,
+                get_api_base, cloud_config_get, cloud_config_save, cloud_test,
+                screen_size, mouse_click, type_text, press_key, agent_decide, plugin_list,
               plugin_set_enabled)]
               + [_safe_api(_f) for _f in PLUGIN_APIS]
               + ([_safe_api(selftest_report)] if os.environ.get("DFY_SELFTEST") == "1" else [])))
@@ -2095,5 +2208,13 @@ def _run_selftest():
 
 if os.environ.get("DFY_SELFTEST") == "1":
     _run_selftest()
+
+# 云端模式在开机自启时，代理窗口可能根本没被拉起（以前只在"保存配置"那一刻启动），
+# 结果整个程序一个请求都发不出去，还看起来像退不回本地。启动时补一次，后台线程不拖界面。
+try:
+    if api_base.enabled():
+        threading.Thread(target=_ensure_proxy, daemon=True).start()
+except Exception:
+    pass
 
 webview.start(storage_path=os.environ.get("DFY_WV2_PROFILE") or "D:\\大肥鱼缓存\\wv2_profile")

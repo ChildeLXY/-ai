@@ -4,6 +4,7 @@
 每隔 mutterMin 分钟，用本地模型生成一句"女儿式"念叨，写进命令文件，
 由桌宠(dsh-pet)的原生气泡显示。本脚本不弹窗、不碰桌宠本体。
 """
+import api_base
 import os, json, time, datetime, urllib.request, re
 import llm_params          # num_ctx / keep_alive 的唯一来源
 
@@ -13,7 +14,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 SETTINGS = os.path.join(ROOT, "ds图片", "settings.json")
 MEMORY = os.path.join(_DATA_DIR, "memory.json")
 SAY_FILE = os.path.join(_CACHE_DIR, "pet_say.txt")
-OLLAMA = "http://localhost:11434"
+OLLAMA = api_base.base()
 MODEL = "qwen2.5vl:7b"  # 非推理模型，直接出话
 
 def read_settings():

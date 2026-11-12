@@ -32,6 +32,10 @@ __pycache__/
 *.exe
 *.zip
 
+# ---------- 3b. 云端 API 密钥（第三方平台的 Key，绝不入公开仓库）----------
+# 仓库里只放 cloud_config.example.json 模板，真实配置留在本机
+cloud_config.json
+
 # ---------- 4. 顶层本地调试残渣（只匹配根目录，不影响 plugins/_bili_*.py）----------
 /_*
 !/.gitignore

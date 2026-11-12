@@ -1,0 +1,11 @@
+{
+  "enabled": false,
+  "base_url": "https://open.bigmodel.cn/api/paas/v4/",
+  "api_key": "",
+  "model": "glm-4-flash",
+  "vision": true,
+  "thinking": true,
+  "proxy": "",
+  "max_tokens": 4096,
+  "fallback_local": true
+}
