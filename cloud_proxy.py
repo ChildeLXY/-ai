@@ -118,7 +118,7 @@ def to_openai_payload(body, c):
     """Ollama 专有字段（num_ctx / keep_alive / think / options）在这里消化掉。"""
     opts = body.get("options") or {}
     p = {
-        "model": c.get("model") or body.get("model"),
+        "model": resolve_model(body, c),
         "messages": to_openai_messages(body.get("messages")),
         "stream": bool(body.get("stream")),
         "temperature": opts.get("temperature", 0.7),
@@ -128,10 +128,23 @@ def to_openai_payload(body, c):
         p["max_tokens"] = min(n, int(c.get("max_tokens") or 4096))
     elif c.get("max_tokens"):
         p["max_tokens"] = int(c["max_tokens"])
+    # 思考型模型（glm-4.7/4.5-flash 等）思维链和正文共用 max_tokens 一个预算：
+    # 预算太小会被思考吃光，正文只剩空字符串（实测 num_predict=120 时正文 0 字）。
+    # 和大肥鱼AI 主站同一套策略：思考型至少给到 3000。
+    if model_caps_for(p["model"], c)[1]:
+        p["max_tokens"] = max(int(p.get("max_tokens") or 0), 3000)
     # 推理型模型（deepseek-reasoner / o1 / o3）不收 temperature，传了会 400
     m = str(p["model"]).lower()
-    if "reasoner" in m or m.startswith("o1") or m.startswith("o3"):
+    reasoner = "reasoner" in m or m.startswith("o1") or m.startswith("o3")
+    if reasoner:
         p.pop("temperature", None)
+    # Ollama 的 format:"json" → OpenAI 的 response_format。agent 循环要 JSON，
+    # 带上这个后厂商端会做结构化约束，模型输出裸 JSON 的成功率大幅提高。
+    # 例外：deepseek-reasoner / o1 / o3 不支持 response_format，传了会 400；
+    # 另外 qwen 的商业端点对 json_object 要求 prompt 里带 "json" 字样，
+    # DeepBuddy 的 system 提示词里本来就有 JSON 字样，满足。
+    if str(body.get("format") or "").lower() == "json" and not reasoner:
+        p["response_format"] = {"type": "json_object"}
     # 不传 stream_options：Groq / 部分国产兼容端点不认这个字段，会直接 400
     return p
 
@@ -142,6 +155,42 @@ def cloud_headers(c):
     if key:
         h["Authorization"] = "Bearer " + key
     return h
+
+
+def resolve_model(body, c):
+    """决定这次请求实际打到哪个上游模型。
+
+    以前只有配置里的 model 一个，所有请求都发给它。现在同一个 Key 下挂了
+    一份模型清单（api_base.cloud_models），前端下拉选哪个就发哪个：
+
+      · 请求里的 model 在清单里 → 用它（这是正常路径）
+      · 请求里的 model 不在清单里 → 退回配置的主模型（老行为，别人的调用不受影响）
+      · 清单为空（单模型模式）→ 直接用配置的 model
+
+    这么分流而不是"认模型名里的关键词"，是因为同一家的模型 id 长得都差不多
+    （glm-4.7-flash / glm-4.6v-flash / glm-5.3-flash），按名字猜必然出错。
+    """
+    want = str((body or {}).get("model") or "").strip()
+    models = api_base.cloud_models(c)
+    ids = [m["id"] for m in models]
+    if want and want in ids:
+        return want
+    if not models:
+        # 没有清单的极端情况：让请求里的模型名原样透传，
+        # 至少比硬塞配置里的模型更贴近调用方的意图
+        return want or str(c.get("model") or "")
+    return models[0]["id"] if models else str(c.get("model") or "")
+
+
+def model_caps_for(model, c):
+    """这个模型支不支持看图 / 思考链。
+
+    清单里写了就照清单的；没写就退回顶层开关（老配置只有 model 一项时）。
+    """
+    for m in api_base.cloud_models(c):
+        if m["id"] == model:
+            return m["vision"], m["thinking"]
+    return bool(c.get("vision")), bool(c.get("thinking"))
 
 
 def upstream_url(c):
@@ -298,7 +347,9 @@ def friendly_error(status, msg, c):
     if status == 429:
         m = re.search(r"(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?)", raw)
         when = ("，%s 后恢复" % m.group(1)) if m else ""
-        return "⏳ 云端限流了（429）%s。免费额度按分钟算，等一会儿就回来；也可以到设置页换个免费渠道。" % when
+        return ("⏳ 云端限流了（429）%s。免费额度按分钟算，等一会儿就回来。"
+                "不同模型的额度是分开算的——换下拉里的另一个云端模型多半能立刻接上；"
+                "或者到设置页换个免费渠道。" % when)
     if status == 402 or "insufficient" in low or "balance" in low or "余额" in raw or "欠费" in raw:
         return "💳 云端账户余额不足（%d）：去厂商控制台充值，或换成永久免费的渠道（智谱 GLM-4-Flash / 硅基流动 9B 以下）。" % status
     if status == 400 and ("image" in low or "vision" in low or "multimodal" in low):
@@ -341,13 +392,24 @@ async def _cloud_attempt(request, c, payload, streaming, state):
 
             if not streaming:
                 data = await up.json()
+                msg = {}
                 try:
-                    text = data["choices"][0]["message"]["content"] or ""
+                    msg = data["choices"][0]["message"] or {}
                 except Exception:
-                    text = ""
+                    msg = {}
+                text = msg.get("content") or ""
+                # 思考型模型（glm-4.7-flash 等）的思维链在 reasoning_content 里，
+                # 不映射出来的话，插件判心情/选表情包拿到的是空字符串，
+                # 而且非流式响应里用户也看不到思考过程。流式分支本来就有映射。
+                thinking = (msg.get("reasoning_content")
+                            or msg.get("reasoning")
+                            or msg.get("thinking") or "")
+                out = {"role": "assistant", "content": text}
+                if thinking:
+                    out["thinking"] = thinking
                 return web.json_response({
                     "model": model,
-                    "message": {"role": "assistant", "content": text},
+                    "message": out,
                     "done": True, "done_reason": "stop",
                 }, headers=CORS)
 
@@ -536,26 +598,47 @@ async def handle_tags(request):
     c = cfg()
     if not c.get("enabled"):
         return await passthrough_get(request, "/api/tags")
-    name = c.get("model") or "cloud"
-    return web.json_response({"models": [{
-        "name": name, "model": name, "modified_at": "", "size": 0,
-        "digest": "cloud-model",
-        "details": {"family": "cloud", "parameter_size": "cloud",
-                    "quantization_level": "N/A"},
-    }]}, headers=CORS)
+    # 云端模式下把清单里的模型全列出来，前端下拉才能切换。
+    # 以前只返回一个 config.model，用户想换个免费模型就只能改配置再重启。
+    models = api_base.cloud_models(c)
+    out = []
+    for m in models:
+        out.append({
+            "name": m["id"], "model": m["id"], "modified_at": "", "size": 0,
+            "digest": "cloud-model",
+            "details": {"family": "cloud", "parameter_size": "cloud",
+                        "quantization_level": "N/A"},
+            # 自定义字段，前端据此知道这个模型看得了图 / 有思维链
+            "cloud_vision": m["vision"], "cloud_thinking": m["thinking"],
+        })
+    return web.json_response({"models": out}, headers=CORS)
 
 
 async def handle_show(request):
     c = cfg()
+    body_bytes = await request.read()
     if not c.get("enabled"):
-        return await passthrough(request, "/api/show", await request.read())
+        return await passthrough(request, "/api/show", body_bytes)
+    try:
+        want = str((json.loads(body_bytes or b"{}") or {}).get("model") or "").strip()
+    except Exception:
+        want = ""
+    # 按被问的那个模型给能力，不能全用顶层开关——
+    # 清单里 4.7-Flash 看不了图、4.6V-Flash 能看图，答错了前端会传错参数。
+    vision, thinking = model_caps_for(want, c)
     caps = ["completion"]
-    if c.get("vision"):
+    if vision:
         caps.append("vision")
-    if c.get("thinking"):
+    if thinking:
         caps.append("thinking")
     return web.json_response({
         "capabilities": caps,
+        # 主站后端的 model_caps() 读的是顶层 thinking / vision 字段，
+        # 不是 capabilities 数组。本地 Ollama 两个都给，代理以前只给数组，
+        # 结果云端模型一律被算成"不支持思考、不支持看图"——
+        # 看图被拦、深度思考开关点不动。两个都给上，老代码也能读。
+        "thinking": bool(thinking),
+        "vision": bool(vision),
         "details": {"family": "cloud", "parameter_size": "cloud"},
         "modelinfo": {},
     }, headers=CORS)
@@ -565,8 +648,13 @@ async def handle_ps(request):
     c = cfg()
     if not c.get("enabled"):
         return await passthrough_get(request, "/api/ps")
-    # 云端没有"已加载模型"的概念，返回空会让前端跳过预热/卸载
-    return web.json_response({"models": []}, headers=CORS)
+    # 云端没有"已加载模型"的概念。以前返回空列表，前端 preloadModel()
+    # 的 /api/ps 轮询就永远查不到目标模型，进度条卡满 30 秒才自己消失，
+    # 看着就像"切模型没反应"。把云端清单报上去，轮询立刻就通过。
+    return web.json_response({
+        "models": [{"name": m, "model": m, "size": 0, "digest": "cloud-model"}
+                   for m in api_base.cloud_model_ids(c)],
+    }, headers=CORS)
 
 
 async def handle_any_post(request):
@@ -581,12 +669,75 @@ async def handle_health(request):
         "mode": "cloud" if c.get("enabled") else "local",
         "upstream": upstream_url(c) if c.get("enabled") else LOCAL,
         "model": c.get("model") if c.get("enabled") else "(local ollama)",
+        # 本地模式下不列云端模型：配置里的清单还在，但此刻根本没走云端，
+        # 报出来会让人以为"云端还开着"。
+        "models": api_base.cloud_model_ids(c) if c.get("enabled") else [],
         "api_key_set": bool((c.get("api_key") or "").strip()),
         "fallback_local": bool(c.get("fallback_local", True)),
         "last_error": _STATE["last_error"],
         "last_error_at": _STATE["last_error_at"],
         "fallbacks": _STATE["fallbacks"],
     }, headers=CORS)
+
+
+async def handle_models_list(request):
+    """拉取上游厂商的模型清单（智谱 /v4/models、OpenAI /v1/models 都是这个形状）。
+
+    设置页点一下就能看到"这个 Key 到底能用哪些模型"，不用去官网翻文档。
+    请求带自己的 Authorization，不依赖配置里的 Key，所以
+    "填了 Key 但还没保存"也能试。
+    """
+    key = (request.query.get("key") or "").strip()
+    base = (request.query.get("base") or "").strip()
+    if not base:
+        base = (cfg().get("base_url") or "").strip()
+    if not key:
+        key = (cfg().get("api_key") or "").strip()
+
+    # 模型清单端点 = 补齐后的 chat/completions 地址去掉后半截
+    root = base.rstrip("/")
+    for suffix in ("/chat/completions", "/completions"):
+        if root.endswith(suffix):
+            root = root[: -len(suffix)]
+            break
+    if not root:
+        return web.json_response({"ok": False, "msg": "没填接口地址"}, headers=CORS)
+    if not root.endswith("/v1") and not root.endswith("/v4") and "/v" not in root.rsplit("/", 1)[-1]:
+        root += "/v1"
+    url = root + "/models"
+
+    headers = {"Accept": "application/json"}
+    if key:
+        headers["Authorization"] = "Bearer " + key
+    try:
+        async with ClientSession(**session_kwargs(cfg())) as s:
+            async with s.get(url, headers=headers) as up:
+                raw = await up.text()
+                if up.status != 200:
+                    return web.json_response(
+                        {"ok": False, "msg": "厂商返回 %d：%s"
+                         % (up.status, extract_msg(raw)[:200]), "url": url},
+                        headers=CORS)
+                data = json.loads(raw)
+    except Exception as e:
+        return web.json_response({"ok": False, "msg": str(e)[:200], "url": url},
+                                 headers=CORS)
+
+    items = []
+    for it in (data.get("data") or []):
+        if isinstance(it, dict):
+            mid = str(it.get("id") or "").strip()
+            if mid:
+                items.append(mid)
+    # 厂商清单常常不含免费模型（智谱实测一个都没有），并上内置免费目录
+    free = api_base.free_models_for(base)
+    have = set(items)
+    for f in free:
+        if f["id"] not in have:
+            items.append(f["id"])
+    items = sorted(set(items))
+    return web.json_response({"ok": True, "url": url, "models": items,
+                              "count": len(items), "free": free}, headers=CORS)
 
 
 async def handle_config_get(request):
@@ -616,6 +767,7 @@ def make_app():
     app.router.add_get("/api/tags", handle_tags)
     app.router.add_get("/api/ps", handle_ps)
     app.router.add_get("/_health", handle_health)
+    app.router.add_get("/_models", handle_models_list)
     app.router.add_get("/_config", handle_config_get)
     app.router.add_post("/_config", handle_config_post)
     app.router.add_route("POST", "/{tail:.*}", handle_any_post)

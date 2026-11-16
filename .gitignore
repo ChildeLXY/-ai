@@ -36,6 +36,9 @@ __pycache__/
 # 仓库里只放 cloud_config.example.json 模板，真实配置留在本机
 cloud_config.json
 
+# 阿里云 OSS 部署凭据（AK/SK），同样绝不入仓库
+deploy/oss_config.json
+
 # ---------- 4. 顶层本地调试残渣（只匹配根目录，不影响 plugins/_bili_*.py）----------
 /_*
 !/.gitignore

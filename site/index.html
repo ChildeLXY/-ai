@@ -13,7 +13,7 @@
 <meta property="og:title" content="大肥鱼AI · 住在你电脑里的鲸鱼娘">
 <meta property="og:description" content="跑在你自己显卡上的桌面 AI 助手：会聊天、会发表情包、有心情有记忆，断网也照常说话。">
 <meta property="og:url" content="https://dabaifan.cn/">
-<meta property="og:image" content="https://dabaifan.cn/assets/char.png">
+<meta property="og:image" content="https://dabaifan.cn/assets/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="assets/favicon.ico">
 <style>
@@ -286,7 +286,9 @@ footer{padding:54px clamp(20px,6vw,90px) 100px;border-top:1px solid var(--line);
 .fwrap a{color:#7d8cab;text-decoration:none}
 .fwrap a:hover{color:var(--acc)}
 #icpSlot:empty{display:none}
-#icpSlot{width:100%;text-align:center;margin-top:10px;color:#4a5670;font-size:12px}
+#icpSlot{width:100%;text-align:center;margin-top:12px;color:#8b98b5;font-size:12.5px;letter-spacing:.2px}
+#icpSlot a{color:#8b98b5;text-decoration:none;border-bottom:1px solid rgba(139,152,181,.3)}
+#icpSlot a:hover{color:var(--acc);border-bottom-color:var(--acc)}
 
 .reveal{opacity:0;transform:translateY(26px);transition:.75s cubic-bezier(.2,.7,.3,1)}
 .reveal.in{opacity:1;transform:none}
@@ -327,9 +329,9 @@ footer{padding:54px clamp(20px,6vw,90px) 100px;border-top:1px solid var(--line);
       <div class="halo"></div>
       <div class="ring"></div>
       <div class="ring"></div>
-      <img class="char" src="assets/char.png" alt="大肥鱼">
-      <div class="float-card fc1"><img src="assets/shot-sticker.png" alt="表情包面板"></div>
-      <div class="float-card fc2"><img src="assets/ciallo.jpg" alt="Ciallo"></div>
+      <img class="char" src="assets/char.webp" alt="大肥鱼" decoding="async" fetchpriority="high">
+      <div class="float-card fc1"><img src="assets/shot-sticker-sm.webp" alt="表情包面板" decoding="async"></div>
+      <div class="float-card fc2"><img src="assets/ciallo.webp" alt="Ciallo" decoding="async"></div>
     </div>
   </div>
 
@@ -421,7 +423,7 @@ footer{padding:54px clamp(20px,6vw,90px) 100px;border-top:1px solid var(--line);
     </div>
     <div class="shot reveal">
       <div class="bar"><i></i><i></i><i></i><span>大肥鱼AI · 表情包面板</span></div>
-      <img src="assets/shot-sticker.png" alt="表情包面板截图">
+      <img src="assets/shot-sticker.webp" alt="表情包面板截图" loading="lazy" decoding="async">
     </div>
   </div>
 </section>
@@ -468,8 +470,8 @@ footer{padding:54px clamp(20px,6vw,90px) 100px;border-top:1px solid var(--line);
       表情包图源 kiriyuki.com ·
       <a href="https://gitee.com/liu-xingyuec/dafeiyu-ai-local" target="_blank" rel="noopener">Gitee</a>
     </div>
-    <!-- 备案通过后填这里，例：<a href="https://beian.miit.gov.cn" target="_blank" rel="noopener">浙ICP备2026xxxxxx号-1</a> -->
-    <div id="icpSlot"></div>
+    <!-- ICP 备案号：2026-11-12 备案通过 -->
+    <div id="icpSlot"><a href="https://beian.miit.gov.cn" target="_blank" rel="noopener">湘ICP备2026054051号-1</a></div>
   </div>
 </footer>
 
@@ -539,13 +541,13 @@ document.querySelectorAll('.card').forEach(card=>{
     {w:'u',t:'你不会又睡过头吧'},
     {w:'a',t:'鲸鱼鱼有两条鳍，拍你脸足够了。'}
   ];
-  const AV='assets/char.png';
+  const AV='assets/char.webp';
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
 
   function bubble(me){
     const d=document.createElement('div');
     d.className='msg'+(me?' me':'');
-    d.innerHTML=`<div class="a"><img src="${me?'assets/ciallo.jpg':AV}" alt=""></div><div class="t"></div>`;
+    d.innerHTML=`<div class="a"><img src="${me?'assets/ciallo.webp':AV}" alt=""></div><div class="t"></div>`;
     box.appendChild(d);
     box.scrollTop=box.scrollHeight;
     return d.querySelector('.t');

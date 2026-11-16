@@ -263,3 +263,256 @@ curl -s --noproxy '*' http://127.0.0.1:11435/api/chat -H "Content-Type: applicat
 
 如果用户明确表示接受风险、只是想在自己机器上做实验，可以单独加一个「实验性 Provider」，
 但必须默认关闭、显式免责，且不与正式云端配置混用。
+
+---
+
+## 十二、多模型并存 + 智谱免费模型全接入（11-13）
+
+### 以前为什么只能用一个模型
+
+`cloud_config.json` 里只有 `model` 一个字段，`cloud_proxy.to_openai_payload()` 也是
+`"model": c.get("model") or body.get("model")` —— **配置里的模型永远覆盖请求里的**。
+所以即使前端下拉能选，代理也只会把所有请求都发给那一个模型。
+用户想换个免费模型，只能改配置文件 + 重启。
+
+### 现在的做法
+
+配置多了 `models` 清单（可空，空则退回老的单模型行为）：
+
+```json
+{
+  "model": "glm-4.7-flash",
+  "models": [
+    {"id": "glm-4.7-flash",  "vision": false, "thinking": true},
+    {"id": "glm-4.6v-flash", "vision": true,  "thinking": true},
+    {"id": "glm-4.5-flash",  "vision": false, "thinking": true},
+    {"id": "glm-4-flash",    "vision": false, "thinking": false},
+    {"id": "glm-4-flashx",   "vision": false, "thinking": false}
+  ]
+}
+```
+
+代理侧三处配合：
+
+| 改动 | 位置 | 作用 |
+|---|---|---|
+| `resolve_model(body, c)` | cloud_proxy.py | 按请求里的 `model` 分发。请求的模型在清单里就用它；不在就退回主模型。**不按名字猜**——同家的模型 id 长得都差不多（glm-4.7-flash / glm-4.6v-flash / glm-5.3-flash），按关键词猜必然出错 |
+| `/api/tags` | cloud_proxy.py | 云端模式下列出**全部**云端模型，每条带 `cloud_vision` / `cloud_thinking` 标记 |
+| `/api/show` | cloud_proxy.py | 按**被问的那个模型**返回 capabilities。以前用顶层开关，4.7-Flash（看不了图）和 4.6V-Flash（能看图）会拿到同一份答案 |
+
+前端侧：`applyCloudConfig()` 把云端模型清单整个灌进模型下拉；设置页新增「模型清单」区，
+可增删改、逐个标「看图 / 思考链」。
+
+### 智谱免费模型
+
+官方标注**完全免费**的是两个（来源：bigmodel.cn/pricing 的 FAQ）：
+
+| 模型 | 免费 | 看图 | 思维链 | 上下文 |
+|---|---|---|---|---|
+| `glm-4.7-flash` | ✅ 永久免费 | ❌ | ✅ | 200K |
+| `glm-4.6v-flash` | ✅ 永久免费 | ✅ | ✅ | — |
+| `glm-4.5-flash` | ✅ 免费 | ❌ | ✅ | 128K |
+| `glm-4-flash` | ✅ 老牌免费 | ❌ | ❌ | 128K |
+| `glm-4-flashx` | ✅ 老牌免费 | ❌ | ❌ | 128K |
+
+「看图 / 思维链」两列是**逐个实测**出来的，不是照文档抄的
+（`tools/probe_zhipu_free.py`）：
+
+- 看图：发一张纯红 PNG（64×64，已用 PIL 校验过像素确实是 RGB(255,0,0)），
+  答出「红」才算真看图
+- 思维链：看响应正文里有没有 `reasoning_content` 字段，**不看 usage 计数**
+  （只看 reasoning_tokens 会把只吐 0~1 个 token 的误判成"不是思考型"）
+- 限流是常态：`glm-4.7-flash` / `glm-4.6v-flash` 经常返 1305「访问量过大」，
+  探测脚本必须带重试，否则结论不可靠
+
+### 一个坑：厂商的 /models 接口不列免费模型
+
+实测智谱 `GET /api/paas/v4/models` 只返回 **12 个付费模型**：
+
+```
+glm-4.5  glm-4.5-air  glm-4.6  glm-4.7  glm-5  glm-5-turbo
+glm-5.1  glm-5.2  glm-5.3  glm-5.3-flash  glm-5.3-flashx  glm-5.3-flashx-legal
+```
+
+**一个免费模型都没有。** 免费模型是「不限量但不在清单里」的。
+
+所以设置页的「🔍 拉取这个 Key 能用的模型」如果照搬接口返回，
+用户就永远看不到免费那批 —— 等于白做。
+现在拉取时会**并上内置的免费目录**（`api_base.FREE_MODEL_CATALOG`），
+合并后是 17 个（12 付费 + 5 免费），UI 上免费的那几个带绿色「免费」标签。
+
+### 顺带修的一个真 bug
+
+非流式响应分支**丢掉了 `reasoning_content`**：
+
+```python
+# 以前
+"message": {"role": "assistant", "content": text}
+
+# 现在
+out = {"role": "assistant", "content": text}
+if thinking: out["thinking"] = thinking
+```
+
+后果：思考型模型（glm-4.7-flash 等）非流式时思维链整个丢，
+插件判心情/选表情包拿到的是空字符串，用户也看不到思考过程。
+流式分支本来就有映射，只有非流式漏了。
+
+---
+
+## 十三、DeepBuddy 也接上同一套云端模型（11-13）
+
+DeepBuddy（`D:/DeepBuddy`）本来只有两个后端：Ollama 11434、llama-server 8080。
+现在多第三个：**云端兼容代理 11435**。
+
+### 为什么是复用代理，而不是在 DeepBuddy 里再写一遍 OpenAI 协议
+
+代理对外已经是 Ollama 协议了，DeepBuddy 直接说 Ollama 的 `/api/chat` 就行，
+不用再写一份协议转换；而且代理里已经处理好的东西直接复用：
+
+- 429 限流自动重试 + 回落到本地模型
+- 401 时点出「这个 Key 是智谱格式但地址是 DeepSeek」
+- 空 content 被智谱 400 的兜底（`content:""` 直接被拒）
+- 图片 `images:[base64]` → OpenAI `image_url` 的转换
+
+DeepBuddy 侧改动：
+
+| 改动 | 说明 |
+|---|---|
+| `CLOUD_PROXY` / `CLOUD_SUFFIX` | 指向 `http://127.0.0.1:11435`，模型名带 `#cloud` 后缀区分归属（和已有的 `#cpp` 一个套路） |
+| `_cloud_models()` | 问代理要云端清单，靠 `digest == "cloud-model"` 认出哪些是云端的（本地模型也会被代理透传上来） |
+| `_cloud_chat()` | 走代理的 `/api/chat`，请求体和 Ollama 一样 |
+| `_cloud_vision()` | 看图能力问代理的 `/api/show`（按模型返回），不靠名字猜 |
+| `chat()` 路由 | `#cloud` → 代理；`#cpp` → llama-server；其余 → Ollama |
+| `DFY_DIR` | 大肥鱼AI 的目录，可用环境变量 `DFY_DIR` 覆盖。**Key 不在 DeepBuddy 存**，读大肥鱼AI 的 `cloud_config.json`，两边同一份设置 |
+
+DeepBuddy 的 agent 循环要求模型输出严格 JSON，实测两个云端模型都能正常输出
+（`glm-4.7-flash` 还带 ```json 围栏，`_extract_json` 能提取出来）。
+
+### 验证
+
+`tools/test_zhipu_e2e.py` —— 33 项断言全过，覆盖代理分发、tags/show 能力、
+非流式思维链、流式 NDJSON、DeepBuddy 侧发现与调用、免费目录合并。
+
+```
+通过 33 项，失败 0 项
+```
+
+限流回落那次的 `model` 字段是本地模型名（`qwen2.5vl:7b`），这是**设计如此**：
+云端限流时回落到本机，正文开头会写明「云端限流了…由本地模型代答」。
+
+---
+
+## 十四、收尾时补的两处修正（11-13 晚）
+
+### 1. 代理层补思考型模型的 token 保护
+
+问题：`glm-4.7-flash` / `glm-4.5-flash` 的**思维链和正文共用 `max_tokens` 一个预算**。
+调用方传 `num_predict=120` 时，思维链把预算吃光，正文返回空字符串 —— 
+表现是「模型回了个寂寞」，但 HTTP 200、model 字段也对，很容易被当成模型坏了。
+
+大肥鱼AI 主站早就有这层保护（`大肥鱼AI.html` 里思考型至少给到 3000），
+但代理层没有，DeepBuddy 这类第三方调用方就踩了坑。
+
+修法（`cloud_proxy.py` 的 `to_openai_payload`）：
+
+```python
+if model_caps_for(p["model"], c)[1]:
+    p["max_tokens"] = max(int(p.get("max_tokens") or 0), 3000)
+```
+
+按模型能力表判断，不是按模型名硬编码，换别的思考型厂商也生效。
+改完 `num_predict=120` 也能正常出正文（实测 35.9s，思维链 607 字）。
+
+### 2. DeepBuddy 下拉框不再暴露 `#cloud` 路由后缀
+
+`#cloud` / `#cpp` 是给后端看的路由后缀，不该出现在用户眼前。
+改前用户看到的是 `glm-4.7-flash#cloud · 云端`，现在只显示 `glm-4.7-flash · 云端`，
+但 `option.value` 仍保留完整后缀 —— 路由靠的是 value，显示靠的是 textContent，两者分离。
+
+```javascript
+const disp=m.replace(/#(cloud|cpp)$/,'');   // 显示用
+o.textContent=disp+tag;
+o.value=m;                                    // 路由用，后缀保留
+```
+
+### 验收
+
+- `tools/test_zhipu_e2e.py` → 33 项断言全过
+- `tools/render_deepbuddy_models.py` → 用真实 `ui.html` + 真实模型清单渲染下拉展开图，
+  12 个选项（本地 7 + 云端 5），5 个 glm 模型均带「· 云端」标签，无后缀残留
+- 5 个智谱模型逐一实测：`glm-4-flash`(1.1s)、`glm-4-flashx`(0.6s)、
+  `glm-4.6v-flash`(1.7s，能正确识别红色图片)、`glm-4.5-flash`(14.2s)、
+  `glm-4.7-flash`(13.4s，思维链 552 字)
+
+> 渲染脚本用无头 Chrome 而不是截图窗口，是因为全屏独占的游戏窗口会盖住
+> DeepBuddy，屏幕截图抓不到；而原生 `<select>` 的弹出层是独立顶层窗口，
+> `PrintWindow` 也抓不到。渲染脚本走的是同一份 `ui.html`、同一套渲染代码，
+> 只 mock 了 pywebview 后端接口。
+
+---
+
+## 十五、主站「切换云端模型」修的四个问题（11-13 深夜）
+
+用户反馈「大肥鱼ai 切换云端模型是不是切不了啊」。查下来切换机制本身没坏，
+但**四个叠加的问题让用户觉得切不动**：
+
+### 1. 代理的 `/api/show` 少给字段 → 云端模型能力全被判成 false（最隐蔽）
+
+主站后端 `model_caps()` 读的是**顶层** `thinking` / `vision` 字段，不是 `capabilities` 数组。
+本地 Ollama 两个都给，所以本地模型一直正常；代理以前只返回 `capabilities` 数组，
+于是**云端模型一律被算成「不支持思考、不支持看图」**：
+
+- 看图被拦（提示「当前模型看不了图片」）
+- 深度思考开关点不动
+
+修法：代理 `/api/show` 同时返回顶层 `thinking` / `vision`，老代码也能读。
+
+### 2. 切模型时发预热请求 → 白烧一次免费额度
+
+`changeModel()` → `preloadModel()` 会发一个 `num_predict:1` 的请求。
+本地模型那是「提前灌进显存」，云端模型**没有显存这回事**，这一下是真实的云端调用。
+智谱按分钟限流的话，切一次模型就可能把自己切进限流。
+
+修法：`changeModel()` 里云端模式跳过 `preloadModel()`。
+
+### 3. 代理 `/api/ps` 返回空 → 进度条卡满 30 秒
+
+`preloadModel()` 靠轮询 `/api/ps` 判断「加载完成」，代理以前返回空列表，
+轮询永远查不到目标模型，进度条卡 30 秒才自己消失 —— 看着就像「切了没反应」。
+
+修法：代理 `/api/ps` 把云端清单报上去（云端没有「已加载」概念，但能结束轮询）。
+
+### 4. 云端模型和本地模型在下拉里长得一样
+
+下拉里 `glm-4.7-flash` 和 `qwen2.5vl:7b` 没有任何区分，用户切完不知道切到哪了。
+修法：云端项加 `☁ ` 前缀（`☁ glm-4.6v-flash · 看图`），并给 MODELS 项加 `cloud:true` 标记。
+
+### 顺带修的
+
+- `checkConn()` 原本在 `boot()` 之前跑，那时 `API` 还是初始的 11434，
+  云端模式下状态点会显示「本地通」，其实当前通道是云端。改成 `boot()` 之后再查。
+- 限流提示补一句「不同模型的额度是分开算的，换下拉里的另一个云端模型多半能立刻接上」，
+  免得用户以为是「切换功能坏了」。
+
+### 验证
+
+新增 `tools/test_switch_cloud_model.py` —— 用无头 Chrome 跑**真实的 `大肥鱼AI.html`**，
+只 mock pywebview 后端接口，模拟改下拉 + 发消息，验证：
+
+```
+✅ 下拉列出 5 个云端模型
+✅ 每个都带 ☁ 标识
+✅ 切换后 MODEL 变了
+✅ 切换后请求发的是新模型        （model=glm-4.6v-flash）
+✅ 切换没触发预热请求
+✅ 消息走的是代理 11435
+✅ API 指向本机代理
+```
+
+### 一个容易误判的点
+
+`api_base.base()` 返回的本来就是 **11435 代理**（云端开启时），不是厂商官方地址。
+前端 `API=c.base` 因此是对的 —— 千万别改成直接打 `base_url`，
+那样 Key 不会带上、路径也对不上（智谱官方没有 `/api/chat` 这个路径，实测返回 401）。
+代理那一层必须留着：带 Key、翻协议、429 重试、限流回落、空 content 兜底、图片转 image_url。

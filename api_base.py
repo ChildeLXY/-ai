@@ -28,6 +28,12 @@ DEFAULTS = {
     "base_url": "https://api.deepseek.com/v1",
     "api_key": "",
     "model": "deepseek-chat",
+    # 可选的云端模型清单。同一个 Key 下多个模型并存时用：
+    #   [{"id": "glm-4.7-flash", "vision": false, "thinking": true}, ...]
+    # 有了这份清单，/api/tags 会把它们全列出来，前端模型下拉就能直接切换，
+    # 代理按请求里的 model 字段分发到对应上游模型，而不是死认 config.model。
+    # 清单为空时保持老行为：只认 model 一个。
+    "models": [],
     "vision": False,
     "thinking": False,
     "proxy": "",              # 出公网用的代理，如 http://127.0.0.1:7897；留空直连
@@ -71,6 +77,89 @@ def save_config(c):
 
 def enabled():
     return bool(config().get("enabled"))
+
+
+def cloud_models(c=None):
+    """归一化云端模型清单。
+
+    返回 [{id, vision, thinking}, ...]；清单为空时退回单模型模式，
+    把 config.model 变成只有一条、且沿用顶层 vision/thinking 开关的清单。
+
+    为什么要归一化：models 里可能缺字段、可能写成字符串、可能 id 为空。
+    代理和前端都要按同一份结构理解，统一在这里处理，别处只管用。
+    """
+    c = c if c is not None else config()
+    raw = c.get("models") or []
+    out = []
+    if isinstance(raw, str):
+        raw = [x.strip() for x in raw.replace(",", " ").split() if x.strip()]
+    if not isinstance(raw, (list, tuple)):
+        raw = []
+    for item in raw:
+        if isinstance(item, str):
+            item = {"id": item}
+        if not isinstance(item, dict):
+            continue
+        mid = str(item.get("id") or item.get("model") or "").strip()
+        if not mid:
+            continue
+        out.append({
+            "id": mid,
+            "vision": bool(item.get("vision", c.get("vision", False))),
+            "thinking": bool(item.get("thinking", c.get("thinking", False))),
+        })
+    if not out:
+        mid = str(c.get("model") or "").strip()
+        if mid:
+            out.append({
+                "id": mid,
+                "vision": bool(c.get("vision", False)),
+                "thinking": bool(c.get("thinking", False)),
+            })
+    return out
+
+
+def cloud_model_ids(c=None):
+    """云端模型 id 列表（给 /api/tags 和前端下拉用）。"""
+    return [m["id"] for m in cloud_models(c)]
+
+
+# 各厂商"官方标注免费"的模型目录。
+#
+# 为什么不能只靠厂商的 /models 接口：实测智谱的 /api/paas/v4/models 只返回
+# 12 个付费模型（glm-4.5 / glm-4.6 / glm-4.7 / glm-5 系列），
+# **一个免费模型都没有** —— 免费模型是「不限量但不在清单里」的，
+# 照着接口返回的清单填，用户就永远看不到免费那批。
+# 所以拉取厂商清单时，必须再并上这份内置目录。
+#
+# 能力标注（vision/thinking）是逐个实测出来的：
+#   · glm-4.7-flash  支持思维链，不支持看图（发 image part 报 1210）
+#   · glm-4.6v-flash 支持思维链，也支持看图
+#   · glm-4.5-flash  支持思维链，不支持看图
+#   · glm-4-flash / glm-4-flashx  都不支持思维链、不支持看图
+FREE_MODEL_CATALOG = {
+    "bigmodel.cn": [
+        {"id": "glm-4.7-flash", "vision": False, "thinking": True,
+         "note": "官方免费 · 文本 · 200K 上下文"},
+        {"id": "glm-4.6v-flash", "vision": True, "thinking": True,
+         "note": "官方免费 · 支持看图"},
+        {"id": "glm-4.5-flash", "vision": False, "thinking": True,
+         "note": "免费 · 文本 · 128K"},
+        {"id": "glm-4-flash", "vision": False, "thinking": False,
+         "note": "老牌免费 · 轻量"},
+        {"id": "glm-4-flashx", "vision": False, "thinking": False,
+         "note": "老牌免费 · 更快"},
+    ],
+}
+
+
+def free_models_for(base_url):
+    """这个接口地址对应厂商的免费模型清单（没有就给空表）。"""
+    b = (base_url or "").lower()
+    for frag, items in FREE_MODEL_CATALOG.items():
+        if frag in b:
+            return [dict(x) for x in items]
+    return []
 
 
 # 代理端口探测结果缓存，避免每轮对话探十几次（本地回环本身极快，1 秒足够新鲜）

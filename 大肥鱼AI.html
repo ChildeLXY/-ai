@@ -297,9 +297,48 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
 .auth-btn svg{width:15px;height:15px;fill:currentColor}
 .auth-tip{position:fixed;left:50%;bottom:40px;transform:translateX(-50%) translateY(20px);background:var(--accent);color:#fff;font-size:13px;padding:8px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:all .25s;z-index:300}
 .auth-tip.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* ===== 开屏风车动画 ===== */
+.splash{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;cursor:pointer;user-select:none;transition:opacity .6s ease,visibility .6s}
+.splash.hide{opacity:0;visibility:hidden;pointer-events:none}
+.splash:active .pinwheel{transform:scale(.94)}
+.pinwheel{width:190px;height:190px;transition:transform .25s ease;will-change:transform}
+.splash:hover .pinwheel{transform:scale(1.07)}
+#bladeG{transform-box:view-box;transform-origin:100px 100px;animation:spin 7s linear infinite}
+.splash:hover #bladeG{animation-duration:2.2s}
+.splash.open #bladeG{animation-play-state:paused}
+@keyframes spin{to{transform:rotate(360deg)}}
+.blade{transform-box:view-box;transform-origin:100px 100px;transition:transform .85s cubic-bezier(.45,-.25,.55,1),opacity .7s ease}
+.b2{transform:rotate(90deg)}
+.b3{transform:rotate(180deg)}
+.b4{transform:rotate(270deg)}
+/* 点击后四片扇叶沿各自方向四散抽离 */
+.splash.open .b1{transform:translate(0,-320px) rotate(-55deg);opacity:0}
+.splash.open .b2{transform:rotate(90deg) translate(0,-320px) rotate(-55deg);opacity:0}
+.splash.open .b3{transform:rotate(180deg) translate(0,-320px) rotate(-55deg);opacity:0}
+.splash.open .b4{transform:rotate(270deg) translate(0,-320px) rotate(-55deg);opacity:0}
+.splash-title{font-size:42px;font-weight:800;letter-spacing:12px;padding-left:12px;background:linear-gradient(120deg,#4d6bfe 0%,#4d6bfe 40%,#8fa8ff 70%,#dfe6ff 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 12px rgba(77,107,254,.35));transition:opacity .5s ease,transform .55s ease}
+.splash.open .splash-title{opacity:0;transform:scale(1.5)}
+.splash-hint{font-size:13px;color:var(--text2);opacity:.75;letter-spacing:3px;transition:opacity .4s}
+.splash.open .splash-hint{opacity:0}
 </style>
 </head>
 <body data-theme="light">
+<div class="splash" id="splash" onclick="openSplash()" title="点击进入">
+  <svg class="pinwheel" viewBox="0 0 200 200" aria-hidden="true">
+    <defs>
+      <polygon id="bladeDef" points="100,100 100,14 152,52"/>
+    </defs>
+    <g id="bladeG">
+      <use class="blade b1" href="#bladeDef" fill="#4d6bfe"/>
+      <use class="blade b2" href="#bladeDef" fill="#ffffff" stroke="#c3d0ff" stroke-width="1.5"/>
+      <use class="blade b3" href="#bladeDef" fill="#4d6bfe"/>
+      <use class="blade b4" href="#bladeDef" fill="#ffffff" stroke="#c3d0ff" stroke-width="1.5"/>
+    </g>
+    <circle cx="100" cy="100" r="7" fill="#4d6bfe"/>
+  </svg>
+  <div class="splash-title">开始探索</div>
+  <div class="splash-hint">— 点击进入 大肥鱼AI —</div>
+</div>
 <div class="bg-deco"></div>
 <div class="drop-hint" id="dropHint">松开以附加文件</div>
 <aside class="sidebar" id="sidebar">
@@ -321,7 +360,7 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
     <button id="searchBtn" class="hbtn" onclick="toggleSearch()">离线</button>
     <button id="kbBtn" class="hbtn" onclick="toggleKb()">知识库</button>
     <button id="wbBtn" class="hbtn" onclick="toggleWb()">工作模式</button>
-    <button id="updBtn" class="hbtn" onclick="checkUpdate()" title="检查 Gitee 上有没有新版本">⟳</button>
+    <button id="updBtn" class="hbtn" onclick="checkUpdate(true)" title="检查 Gitee 上有没有新版本">⟳</button>
     <button id="dtBtn" class="hbtn" onclick="toggleDeepThink()" title="开：认真拆问题、逐条核对；关：人格优先、不啰嗦分析">深度思考</button>
     <div class="spacer"></div>
     <span class="token-info" id="tokenInfo"></span>
@@ -470,6 +509,7 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
           <option value="deepseek">DeepSeek 官方 · 新用户送约 500 万 Token（推荐）</option>
           <option value="deepseek_r1">DeepSeek 官方 · R1 推理版</option>
           <option value="zhipu">智谱 GLM-4-Flash · 永久免费 · 国内直连</option>
+          <option value="zhipu_free">智谱免费模型全家桶 · 5 个模型 · 国内直连</option>
           <option value="siliconflow">硅基流动 Qwen3-8B · 永久免费 · 国内直连</option>
           <option value="siliconflow_r1">硅基流动 DeepSeek-R1 蒸馏 7B · 免费</option>
           <option value="bailian">阿里云百炼 qwen-plus · 每模型 100 万 Token</option>
@@ -484,8 +524,20 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
       <div class="set-row"><div class="set-label">API Key <span style="color:var(--text2);font-weight:400">—— 只存本机，页面不回显</span></div>
         <input id="cloudKey" type="password" placeholder="sk-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:13px;outline:none;box-sizing:border-box">
       </div>
-      <div class="set-row"><div class="set-label">模型名</div>
+      <div class="set-row"><div class="set-label">模型名 <span style="color:var(--text2);font-weight:400">—— 当前对话使用的模型</span></div>
         <input id="cloudModel" type="text" placeholder="deepseek-chat" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:13px;outline:none;box-sizing:border-box">
+      </div>
+      <div class="set-row"><div class="set-label">模型清单 <span style="color:var(--text2);font-weight:400">—— 同一个 Key 下能同时挂多个模型，左侧聊天界面的下拉框会列出它们，随时切换</span></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+          <button class="opt" onclick="cloudFetchModels()">🔍 拉取这个 Key 能用的模型</button>
+          <button class="opt" onclick="cloudAddModelRow()">＋ 手动加一个</button>
+          <button class="opt" onclick="cloudApplyFreeZhipu()">🎁 填入智谱免费模型</button>
+        </div>
+        <div id="cloudModelList" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div style="font-size:12px;color:var(--text2);margin-top:8px;line-height:1.7">
+          勾了「看图 / 思考链」就代表该模型支持这两项，填错了前端会传错参数导致请求被拒。<br>
+          智谱官方标注<b>完全免费</b>的是 <code>glm-4.7-flash</code>（文本）和 <code>glm-4.6v-flash</code>（看图）。
+        </div>
       </div>
       <div class="set-row"><div class="set-label">出网代理 <span style="color:var(--text2);font-weight:400">—— 国内 API 留空；访问 OpenAI 可填 http://127.0.0.1:7897</span></div>
         <input id="cloudProxy" type="text" placeholder="留空直连" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:13px;outline:none;box-sizing:border-box">
@@ -510,10 +562,28 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
       <div id="cloudMsg" style="margin-top:12px;font-size:12.5px;line-height:1.7;color:var(--text2)"></div>
     </div>
 
+    <div class="set-row" style="border-top:1px solid var(--border);padding-top:16px;margin-top:18px">
+      <div class="set-label">程序更新（Gitee）</div>
+      <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:13px;display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="autoCheck" onchange="window.pywebview.api.save_setting('autoCheck',this.checked?'1':'0')"> 启动时自动检查新版本
+        </label>
+        <label style="font-size:13px;display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="autoUpdate" onchange="window.pywebview.api.save_setting('autoUpdate',this.checked?'1':'0')"> 发现新版自动安装
+        </label>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-top:7px;line-height:1.7">
+        后台每 30 分钟查一次；有新版本时右上角 ⟳ 会变色并在聊天区提示。<br>
+        自动安装只在本机<strong>没有未提交改动</strong>时执行，不会覆盖你正在改的代码；装完需重开应用生效。
+      </div>
+    </div>
+
   </div>
 </div>
 <script>
-let API='http://localhost:11434';   // 云端模式开启时，boot() 会改成 127.0.0.1:11435
+const LOCAL_API_URL='http://localhost:11434';    // 本机 Ollama
+const CLOUD_PROXY_URL='http://127.0.0.1:11435';  // 本机云端兼容代理（带 Key、转协议、限流回落）
+let API=LOCAL_API_URL;
 // 本地模型清单只此一份，MODELS 永远是它的副本。
 // （以前是先写 MODELS 再 slice 出 LOCAL_MODELS，一旦某次加载时 MODELS 已被
 //   换成云端那一项，快照就跟着被污染，退不回本地时下拉一直是"云端"。）
@@ -618,8 +688,12 @@ async function changeModel(){
   MODEL=document.getElementById('modelSel').value;
   // 从重模型切走时先卸掉它，把 16GB 内存还回去
   if(prev&&prev!==MODEL&&_heavyModel(prev))await unloadModel(prev);
-  await preloadModel();
-  try{await window.pywebview.api.save_setting('model',MODEL)}catch(e){}try{await probeModelCaps(MODEL);paintDeepThink()}catch(e){}
+  // 云端模型不用预热：预热是"提前把模型灌进显存"，云端没有显存这回事。
+  // 而预热那一下是**真实调用**——切一次模型就白烧一次免费额度，
+  // 智谱按分钟限流的话，很容易"切一下就被限流"，看着就像切不了。
+  if(!cloudEnabled)await preloadModel();
+  else{try{await probeModelCaps(MODEL);paintDeepThink()}catch(e){}}
+  try{await window.pywebview.api.save_setting('model',MODEL)}catch(e){}
 }
 async function preloadModel(){
   const bar=document.getElementById('mlbar');const txt=document.getElementById('mlbarText');
@@ -640,7 +714,16 @@ async function preloadModel(){
 }
 function setMode(m){displayMode=m;refreshModelSel();document.querySelectorAll('#modeGroup .opt').forEach(b=>b.classList.toggle('active',b.dataset.mode===m))}
 function setLang(l){replyLang=l;document.querySelectorAll('#langGroup .opt').forEach(b=>b.classList.toggle('active',b.dataset.lang===l))}
-function openSettings(){const cur=getAiAvatar();document.getElementById('aiAv1').style.borderColor=cur==='avatar.jpg'?'var(--accent)':'transparent';document.getElementById('aiAv2').style.borderColor=cur==='avatar2.jpg'?'var(--accent)':'transparent';document.getElementById('settingsModal').classList.add('show')}
+async function openSettings(){
+  const cur=getAiAvatar();document.getElementById('aiAv1').style.borderColor=cur==='avatar.jpg'?'var(--accent)':'transparent';document.getElementById('aiAv2').style.borderColor=cur==='avatar2.jpg'?'var(--accent)':'transparent';
+  try{
+    const ac=await window.pywebview.api.load_setting('autoCheck');
+    const au=await window.pywebview.api.load_setting('autoUpdate');
+    const e1=document.getElementById('autoCheck');if(e1)e1.checked=(ac==='1');
+    const e2=document.getElementById('autoUpdate');if(e2)e2.checked=(au==='1');
+  }catch(e){}
+  document.getElementById('settingsModal').classList.add('show')
+}
 function closeSettings(){document.getElementById('settingsModal').classList.remove('show')}
 function switchTab(t){
   document.getElementById('stab-general').classList.toggle('on',t==='general');
@@ -658,6 +741,16 @@ const CLOUD_PRESETS={
   deepseek:{b:'https://api.deepseek.com/v1',m:'deepseek-chat',px:'',v:false,t:false,n:'DeepSeek',ph:'sk- 开头，35 位'},
   deepseek_r1:{b:'https://api.deepseek.com/v1',m:'deepseek-reasoner',px:'',v:false,t:true,n:'DeepSeek',ph:'sk- 开头，35 位'},
   zhipu:{b:'https://open.bigmodel.cn/api/paas/v4',m:'glm-4-flash',px:'',v:false,t:false,n:'智谱 BigModel',ph:'32 位ID.16 位密钥，共 49 位'},
+  // 智谱免费模型全家桶：官方标注"完全免费"的是 glm-4.7-flash（文本）和 glm-4.6v-flash（看图）。
+  // 其余按实测能力填，vision/thinking 标错会导致请求被厂商拒。
+  zhipu_free:{b:'https://open.bigmodel.cn/api/paas/v4',m:'glm-4.7-flash',px:'',v:false,t:true,n:'智谱 BigModel',ph:'32 位ID.16 位密钥，共 49 位',
+    models:[
+      {id:'glm-4.7-flash',vision:false,thinking:true},
+      {id:'glm-4.6v-flash',vision:true,thinking:true},
+      {id:'glm-4.5-flash',vision:false,thinking:true},
+      {id:'glm-4-flash',vision:false,thinking:false},
+      {id:'glm-4-flashx',vision:false,thinking:false}
+    ]},
   siliconflow:{b:'https://api.siliconflow.cn/v1',m:'Qwen/Qwen3-8B',px:'',v:false,t:false,n:'硅基流动',ph:'sk- 开头'},
   siliconflow_r1:{b:'https://api.siliconflow.cn/v1',m:'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B',px:'',v:false,t:true,n:'硅基流动',ph:'sk- 开头'},
   bailian:{b:'https://dashscope.aliyuncs.com/compatible-mode/v1',m:'qwen-plus',px:'',v:false,t:false,n:'阿里百炼',ph:'sk- 开头'},
@@ -680,10 +773,139 @@ function cloudPresetPick(){
   document.getElementById('cloudThink').checked=p.t;
   keyEl.placeholder=p.ph||'粘贴该平台的 API Key';
   if(switched){ keyEl.value=''; }
+  // 预设带了模型清单就整份铺上去（同一 Key 下多个模型并存）
+  if(p.models&&p.models.length){
+    CLOUD_MODEL_ROWS=p.models.map(m=>({id:m.id,vision:!!m.vision,thinking:!!m.thinking}));
+    renderCloudModelRows();
+  }
   cloudMsg('已填入「'+sel.options[sel.selectedIndex].text+'」。'
            +(switched?'已清空上一个平台的 Key —— 各家的 Key 不通用，请粘贴 '+p.n+' 的 Key（'+p.ph+'）：':'请填 API Key（'+p.ph+'），')
            +'再点「保存并应用」和「测试连接」。'
            +(p.px?' 海外渠道已自动填代理端口 7897，需要先开着代理。':''),true);
+}
+
+/* ---------------- 云端模型清单 ----------------
+   同一个 Key 下挂多个模型后，左侧聊天界面的模型下拉要能切换它们，
+   所以清单要能增删改，还要分别标注「看图 / 思考链」——
+   标错了厂商会拒请求（智谱不支持看图的模型收到 image part 直接 400）。 */
+var CLOUD_MODEL_ROWS=[];
+
+// 官方标注免费的模型（能力是逐个实测的）。厂商自己的 /models 接口不列免费模型，
+// 所以这份目录是内置的，拉取清单时由后端一起给回来。
+var CLOUD_FREE_IDS={
+  'glm-4.7-flash':{vision:false,thinking:true,note:'官方免费 · 文本 · 200K 上下文'},
+  'glm-4.6v-flash':{vision:true,thinking:true,note:'官方免费 · 支持看图'},
+  'glm-4.5-flash':{vision:false,thinking:true,note:'免费 · 文本 · 128K'},
+  'glm-4-flash':{vision:false,thinking:false,note:'老牌免费 · 轻量'},
+  'glm-4-flashx':{vision:false,thinking:false,note:'老牌免费 · 更快'}
+};
+
+function renderCloudModelRows(){
+  const box=document.getElementById('cloudModelList');
+  if(!box)return;
+  box.innerHTML='';
+  if(!CLOUD_MODEL_ROWS.length){
+    const d=document.createElement('div');
+    d.style.cssText='font-size:12px;color:var(--text2);padding:6px 2px';
+    d.textContent='还没有模型。点上面的「拉取这个 Key 能用的模型」自动获取，或手动加一个。';
+    box.appendChild(d);
+    return;
+  }
+  CLOUD_MODEL_ROWS.forEach(function(m,i){
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px';
+    const inp=document.createElement('input');
+    inp.type='text'; inp.value=m.id; inp.placeholder='模型 id，如 glm-4.7-flash';
+    inp.style.cssText='flex:1;min-width:150px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 9px;font-size:12.5px;outline:none';
+    inp.oninput=function(){CLOUD_MODEL_ROWS[i].id=inp.value.trim()};
+    // 官方免费模型给个醒目标记，用户一眼能挑出来
+    if(CLOUD_FREE_IDS[m.id]){
+      const tag=document.createElement('span');
+      tag.textContent='免费';
+      tag.style.cssText='font-size:11px;color:#2f9e68;background:rgba(47,158,104,.12);border-radius:4px;padding:2px 6px;white-space:nowrap';
+      tag.title=CLOUD_FREE_IDS[m.id].note||'';
+      row.appendChild(tag);
+    }
+    const mk=function(txt,key){
+      const l=document.createElement('label');
+      l.style.cssText='font-size:12px;display:flex;gap:4px;align-items:center;white-space:nowrap';
+      const c=document.createElement('input'); c.type='checkbox'; c.checked=!!m[key];
+      c.onchange=function(){CLOUD_MODEL_ROWS[i][key]=c.checked};
+      l.appendChild(c); l.appendChild(document.createTextNode(txt));
+      return l;
+    };
+    const del=document.createElement('button');
+    del.className='opt'; del.textContent='✕'; del.style.padding='3px 9px';
+    del.onclick=function(){CLOUD_MODEL_ROWS.splice(i,1);renderCloudModelRows()};
+    row.appendChild(inp);
+    row.appendChild(mk('看图','vision'));
+    row.appendChild(mk('思考链','thinking'));
+    row.appendChild(del);
+    box.appendChild(row);
+  });
+}
+
+function cloudAddModelRow(){
+  CLOUD_MODEL_ROWS.push({id:'',vision:false,thinking:false});
+  renderCloudModelRows();
+}
+
+// 拉取厂商的模型清单。走本机代理 11435，由它带 Key 去问厂商。
+async function cloudFetchModels(){
+  const base=document.getElementById('cloudBase').value.trim();
+  const key=document.getElementById('cloudKey').value.trim();
+  if(!/^https?:\/\//i.test(base)){cloudMsg('先填好接口地址，再点「拉取这个 Key 能用的模型」。',false);return}
+  cloudMsg('正在拉取模型清单…',true);
+  try{
+    // 代理可能还没起（云端刚填好没保存），先直接问厂商，失败再试代理
+    let r=null;
+    try{
+      const resp=await fetch('http://127.0.0.1:11435/_models?base='+encodeURIComponent(base)+'&key='+encodeURIComponent(key));
+      r=await resp.json();
+    }catch(e){ r=null; }
+    if(!r||!r.ok){
+      // 直连厂商
+      r=await window.pywebview.api.cloud_fetch_models(base,key);
+    }
+    if(!r||!r.ok){cloudMsg('拉取失败：'+(r&&r.msg?r.msg:'未知错误'),false);return}
+    const list=r.models||[];
+    if(!list.length){cloudMsg('厂商返回了空清单。',false);return}
+    // 已在清单里的不重复加；能力标注沿用已有记录。
+    // 免费模型的能力由后端随清单一起给（厂商自己的 /models 接口不标能力，
+    // 而且往往连免费模型都不列），直接按后端给的标。
+    const exist={};
+    CLOUD_MODEL_ROWS.forEach(function(m){exist[m.id]=m});
+    const freeBy={};
+    (r.free||[]).forEach(function(f){freeBy[f.id]=f});
+    list.forEach(function(id){
+      if(exist[id])return;
+      const f=freeBy[id];
+      CLOUD_MODEL_ROWS.push({id:id,
+        vision:f?!!f.vision:false, thinking:f?!!f.thinking:false});
+    });
+    // 内置目录里、但厂商清单没返回的免费模型，也要补进去
+    Object.keys(CLOUD_FREE_IDS).forEach(function(id){
+      if(list.indexOf(id)>=0)return;
+      if(exist[id])return;
+      const f=CLOUD_FREE_IDS[id];
+      CLOUD_MODEL_ROWS.push({id:id,vision:!!f.vision,thinking:!!f.thinking});
+    });
+    renderCloudModelRows();
+    cloudMsg('拉到 '+list.length+' 个模型：'+list.slice(0,8).join('、')+(list.length>8?' 等':'')+'。'
+             +'已填进清单，勾选实际要用的、并标好「看图/思考链」再保存。',true);
+  }catch(e){cloudMsg('拉取失败：'+e,false)}
+}
+
+// 一键填入智谱官方免费模型
+function cloudApplyFreeZhipu(){
+  const p=CLOUD_PRESETS.zhipu_free;
+  document.getElementById('cloudBase').value=p.b;
+  document.getElementById('cloudModel').value=p.m;
+  document.getElementById('cloudVision').checked=false;
+  document.getElementById('cloudThink').checked=true;
+  CLOUD_MODEL_ROWS=p.models.map(function(m){return {id:m.id,vision:m.vision,thinking:m.thinking}});
+  renderCloudModelRows();
+  cloudMsg('已填入智谱地址和 5 个免费/低量模型清单。填上你的智谱 Key 再点「保存并应用」。',true);
 }
 
 function cloudMsg(t,ok){const e=document.getElementById('cloudMsg');if(e){e.textContent=t;e.style.color=ok?'#2f9e68':'#e53e3e'}}
@@ -698,6 +920,10 @@ async function loadCloudCfg(){
     document.getElementById('cloudVision').checked=!!c.vision;
     document.getElementById('cloudThink').checked=!!c.thinking;
     document.getElementById('cloudFallback').checked=c.fallback_local!==false;
+    // 后端已归一化过的清单（models 为空时会回退成单模型的形状）
+    CLOUD_MODEL_ROWS=(c.models&&c.models.length?c.models:[{id:c.model||'',vision:!!c.vision,thinking:!!c.thinking}])
+      .map(function(m){return {id:m.id||m,vision:!!m.vision,thinking:!!m.thinking}});
+    renderCloudModelRows();
     document.getElementById('cloudPreset').value='';   // 预设只是填充器，不落盘
     cloudEnabled=!!c.enabled;                          // 以后端配置为准，不看按钮文字
     document.getElementById('cloudToggle').textContent=c.enabled
@@ -735,11 +961,13 @@ async function cloudToggle(){
 }
 
 function cloudForm(){
+  const rows=CLOUD_MODEL_ROWS.filter(function(m){return m&&m.id});
   return {
     enabled: cloudEnabled,
     base_url: document.getElementById('cloudBase').value.trim(),
     api_key: document.getElementById('cloudKey').value,
     model: document.getElementById('cloudModel').value.trim()||'deepseek-chat',
+    models: rows,
     proxy: document.getElementById('cloudProxy').value.trim(),
     vision: document.getElementById('cloudVision').checked,
     thinking: document.getElementById('cloudThink').checked,
@@ -837,11 +1065,29 @@ async function applyCloudConfig(){
   try{
     const c=await window.pywebview.api.cloud_config_get();
     cloudEnabled=!!c.enabled;
-    API=c.base;
     if(c.enabled){
-      MODELS.splice(0,MODELS.length,{id:c.model,short:'云端',full:c.model+'（第三方 API）'});
-      MODEL=c.model;
+      // 云端对话必须走本机的兼容代理（11435），不能直接打厂商地址。
+      // 代理那一层负责：带 Key、把 Ollama 协议翻成 OpenAI 的、429 自动重试、
+      // 限流时回落本地模型、空 content 兜底、图片转 image_url。
+      // 直接打 c.base（智谱官方）的话，Key 不会带上、路径也对不上，
+      // 表现就是「切了云端模型但一句话都发不出去」。
+      API=CLOUD_PROXY_URL;
+      // 云端可能挂了不止一个模型（同一个 Key 下多模型并存），下拉要全列出来。
+      // 以前只放 config.model 一个，用户想换个免费模型只能改配置再重启。
+      const cm=(c.models&&c.models.length?c.models:[{id:c.model}]);
+      MODELS.splice(0,MODELS.length,...cm.map(function(m){
+        const id=m.id||m;
+        const tag=m.vision?' · 看图':'';
+        const th=m.thinking?' · 思考':'';
+        // 加 ☁ 标识：云端模型和本地模型混在同一个下拉里，
+        // 不标出来的话用户切了模型却不知道切到哪儿去了。
+        return {id:id,short:'☁ '+id+tag,full:'☁ '+id+'（云端 API）'+tag+th,cloud:true};
+      }));
+      if(!MODELS.some(m=>m.id===c.model)&&MODELS.length)MODEL=MODELS[0].id;
+      else if(c.model)MODEL=c.model;
     }else{
+      // 本地模式打本机 Ollama
+      API=LOCAL_API_URL;
       // 从写死的本地清单还原，不复用任何快照——快照被云端项污染过就会退不回来
       MODELS.splice(0,MODELS.length,...LOCAL_PRESET.map(m=>({...m})));
       if(!MODELS.some(m=>m.id===MODEL))MODEL=MODELS[0].id;
@@ -1015,20 +1261,56 @@ async function probeModelVision(id){
 }
 // —— 更新按钮：检查 Gitee 上的新提交，一键快进合并 ——
 let _updBusy=false;
-async function checkUpdate(){
+function badgeUpdate(n){
+  const b=document.getElementById('updBtn');if(!b)return;
+  b.style.color=n>0?'#ffd39a':'';
+  b.style.borderColor=n>0?'rgba(255,211,154,.55)':'';
+  b.title=n>0?('Gitee 上有 '+n+' 个新提交，点此更新'):'检查 Gitee 上有没有新版本';
+}
+// 启动时后台已经查过一次，这里只把结果拿过来显示，不重复 fetch
+let _updNotified=-1;
+async function autoCheckUpdate(){
+  try{
+    const r=await window.pywebview.api.update_status();
+    if(!r||!r.ok)return;
+    badgeUpdate(r.behind||0);
+    if(!r.behind){_updNotified=-1;return;}
+    if(r.behind===_updNotified)return;
+    _updNotified=r.behind;
+    let tip='⟳ 发现 Gitee 新版本（'+r.behind+' 个提交）。点右上角按钮看详情并更新。';
+    if(r.local&&r.remote)tip+='\n本机 '+r.local+' → 远端 '+r.remote;
+    if(r.dirty>0)tip+='\n⚠ 本地有 '+r.dirty+' 处未提交改动，更新会被拒绝，请先提交或撤销。';
+    addSysMsg(tip);
+    if(r.auto&&r.dirty===0){
+      addSysMsg('已开启自动安装，正在更新...');
+      const u=await window.pywebview.api.do_update();
+      if(u&&u.ok)addSysMsg('✅ 已更新到最新版，请关掉应用重新打开一次生效。');
+      else addSysMsg('⚠️ 自动更新失败：'+((u&&u.out)||'未知错误'));
+    }
+  }catch(e){}
+}
+async function checkUpdate(force){
   const b=document.getElementById('updBtn');
   if(_updBusy)return;
   _updBusy=true;b.disabled=true;b.textContent='…';
   try{
-    const r=await window.pywebview.api.check_update();
-    if(!r||!r.ok){alert('检查更新失败：\n'+((r&&r.error)||'未知错误'));return;}
-    if(r.behind===0){b.textContent='✓';setTimeout(()=>{b.textContent='⟳'},1600);return;}
-    const go=confirm('Gitee 上有 '+r.behind+' 个新提交：\n\n'+(r.log||'(读不到提交说明)')+'\n\n现在更新吗？更新后需要关掉应用重开一次。');
-    if(!go)return;
+    const r=await window.pywebview.api.check_update(force===true);
+    if(!r||!r.ok){b.textContent='!';alert('检查更新失败：\n'+((r&&r.error)||'未知错误'));return;}
+    if(!r.behind){
+      badgeUpdate(0);b.textContent='✓';
+      setTimeout(()=>{b.textContent='⟳'},1600);return;
+    }
+    badgeUpdate(r.behind);
+    let msg='Gitee 上有 '+r.behind+' 个新提交';
+    if(r.local&&r.remote)msg+='（本机 '+r.local+' → 远端 '+r.remote+'）';
+    msg+='：\n\n'+(r.log||'(读不到提交说明)');
+    if(r.dirty>0)msg+='\n\n⚠ 本地有 '+r.dirty+' 处未提交改动，更新会被拒绝。请先提交或撤销。';
+    msg+='\n\n现在更新吗？更新后需要关掉应用重开一次。';
+    if(!confirm(msg))return;
     b.textContent='↓';
     const u=await window.pywebview.api.do_update();
-    if(u&&u.ok)alert('已更新到最新版。\n请关掉应用重新打开一次生效。\n\n'+(u.out||''));
-    else alert('更新失败（本地可能有未提交的改动）：\n'+((u&&u.out)||'未知错误'));
+    if(u&&u.ok){badgeUpdate(0);alert('已更新到最新版。\n请关掉应用重新打开一次生效。\n\n'+(u.out||''));}
+    else alert('更新失败：\n'+((u&&u.out)||'未知错误'));
   }catch(e){alert('出错：'+e);}
   finally{b.disabled=false;if(b.textContent!=='✓')b.textContent='⟳';_updBusy=false;}
 }
@@ -2380,9 +2662,21 @@ async function boot(){
     const tm=await window.pywebview.api.load_setting('themeMode');if(tm){setThemeMode(tm)}else{setThemeMode('auto')};const ws=await window.pywebview.api.load_setting('webSearchOn');webSearchOn=(ws==='1');setSearchState('auto');
     const mi=await window.pywebview.api.load_setting('mutterMin');const miEl=document.getElementById('mutterMin');if(miEl)miEl.value=mi||'20';
     const nn=await window.pywebview.api.load_setting('ai_name');const nnEl=document.getElementById('aiNameInput');if(nnEl)nnEl.value=nn||'';
-    const md=await window.pywebview.api.load_setting('model');if(md&&MODELS.some(m=>m.id===md)){MODEL=md;refreshModelSel()}
+    // 恢复上次选的模型。注意只在"这个 id 还在当前清单里"时才认——
+    // 云端模式换过渠道后清单会变，认一个不在清单里的旧 id 会让下拉框空白。
+    const md=await window.pywebview.api.load_setting('model');
+    if(md&&MODELS.some(m=>m.id===md)){MODEL=md;refreshModelSel()}
     try{const ds=await window.pywebview.api.deep_think_state();if(ds&&ds.ok){deepThink=!!ds.on;paintDeepThink()}}catch(e){}
     try{await probeModelCaps(MODEL);paintDeepThink()}catch(e){}
+    // Gitee 自动更新：后台线程启动时已查过，这里只取结果提示，不额外发网络请求
+    try{
+      const ac=await window.pywebview.api.load_setting('autoCheck');
+      if(ac!=='0'){
+        await autoCheckUpdate();
+        // 后台每 30 分钟 fetch 一次；前端每分钟读一次本地状态，不发网络请求
+        setInterval(autoCheckUpdate,60000);
+      }
+    }catch(e){}
   }catch(e){setThemeMode('auto')}
   // 支持 file:///.../大肥鱼AI.html#cloud 打开就停在某个设置页（截图、排查用）
   try{
@@ -2390,7 +2684,32 @@ async function boot(){
     if(_h&&document.getElementById('page-'+_h))switchTab(_h);
   }catch(e){}
 }
-boot();checkConn();render();
+boot();render();
+// ===== 开屏风车：点击四散抽离，主页浮现 =====
+let _splashOpened=false;
+function openSplash(){
+  if(_splashOpened)return;_splashOpened=true;
+  const s=document.getElementById('splash');
+  s.classList.add('open');            // 扇叶四散 + 文字放大淡出
+  setTimeout(()=>s.classList.add('hide'),700);   // 整层淡出，露出主页
+  setTimeout(()=>s.remove(),1500);
+}
+// 鼠标视差：扇叶组跟随鼠标轻微偏转，增强互动感
+(function(){
+  const s=document.getElementById('splash');if(!s)return;
+  const pw=s.querySelector('.pinwheel');
+  s.addEventListener('mousemove',e=>{
+    if(_splashOpened)return;
+    const dx=(e.clientX/innerWidth-.5),dy=(e.clientY/innerHeight-.5);
+    pw.style.transform=`scale(1.07) rotateX(${(-dy*14).toFixed(1)}deg) rotateY(${(dx*14).toFixed(1)}deg)`;
+  });
+  s.addEventListener('mouseleave',()=>{pw.style.transform=''});
+  // 键盘 Enter/Esc 也能进入
+  window.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key==='Escape')&&!_splashOpened)openSplash()});
+})();
+// 连接状态要在 boot() 之后查：云端模式下 API 会被改成 11435 代理，
+// 早一步查会打到 11434，把状态点显示成"本地通"，其实云端才是当前通道。
+setTimeout(checkConn,600);
 </script>
 
 <div class="modal-mask" id="pluginHub" onclick="if(event.target===this)closePluginHub()">

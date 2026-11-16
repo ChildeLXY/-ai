@@ -1377,28 +1377,108 @@ def _repo_dir():
         return os.path.dirname(os.path.abspath(__file__))
 
 
-def check_update():
-    """看看 Gitee 上有没有比本地新的提交（只 fetch，不改工作区）。"""
-    rc, out = _git("fetch", "--quiet", "origin")
+# ---------------------------------------------------------------- Gitee 自动更新
+_UPDATE_STATE = {"checked": 0, "behind": 0, "log": "", "error": "",
+                 "local": "", "remote": "", "busy": False}
+_UPDATE_LOCK = threading.Lock()
+_UPDATE_TTL = 300          # 5 分钟内复用上次结果，避免频繁 fetch
+_AUTO_INTERVAL = 1800      # 后台每 30 分钟复查一次
+
+
+def _git_dirty_count():
+    """已跟踪文件的改动数；未跟踪文件（聊天记录/workspace）不算，免得天天假报警。"""
+    rc, out = _git("status", "--porcelain", "--untracked-files=no", timeout=20)
     if rc != 0:
-        return {"ok": False, "error": "拉取失败（网络？）: " + out[-200:]}
-    rc2, cnt = _git("rev-list", "--count", "HEAD..origin/master")
-    if rc2 != 0:
-        return {"ok": False, "error": out and cnt[-200:] or "读不到远端分支"}
+        return -1
+    return len([ln for ln in out.splitlines() if ln.strip()])
+
+
+def _update_snapshot(cached=False):
+    with _UPDATE_LOCK:
+        s = dict(_UPDATE_STATE)
+    s.pop("busy", None)
+    s["ok"] = not bool(s.get("error"))
+    s["cached"] = bool(cached)
+    s["dirty"] = _git_dirty_count()
+    s["auto"] = (str(load_setting("autoUpdate") or "") == "1")
+    return s
+
+
+def check_update(force=False):
+    """检查 Gitee 有无新提交：只 fetch，不改工作区。后台与手动按钮共用。"""
+    import time as _t
+    now = _t.time()
+    with _UPDATE_LOCK:
+        if _UPDATE_STATE["busy"]:
+            return _update_snapshot(cached=True)
+        if (not force and _UPDATE_STATE["checked"]
+                and now - _UPDATE_STATE["checked"] < _UPDATE_TTL):
+            return _update_snapshot(cached=True)
+        _UPDATE_STATE["busy"] = True
     try:
-        n = int((cnt or "0").split()[0])
-    except Exception:
-        n = 0
-    log = ""
-    if n:
-        _, log = _git("log", "--oneline", "HEAD..origin/master", "-8")
-    return {"ok": True, "behind": n, "log": log}
+        rc, out = _git("fetch", "--quiet", "origin", timeout=45)
+        if rc != 0:
+            with _UPDATE_LOCK:
+                _UPDATE_STATE.update({"checked": now,
+                                      "error": "拉取失败（网络？）: " + out[-180:]})
+            return _update_snapshot()
+        rc2, cnt = _git("rev-list", "--count", "HEAD..origin/master")
+        if rc2 != 0:
+            with _UPDATE_LOCK:
+                _UPDATE_STATE.update({"checked": now,
+                                      "error": "读不到远端分支: " + (cnt or "")[-180:]})
+            return _update_snapshot()
+        try:
+            n = int((cnt or "0").split()[0])
+        except Exception:
+            n = 0
+        log = _git("log", "--oneline", "HEAD..origin/master", "-8")[1] if n else ""
+        local = _git("rev-parse", "--short", "HEAD")[1].strip()
+        remote = _git("rev-parse", "--short", "origin/master")[1].strip()
+        with _UPDATE_LOCK:
+            _UPDATE_STATE.update({"checked": now, "behind": n, "log": log,
+                                  "error": "", "local": local, "remote": remote})
+        return _update_snapshot()
+    finally:
+        with _UPDATE_LOCK:
+            _UPDATE_STATE["busy"] = False
+
+
+def update_status():
+    """前端启动时读缓存状态，不触发网络请求。"""
+    return _update_snapshot(cached=True)
 
 
 def do_update():
-    """快进合并到远端最新（--ff-only，本地有改动就拒绝，不会冲掉你的代码）。"""
-    rc, out = _git("pull", "--ff-only", "origin", "master", timeout=120)
+    """快进到 Gitee 最新。工作区有未提交改动时拒绝，绝不覆盖本地代码。"""
+    dirty = _git_dirty_count()
+    if dirty != 0:
+        tip = ("本地有 %d 处未提交改动，已跳过更新（不会覆盖你的代码）。\n" % dirty
+               if dirty > 0 else "读不到工作区状态，已跳过更新。\n")
+        return {"ok": False, "out": tip + "请先提交或撤销改动，再点更新。"}
+    rc, out = _git("pull", "--ff-only", "origin", "master", timeout=150)
+    if rc == 0:
+        import time as _t
+        with _UPDATE_LOCK:
+            _UPDATE_STATE.update({"behind": 0, "log": "", "checked": _t.time()})
     return {"ok": rc == 0, "out": out[-600:]}
+
+
+def auto_update_loop():
+    """后台：启动后延迟检查，之后每 30 分钟复查；自动安装仅在工作区干净时发生。"""
+    import time as _t
+    _t.sleep(10)
+    while True:
+        try:
+            if str(load_setting("autoCheck") or "1") != "0":
+                r = check_update(force=True)
+                if (r.get("ok") and r.get("behind", 0) > 0
+                        and str(load_setting("autoUpdate") or "") == "1"
+                        and r.get("dirty") == 0):
+                    do_update()
+        except Exception:
+            pass
+        _t.sleep(_AUTO_INTERVAL)
 
 
 # ---------------------------------------------------------------- 云端模型
@@ -1444,7 +1524,76 @@ def cloud_config_get():
     c["api_key"] = "*" * 8 if c.get("api_key") else ""   # 不回显完整 key
     c["base"] = api_base.base()
     c["proxy_alive"] = _proxy_alive()
+    c["models"] = api_base.cloud_models(c)
     return c
+
+
+def cloud_fetch_models(base_url="", api_key=""):
+    """问厂商"这个 Key 能用哪些模型"。
+
+    智谱是 /api/paas/v4/models，OpenAI 兼容那批是 /v1/models，形状一样。
+    Key 可以从参数传（用户填了还没保存），也可以留空用配置里存着的。
+    """
+    base = (base_url or "").strip().rstrip("/")
+    key = (api_key or "").strip()
+    if not base:
+        base = (api_base.config().get("base_url") or "").strip().rstrip("/")
+    if not key:
+        key = (api_base.config().get("api_key") or "").strip()
+    if not base:
+        return {"ok": False, "msg": "没填接口地址"}
+
+    root = base
+    for suffix in ("/chat/completions", "/completions"):
+        if root.endswith(suffix):
+            root = root[:-len(suffix)]
+            break
+    if not root.rstrip("/").split("/")[-1].startswith("v"):
+        root += "/v1"
+    url = root + "/models"
+
+    headers = {"Accept": "application/json"}
+    if key:
+        headers["Authorization"] = "Bearer " + key
+    # 出公网这一跳：国内 API 直连，走配置里的代理就带上
+    px = (api_base.config().get("proxy") or "").strip()
+    if px:
+        opener = urllib.request.build_opener(
+            urllib.request.ProxyHandler({"http": px, "https": px}))
+    else:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with opener.open(req, timeout=25) as r:
+            data = json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read().decode("utf-8", errors="replace")
+            j = json.loads(body)
+            err = j.get("error") or {}
+            msg = "%s %s" % (err.get("code"), err.get("message"))
+        except Exception:
+            msg = str(e)
+        return {"ok": False, "msg": "厂商返回 %s：%s" % (e.code, msg[:200]), "url": url}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)[:200], "url": url}
+
+    items = []
+    for it in (data.get("data") or []):
+        if isinstance(it, dict):
+            mid = str(it.get("id") or "").strip()
+            if mid:
+                items.append(mid)
+    # 厂商的 /models 接口常常不列免费模型（智谱实测 12 个里一个免费的都没有），
+    # 所以必须并上内置的免费目录，否则用户永远看不到那批模型。
+    free = api_base.free_models_for(base)
+    have = set(items)
+    for f in free:
+        if f["id"] not in have:
+            items.append(f["id"])
+    items = sorted(set(items))
+    return {"ok": True, "url": url, "models": items, "count": len(items),
+            "free": [f for f in free]}
 
 
 def cloud_config_save(cfg_json):
@@ -1868,8 +2017,9 @@ window.expose(*([_safe_api(_f) for _f in (
               take_screenshot, read_clipboard, write_clipboard, extract_url, tts_speak, gen_title, open_folder, pick_avatar, save_avatar, save_setting, load_setting,
               load_memory, save_memory, remember_fact, reflect_memory, pet_mutter,
               gen_persona, test_persona, get_time, get_time_brief, get_env, list_dir, env_sense, model_caps,
-                check_update, do_update,
+                check_update, do_update, update_status,
                 get_api_base, cloud_config_get, cloud_config_save, cloud_test,
+                cloud_fetch_models,
                 screen_size, mouse_click, type_text, press_key, agent_decide, plugin_list,
               plugin_set_enabled)]
               + [_safe_api(_f) for _f in PLUGIN_APIS]
@@ -2214,6 +2364,14 @@ if os.environ.get("DFY_SELFTEST") == "1":
 try:
     if api_base.enabled():
         threading.Thread(target=_ensure_proxy, daemon=True).start()
+except Exception:
+    pass
+
+# Gitee 更新：后台线程延迟 10 秒做首次检测，之后每 30 分钟复查；
+# 默认只提示不安装，自动安装要在设置里单独打开（且工作区干净才执行）。
+try:
+    if str(load_setting("autoCheck") or "1") != "0":
+        threading.Thread(target=auto_update_loop, daemon=True, name="gitee-update").start()
 except Exception:
     pass
 
