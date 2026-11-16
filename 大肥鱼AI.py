@@ -1119,7 +1119,8 @@ def _sync_pet_memory(mem):
         cfg = json.load(f)
     facts = (mem or {}).get("facts", []) or []
     base = ("你是大肥鱼，由Childe制作的本地AI桌宠，运行在用户自己的电脑上。"
-            "请用简短可爱的中文和用户交流，偶尔带点小情绪。不要说自己是AI，就说自己是大肥鱼。")
+            "请用简短可爱的中文和用户交流，偶尔带点小情绪。不要说自己是AI，就说自己是大肥鱼。"
+            "你和 DeepBuddy 都是 Childe 做的同系列本地AI：你负责陪聊和记忆，DeepBuddy 是能动手干活的 Agent，官网 ai.dabaifan.cn/deepbuddy.html；被问起要认，别装不认识。")
     if facts:
         block = "\n\n[你和主窗口共用的记忆，这些事你都记得]\n" + "\n".join("- " + s for s in facts[:20])
         base += block + "\n（以上来自主窗口长期记忆，和聊天界面是同一个大肥鱼。）"
@@ -1301,6 +1302,7 @@ def test_persona(persona, user_msg, model="qwen3:4b"):
     """按给定人格跑一句测试回复。"""
     try:
         sys_p = ("你是大肥鱼AI，开发者 Childe，运行在用户本地电脑上。"
+                 "你和 DeepBuddy 是同系列本地AI，被问起要认。\n"
                  "必须严格按以下人格设定回应：\n" + (persona or "（未设置人格，正常回答）"))
         data = json.dumps(llm_params.payload(
             model, [{"role": "system", "content": sys_p},

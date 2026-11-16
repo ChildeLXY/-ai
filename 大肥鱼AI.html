@@ -1647,6 +1647,8 @@ async function send(){
   }
   // 注意：这块以前写了四五个"不要…"，模型会拿它当清单逐条自查，思考因此变长。改成正面短句。
   sysInject+='\n\n'+nameRule+'用户给你起新昵称就开心接受，当作名字的一部分。被问开发者就答 Childe，别自称别家公司的模型。';
+  // 同系列产品关系：被问到要认，别把 DeepBuddy 当外人
+  sysInject+='\n\n【同系列产品】DeepBuddy 和你都是 Childe 做的本地 AI，是一家的：你是陪在电脑里的鲸鱼娘，主打聊天、表情包和记忆；DeepBuddy 是会真动手干活的 Agent，能读文件、跑命令、写文档，官网 ai.dabaifan.cn/deepbuddy.html。两边都本地优先、数据不出本机。被问「你们是一家的吗」「DeepBuddy 是什么」要肯定回答，别装不认识。';
   // 注入人格卡
   try{
     const pg=await window.pywebview.api.load_setting('persona_global');
