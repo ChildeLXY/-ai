@@ -141,7 +141,7 @@ def shutdown(): ...                 # 沿用
 - [x] P4 agent 循环（agent_loop，act/plan/ask 模式 + 专家 + 计划，可中断可观测，17 项单测）
 - [x] P5 记忆与会话（core/memory，快照/回滚/压缩/词法检索，19 项单测）
 - [x] P6 MCP client + server（core/mcp，JSON-RPC stdio 双向，16 项单测含端到端）
-- [ ] P7 多代理
+- [x] P7 多代理（core/subagents，委派/并行 fanout/失败隔离/汇总，11 项单测）
 - [ ] P8 开放 API 与市场
 - [ ] P9 接入与前端
 - [ ] P10 总体验收

@@ -26,12 +26,14 @@ from .config import ConfigSchema, ConfigError, field
 from .plugin_loader import PluginLoader, Isolation, PluginLoadError
 from .mcp import MCPServer, MCPClient, MCPError
 from .memory import VersionedState, MemoryStore, SessionMemory, MemoryError
+from .subagents import SubAgent, AgentTeam, SubAgentError
 
 __all__ = ["Kernel", "Container", "EventBus",
            "ConfigSchema", "ServiceError", "ConfigError", "field",
            "PluginLoader", "Isolation", "PluginLoadError",
            "MCPServer", "MCPClient", "MCPError",
-           "VersionedState", "MemoryStore", "SessionMemory", "MemoryError"]
+           "VersionedState", "MemoryStore", "SessionMemory", "MemoryError",
+           "SubAgent", "AgentTeam", "SubAgentError"]
 __version__ = "1.0.0"
 
 
