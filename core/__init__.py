@@ -27,13 +27,15 @@ from .plugin_loader import PluginLoader, Isolation, PluginLoadError
 from .mcp import MCPServer, MCPClient, MCPError
 from .memory import VersionedState, MemoryStore, SessionMemory, MemoryError
 from .subagents import SubAgent, AgentTeam, SubAgentError
+from .open_api import OpenAPI, OpenAPIServer, RateLimiter
 
 __all__ = ["Kernel", "Container", "EventBus",
            "ConfigSchema", "ServiceError", "ConfigError", "field",
            "PluginLoader", "Isolation", "PluginLoadError",
            "MCPServer", "MCPClient", "MCPError",
            "VersionedState", "MemoryStore", "SessionMemory", "MemoryError",
-           "SubAgent", "AgentTeam", "SubAgentError"]
+           "SubAgent", "AgentTeam", "SubAgentError",
+           "OpenAPI", "OpenAPIServer", "RateLimiter"]
 __version__ = "1.0.0"
 
 
