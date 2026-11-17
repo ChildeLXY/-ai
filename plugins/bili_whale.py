@@ -567,6 +567,14 @@ def setup(ctx):
     _last["repliedToday"] = len(_replied()["rpid"])
     ctx.log(PLUGIN_ID, "已就位（监听默认关：私信=%s 评论=%s）"
             % (_cfg.get("listenDm"), _cfg.get("listenComment")))
+    # 配置里已开监听就自动拉起后台线程，避免"开关开着却没在听"。
+    # BiliBridge 长驻子进程在首次工具调用时按需自启，这里不用管。
+    if _cfg.get("listenDm") or _cfg.get("listenComment"):
+        try:
+            r = whale_start()
+            ctx.log(PLUGIN_ID, "自动监听：%s" % r.get("note", r))
+        except Exception as e:
+            ctx.log(PLUGIN_ID, "自动监听启动失败：%r" % (e,))
 
 
 def shutdown():
