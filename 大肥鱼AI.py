@@ -1465,6 +1465,81 @@ def qq_market_close():
         return {"ok": False, "error": str(e)}
 
 
+# ---------------- 插件中心内嵌市场（同一份 DSH 官方目录） ----------------
+_MARKET_PRIMED = {"done": False}
+
+
+def _market_mod():
+    import dfy_market
+    if not _MARKET_PRIMED["done"]:
+        # 首次进来先在后台把目录拉一遍，界面立刻有东西看
+        _MARKET_PRIMED["done"] = True
+        try:
+            dfy_market.prime_async()
+        except Exception:
+            pass
+    return dfy_market
+
+
+def market_status():
+    try:
+        m = _market_mod()
+        out = m.status()
+        try:
+            out["installed"] = list(m.installed().values())
+        except Exception:
+            out["installed"] = []
+        return out
+    except Exception as e:
+        return {"ok": False, "total": 0, "error": str(e)}
+
+
+def market_categories():
+    try:
+        return _market_mod().categories()
+    except Exception:
+        return []
+
+
+def market_search(q="", category="all", page=0, size=40, sort="stars"):
+    """在官方目录里本地过滤（毫秒级），不打网络。"""
+    try:
+        def _i(v, d):
+            try:
+                return int(float(str(v)))
+            except Exception:
+                return d
+        cat = "" if str(category) in ("", "all", "None") else str(category)
+        return _market_mod().search(str(q or ""), cat, _i(page, 0),
+                                    min(200, max(1, _i(size, 40))), str(sort or "stars"))
+    except Exception as e:
+        return {"ok": False, "total": 0, "rows": [], "error": str(e)}
+
+
+def market_detail(key=""):
+    try:
+        return _market_mod().detail(str(key))
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def market_install(spec=""):
+    """装进 DSH 的 profile，装完两边都算已安装。"""
+    try:
+        if not str(spec).strip():
+            return {"ok": False, "error": "没给包名"}
+        return _market_mod().install(str(spec).strip())
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def market_uninstall(name=""):
+    try:
+        return _market_mod().uninstall(str(name).strip())
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 def qq_zone_status():
     """空间面板状态：登录态、今日计数、下次自动时间、历史。"""
     try:
@@ -2621,6 +2696,8 @@ window.expose(*([_safe_api(_f) for _f in (
               qq_dsh_status, qq_dsh_start, qq_dsh_restart, qq_dsh_search,
               qq_dsh_install, qq_dsh_toggle, qq_dsh_context,
               qq_market_open, qq_market_status, qq_market_close,
+              market_status, market_categories, market_search, market_detail,
+              market_install, market_uninstall,
               qq_buddy_status, qq_buddy_launch, qq_buddy_tools,
               qq_zone_status, qq_zone_cfg, qq_zone_set_cfg, qq_zone_preview,
               qq_zone_publish, qq_zone_delete,

@@ -275,35 +275,98 @@ button.emj-btn:hover{opacity:1;transform:scale(1.08)}
 .plugin-dock .pd{width:32px;height:32px;border-radius:9px;border:1px solid var(--border);background:var(--card);
   display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;transition:.18s}
 .plugin-dock .pd:hover{background:var(--accent-light);border-color:var(--accent);transform:translateY(-1px)}
-/* ===== 插件中心（DSH 式：左列表 + 右页面） ===== */
+/* ===== 插件中心（对齐 DeepSeek Harness 的深色样式） ===== */
 #pluginHub{z-index:320}
-.hub{width:min(1000px,94vw);height:min(780px,88vh);background:var(--card);border:1px solid var(--border);
-  border-radius:18px;display:flex;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.42)}
-.hub-nav{width:196px;flex:0 0 196px;background:var(--bg);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;padding:14px 10px 10px}
-.hub-nav-title{font-size:12px;color:var(--text2);font-weight:600;padding:2px 8px 10px}
-.hub-nav-list{flex:1;overflow:auto;display:flex;flex-direction:column;gap:2px}
-.hub-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;font-size:13px;
-  color:var(--text);cursor:pointer;border:none;background:transparent;text-align:left;width:100%;font-family:inherit}
-.hub-item:hover{background:var(--hover)}
-.hub-item.on{background:var(--accent-light);color:var(--accent);font-weight:600}
-.hub-item.off{opacity:.45;cursor:default}
-.hub-item .ic{font-size:15px;width:18px;text-align:center;flex:0 0 18px}
+/* 把整块区域的配色变量换成深色，插件内的 .pg-card / .pg-note 等自动跟着变深 */
+.hub{width:min(1080px,95vw);height:min(800px,90vh);display:flex;overflow:hidden;
+  border-radius:16px;border:1px solid rgba(255,255,255,.09);background:#0b0e13;color:#e6edf6;
+  box-shadow:0 26px 80px rgba(0,0,0,.62);
+  --bg:#0b0e13;--card:#12161d;--border:rgba(255,255,255,.085);--text:#e6edf6;--text2:#8b98ab;
+  --hover:rgba(255,255,255,.055);--accent:#4c9aff;--accent-light:rgba(76,154,255,.14)}
+.hub *{box-sizing:border-box}
+.hub-nav{width:212px;flex:0 0 212px;background:#0a0d12;border-right:1px solid rgba(255,255,255,.07);
+  display:flex;flex-direction:column;padding:12px 9px 10px;overflow:hidden}
+.hub-brand{display:flex;align-items:center;gap:8px;padding:4px 8px 12px;font-size:13.5px;font-weight:650;color:#eaf1fa}
+.hub-brand .hb-logo{font-size:16px}
+.hub-brand .hb-tag{font-size:9.5px;font-weight:700;letter-spacing:.6px;color:#9ec9ff;
+  border:1px solid rgba(76,154,255,.36);border-radius:5px;padding:1px 5px}
+.hub-sec{font-size:11px;color:#5f6e82;padding:10px 8px 6px;letter-spacing:.4px}
+.hub-nav-list{flex:1;overflow:auto;display:flex;flex-direction:column;gap:1px}
+.hub-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:13px;
+  color:#cbd6e4;cursor:pointer;border:none;background:transparent;text-align:left;width:100%;font-family:inherit}
+.hub-item:hover{background:rgba(255,255,255,.055);color:#fff}
+.hub-item.on{background:rgba(76,154,255,.14);color:#9ec9ff;font-weight:600}
+.hub-item.off{opacity:.4;cursor:default}
+.hub-item .ic{font-size:14px;width:17px;text-align:center;flex:0 0 17px}
 .hub-item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hub-item .st{font-size:10px;color:var(--text2)}
-.hub-nav-foot{font-size:10px;color:var(--text2);padding:10px 8px 2px;border-top:1px solid var(--border);margin-top:8px}
-.hub-empty{font-size:12px;color:var(--text2);padding:10px}
-.hub-main{flex:1;display:flex;flex-direction:column;min-width:0}
-.hub-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);flex:0 0 auto}
+.hub-item .st{font-size:10px;color:#5f6e82}
+.hub-nav-foot{font-size:10px;color:#5f6e82;padding:9px 8px 2px;border-top:1px solid rgba(255,255,255,.07);margin-top:8px}
+.hub-empty{font-size:12px;color:#8b98ab;padding:10px}
+.hub-main{flex:1;display:flex;flex-direction:column;min-width:0;background:#0b0e13}
+.hub-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.07);flex:0 0 auto}
 .hub-ico{font-size:19px}
-.hub-name{font-size:15px;font-weight:600;line-height:1.3}
-.hub-sub{font-size:11px;color:var(--text2);margin-top:2px}
-.hub-actions{margin-left:auto;display:flex;gap:6px;align-items:center}
-.hub-btn{font-size:12px;padding:5px 12px;border-radius:9px;border:1px solid var(--border);
-  background:var(--card);color:var(--text);cursor:pointer;font-family:inherit}
-.hub-btn:hover{border-color:var(--accent);color:var(--accent)}
+.hub-name{font-size:15.5px;font-weight:650;line-height:1.3;color:#eaf1fa}
+.hub-sub{font-size:11.5px;color:#8b98ab;margin-top:3px}
+.hub-actions{margin-left:auto;display:flex;gap:7px;align-items:center}
+.hub-btn{font-size:12px;padding:6px 13px;border-radius:8px;border:1px solid rgba(255,255,255,.13);
+  background:#151b23;color:#cbd6e4;cursor:pointer;font-family:inherit}
+.hub-btn:hover{border-color:rgba(76,154,255,.5);color:#9ec9ff}
 .hub-x{font-size:15px;padding:3px 10px;line-height:1.2}
-.hub-body{flex:1;overflow:auto;padding:14px 16px}
+.hub-back{font-size:14px;padding:3px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.13);
+  background:#151b23;color:#cbd6e4;cursor:pointer;font-family:inherit;line-height:1.3}
+.hub-back:hover{color:#9ec9ff;border-color:rgba(76,154,255,.5)}
+.hub-body{flex:1;overflow:auto;padding:16px 18px}
+/* DSH 顶部两个胶囊 tab */
+.hub-tabs{display:flex;gap:8px;padding:12px 18px 0;flex:0 0 auto}
+.hub-tab{font-size:12.5px;padding:6px 15px;border-radius:8px;border:1px solid rgba(255,255,255,.1);
+  background:#131920;color:#93a2b8;cursor:pointer;font-family:inherit}
+.hub-tab:hover{color:#dbe6f5}
+.hub-tab.on{background:#1c2530;color:#eaf1fa;border-color:rgba(255,255,255,.18)}
+/* 已安装列表行 */
+.hub-row{display:flex;align-items:center;gap:13px;padding:14px 8px;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer}
+.hub-row:hover{background:rgba(255,255,255,.032)}
+.hub-row:last-child{border-bottom:none}
+.hub-tile{width:42px;height:42px;border-radius:10px;flex:0 0 42px;display:flex;align-items:center;justify-content:center;
+  font-size:19px;background:linear-gradient(150deg,#1a2534,#141a23);border:1px solid rgba(255,255,255,.08)}
+.hub-row .hx{flex:1;min-width:0}
+.hub-row .hx-t{font-size:13.5px;font-weight:600;color:#eaf1fa;display:flex;align-items:center;gap:7px}
+.hub-row .hx-d{font-size:12px;color:#8b98ab;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hub-row .hx-v{font-size:10px;color:#5f6e82;border:1px solid rgba(255,255,255,.1);border-radius:5px;padding:1px 5px;font-weight:400}
+.hub-sec-t{font-size:12px;color:#8b98ab;font-weight:600;padding:14px 2px 6px}
+/* iOS 风格开关 */
+.hub-sw{width:42px;height:23px;border-radius:12px;background:#2a323d;position:relative;cursor:pointer;flex:0 0 42px;transition:.18s}
+.hub-sw i{position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:#8e9aa8;transition:.18s;display:block}
+.hub-sw.on{background:linear-gradient(135deg,#4c9aff,#7b61ff)}
+.hub-sw.on i{left:21px;background:#fff}
+.hub-sw.dis{opacity:.35;pointer-events:none}
+/* 市场 */
+.mk-bar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.mk-search{flex:1;height:36px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:#0e131a;color:#eaf1fa;
+  padding:0 12px;font-size:13px;outline:none;font-family:inherit}
+.mk-search:focus{border-color:rgba(76,154,255,.55);box-shadow:0 0 0 3px rgba(76,154,255,.12)}
+.mk-sort{height:36px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:#0e131a;color:#93a2b8;
+  padding:0 9px;font-size:12px;outline:none;font-family:inherit}
+.mk-chips{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 12px}
+.mk-chip{font-size:12px;padding:5px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.09);
+  background:transparent;color:#93a2b8;cursor:pointer;font-family:inherit}
+.mk-chip:hover{color:#dbe6f5}
+.mk-chip.on{background:#1d2733;color:#9ec9ff;border-color:rgba(76,154,255,.42)}
+.mk-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mk-card{border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:13px 14px;background:#10151c;
+  display:flex;flex-direction:column;gap:9px}
+.mk-card:hover{border-color:rgba(255,255,255,.2)}
+.mk-top{display:flex;gap:11px;align-items:flex-start}
+.mk-name{font-size:13.5px;font-weight:650;color:#eaf1fa;word-break:break-all;line-height:1.4}
+.mk-meta{font-size:11px;color:#7d8b9f;margin-top:3px}
+.mk-desc{font-size:12px;color:#9aa7ba;line-height:1.65;max-height:5em;overflow:hidden}
+.mk-foot{display:flex;align-items:center;gap:7px;margin-top:auto;flex-wrap:wrap}
+.mk-tag{font-size:10.5px;padding:2px 7px;border-radius:6px;border:1px solid rgba(255,255,255,.12);color:#8b98ab}
+.mk-install{margin-left:auto;font-size:12px;padding:6px 15px;border-radius:8px;border:1px solid rgba(255,255,255,.16);
+  background:#1b222c;color:#dfe8f5;cursor:pointer;font-family:inherit;white-space:nowrap}
+.mk-install:hover{background:#222c3a;border-color:rgba(76,154,255,.5);color:#9ec9ff}
+.mk-install.done{background:transparent;color:#3fb950;border-color:rgba(63,185,80,.4);cursor:default}
+.mk-more{text-align:center;margin-top:14px}
+@media (max-width:760px){.mk-grid{grid-template-columns:1fr}}
 .hub-face{font-size:46px;text-align:center;line-height:1.1}
 .hub-mv{text-align:center;font-size:20px;font-weight:600;margin-top:2px}
 .pg-dim{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:12px;color:var(--text2)}
@@ -2479,7 +2542,20 @@ function pgToast(msg){
 }
 
 // ---- 插件中心的壳 ----
-let _hubPid=null,_hubViews={},_hubOpen=false;
+let _hubPid=null,_hubViews={},_hubOpen=false,_hubTab='installed',_HUBLIST=[];
+// 每个插件一句人话说明（DSH 每行都有描述，这里补齐）
+const _hubDesc={
+  feiyu_mood:'每轮聊完判一次心情涨跌，情绪和表情会跟着变。',
+  bili_pond:'按关键词去 B 站淘视频、看字幕、写日报，攒进长期记忆。',
+  bili_whale:'守评论区、听私信，按风控预算回一句，默认很克制。',
+  speak_up:'看你忙不忙，隔一阵主动搭一句话。',
+  soul_md:'长期人设和话题记忆，聊天里自然带上。',
+  deep_think:'需要时多想几步再回，平时不拖慢节奏。',
+  nekowhale_stickers:'表情包库，按情绪和场景自动配图。',
+  live_cast:'把角色直播出去，支持弹幕互动。',
+  qq_chat:'QQ 机器人通道：私聊、群聊、语音条、表情包。',
+  qq_zone:'自动发 QQ 空间说说，可配图。'
+};
 function openPluginHub(pid){
   const m=document.getElementById('pluginHub');
   if(m)m.classList.add('show');
@@ -2491,6 +2567,22 @@ function closePluginHub(){
   if(m)m.classList.remove('show');
   _hubOpen=false;
 }
+function _navBtn(id,ic,nm,extra){
+  const b=document.createElement('button');
+  b.className='hub-item';b.dataset.pid=id;
+  b.innerHTML='<span class="ic">'+ic+'</span><span class="nm">'+pgEsc(nm)+'</span>'
+    +(extra?'<span class="st">'+pgEsc(extra)+'</span>':'');
+  b.onclick=function(){hubShow(id)};
+  return b;
+}
+function _navPlugin(p,extra){
+  const b=document.createElement('button');
+  b.className='hub-item'+(p.ok?'':' off');b.dataset.pid=p.id;
+  b.innerHTML='<span class="ic">'+(p.icon||'🧩')+'</span><span class="nm">'+pgEsc(p.name||p.id)+'</span>'
+    +(extra?'<span class="st">'+pgEsc(extra)+'</span>':'');
+  if(p.ok)b.onclick=function(){hubShow(p.id)};
+  return b;
+}
 async function hubLoad(pid){
   const nav=document.getElementById('hubNav');
   const list=await pgCall('plugin_list');
@@ -2498,59 +2590,227 @@ async function hubLoad(pid){
     if(nav)nav.innerHTML='<div class="hub-empty">读不到插件清单</div>';
     return;
   }
+  _HUBLIST=list;
   const usable=list.filter(function(p){return p.ok&&p.enabled});
+  const off=list.filter(function(p){return p.ok&&!p.enabled});
+  const bad=list.filter(function(p){return !p.ok});
   if(nav){
     nav.innerHTML='';
-    usable.forEach(function(p){
-      const b=document.createElement('button');
-      b.className='hub-item';b.dataset.pid=p.id;
-      b.innerHTML='<span class="ic">'+(p.icon||'🧩')+'</span><span class="nm">'+pgEsc(p.name)+'</span>';
-      b.onclick=function(){hubShow(p.id)};
-      nav.appendChild(b);
-    });
-    const off=list.filter(function(p){return p.ok&&!p.enabled});
-    off.forEach(function(p){
-      const d=document.createElement('div');
-      d.className='hub-item off';
-      d.innerHTML='<span class="ic">'+(p.icon||'🧩')+'</span><span class="nm">'+pgEsc(p.name)+'</span><span class="st">已关</span>';
-      nav.appendChild(d);
-    });
-    if(!usable.length)nav.innerHTML='<div class="hub-empty">没有可用插件</div>';
-    const sw=document.createElement('button');
-    sw.className='hub-item';sw.dataset.pid='__switches';
-    sw.innerHTML='<span class="ic">⚙</span><span class="nm">插件开关</span>';
-    sw.onclick=function(){hubShow('__switches')};
-    nav.appendChild(sw);
+    nav.appendChild(_navBtn('installed','▦','已安装',usable.length?usable.length+' 个':''));
+    nav.appendChild(_navBtn('market','▤','插件市场',''));
+    if(usable.length||off.length||bad.length){
+      const t=document.createElement('div');t.className='hub-sec';t.textContent='已装插件';
+      nav.appendChild(t);
+    }
+    usable.forEach(function(p){nav.appendChild(_navPlugin(p,''))});
+    off.forEach(function(p){nav.appendChild(_navPlugin(p,'已关'))});
+    bad.forEach(function(p){nav.appendChild(_navPlugin(p,'异常'))});
+    if(!usable.length&&!off.length&&!bad.length)nav.innerHTML='<div class="hub-empty">没有可用插件</div>';
   }
   const foot=document.getElementById('hubFoot');
   if(foot)foot.textContent=usable.length+' 个插件在跑 · 数据都在本机';
-  hubShow(pid||(usable[0]&&usable[0].id));
+  hubShow(pid||'installed');
 }
-function hubShow(pid){
-  if(!pid)return;
-  _hubPid=pid;
+function hubShow(x){
+  if(!x)return;
   document.querySelectorAll('#hubNav .hub-item').forEach(function(b){
-    b.classList.toggle('on',b.dataset.pid===pid);
+    b.classList.toggle('on',b.dataset.pid===x);
   });
-  const v=_hubViews[pid];
   const body=document.getElementById('hubBody');
+  const listHead=document.getElementById('hubListHead');
+  const detHead=document.getElementById('hubDetailHead');
+  const tabs=document.getElementById('hubTabs');
+  // ---- 两个列表视图 ----
+  if(x==='installed'||x==='market'){
+    _hubTab=x;_hubPid=null;
+    if(listHead)listHead.style.display='';
+    if(detHead)detHead.style.display='none';
+    if(tabs)tabs.style.display='';
+    document.querySelectorAll('#hubTabs .hub-tab').forEach(function(b){
+      b.classList.toggle('on',b.dataset.tab===x);
+    });
+    const nm=document.getElementById('hubListName'),sb=document.getElementById('hubListSub');
+    if(x==='installed'){
+      if(nm)nm.textContent='插件';
+      if(sb)sb.textContent='安装、启用和配置插件';
+      hubRenderInstalled();
+    }else{
+      if(nm)nm.textContent='插件市场';
+      if(sb)sb.textContent='发现社区为 DeepSeek Harness 开发的插件';
+      hubRenderMarket();
+    }
+    return;
+  }
+  // ---- 插件详情页 ----
+  _hubPid=x;
+  if(listHead)listHead.style.display='none';
+  if(detHead)detHead.style.display='';
+  if(tabs)tabs.style.display='none';
+  const v=_hubViews[x];
   if(!v){
     document.getElementById('hubIco').textContent='🧩';
-    document.getElementById('hubName').textContent=pid;
+    document.getElementById('hubName').textContent=x;
     document.getElementById('hubSub').textContent='这个插件还没做专属页面';
     if(body)body.innerHTML='<div class="pg-card"><div class="pg-note">这个插件暂时没有界面。</div></div>';
     return;
   }
   document.getElementById('hubIco').textContent=v.icon||'🧩';
-  document.getElementById('hubName').textContent=v.name||pid;
+  document.getElementById('hubName').textContent=v.name||x;
   document.getElementById('hubSub').textContent=v.sub||'';
   v.mount(body);
-  if(pid==='bili_pond'){
+  if(x==='bili_pond'){
     try{hubBView('report',document.querySelector('#hubBody .pg-tab'))}catch(e){}
   }
   hubRefresh();
 }
+// ---- 已安装列表 ----
+function _instRow(p){
+  const row=document.createElement('div');
+  row.className='hub-row';
+  const n=(p.apis||[]).length;
+  const d=_hubDesc[p.id]||p.note||(n?n+' 个接口可用':'本地插件');
+  row.innerHTML='<div class="hub-tile">'+(p.icon||'🧩')+'</div>'
+    +'<div class="hx"><div class="hx-t">'+pgEsc(p.name||p.id)
+    +(p.version?'<span class="hx-v">v'+pgEsc(p.version)+'</span>':'')
+    +(p.ok?'':'<span class="hx-v" style="color:#f85149;border-color:rgba(248,81,73,.42)">异常</span>')
+    +'</div><div class="hx-d">'+pgEsc(d)+'</div></div>';
+  const sw=document.createElement('div');
+  sw.className='hub-sw'+(p.enabled?' on':'')+(p.ok?'':' dis');
+  sw.innerHTML='<i></i>';
+  sw.title=p.ok?(p.enabled?'点击关闭':'点击开启'):'加载失败';
+  sw.onclick=function(e){e.stopPropagation();hubSwToggle(p.id,!p.enabled,sw)};
+  row.appendChild(sw);
+  row.onclick=function(){
+    if(!p.ok){pgToast('这个插件加载失败了：'+(p.note||'原因见日志'));return}
+    if(!p.enabled){pgToast('它现在是关着的，打开右侧开关并重启后就能进');return}
+    hubShow(p.id);
+  };
+  return row;
+}
+function hubRenderInstalled(){
+  const body=document.getElementById('hubBody');if(!body)return;
+  const list=_HUBLIST||[];
+  if(!list.length){body.innerHTML='<div class="pg-note">没有读到插件。</div>';return}
+  body.innerHTML='';
+  [['已开启',list.filter(function(p){return p.ok&&p.enabled})],
+   ['已关闭',list.filter(function(p){return p.ok&&!p.enabled})],
+   ['异常',list.filter(function(p){return !p.ok})]
+  ].forEach(function(g){
+    if(!g[1].length)return;
+    const h=document.createElement('div');h.className='hub-sec-t';
+    h.textContent=g[0]+'（'+g[1].length+'）';
+    body.appendChild(h);
+    g[1].forEach(function(p){body.appendChild(_instRow(p))});
+  });
+}
+// ---- 插件市场 ----
+const _mk={q:'',cat:'all',page:0,size:40,sort:'stars',total:0,cats:[],timer:null};
+function _catZh(c){
+  const arr=Array.isArray(c)?c:[c];
+  return arr.filter(Boolean).map(function(x){
+    const f=(_mk.cats||[]).filter(function(k){return k.id===x})[0];
+    return f?(f.zh||x):x;
+  }).join(' / ')||'未分类';
+}
+async function hubRenderMarket(){
+  const body=document.getElementById('hubBody');if(!body)return;
+  body.innerHTML='<div class="mk-bar">'
+    +'<input class="mk-search" id="mkQ" placeholder="搜索插件，例如：通知、终端、记忆…" value="'+pgEsc(_mk.q)+'">'
+    +'<select class="mk-sort" id="mkSort">'
+    +'<option value="stars">按星标</option><option value="downloads">按下载</option><option value="new">最新收录</option>'
+    +'</select></div>'
+    +'<div class="mk-chips" id="mkChips"><button class="mk-chip on" data-c="all">正在读取目录…</button></div>'
+    +'<div class="mk-grid" id="mkGrid"></div>'
+    +'<div class="mk-more" id="mkMore"></div>';
+  const qEl=document.getElementById('mkQ'),sortEl=document.getElementById('mkSort');
+  if(sortEl)sortEl.value=_mk.sort;
+  if(qEl)qEl.oninput=function(){
+    clearTimeout(_mk.timer);
+    _mk.timer=setTimeout(function(){_mk.q=qEl.value.trim();_mk.page=0;mkLoad()},320);
+  };
+  if(sortEl)sortEl.onchange=function(){_mk.sort=sortEl.value;_mk.page=0;mkLoad()};
+  await mkLoadCats();
+  await mkLoad();
+}
+async function mkLoadCats(){
+  const st=await pgCall('market_status');
+  const cats=await pgCall('market_categories');
+  _mk.total=(st&&st.total)||0;
+  _mk.cats=Array.isArray(cats)?cats:[];
+  const box=document.getElementById('mkChips');if(!box)return;
+  let h='<button class="mk-chip'+(_mk.cat==='all'?' on':'')+'" data-c="all">全部'
+    +(_mk.total?' ('+_mk.total+')':'')+'</button>';
+  _mk.cats.forEach(function(c){
+    h+='<button class="mk-chip'+(_mk.cat===c.id?' on':'')+'" data-c="'+pgEsc(c.id)+'">'
+      +pgEsc(c.zh||c.id)+(c.count?' ('+c.count+')':'')+'</button>';
+  });
+  box.innerHTML=h;
+  box.querySelectorAll('.mk-chip').forEach(function(b){
+    b.onclick=function(){_mk.cat=b.dataset.c;_mk.page=0;mkLoadCats();mkLoad()};
+  });
+}
+function _mkCard(p){
+  const c=document.createElement('div');c.className='mk-card';
+  const nm=p.name||p.npm||'未命名';
+  const meta=[p.owner,p.version?('v'+p.version):'',p.stars?('★ '+p.stars):'']
+    .filter(Boolean).join(' · ');
+  c.innerHTML='<div class="mk-top"><div class="hub-tile">🧩</div>'
+    +'<div style="min-width:0"><div class="mk-name">'+pgEsc(nm)+'</div>'
+    +'<div class="mk-meta">'+pgEsc(meta)+'</div></div></div>'
+    +'<div class="mk-desc">'+pgEsc(p.desc||'（这个插件没写描述）')+'</div>'
+    +'<div class="mk-foot"><span class="mk-tag">'+pgEsc(_catZh(p.category))+'</span>'
+    +(p.installed?'<span class="mk-tag" style="color:#3fb950;border-color:rgba(63,185,80,.42)">已安装</span>':'')
+    +'</div>';
+  const btn=document.createElement('button');
+  btn.className='mk-install'+(p.installed?' done':'');
+  btn.textContent=p.installed?'已安装':'安装';
+  if(!p.installed)btn.onclick=function(){mkInstall(p,btn)};
+  c.querySelector('.mk-foot').appendChild(btn);
+  return c;
+}
+async function mkLoad(){
+  const grid=document.getElementById('mkGrid');if(!grid)return;
+  if(_mk.page===0)grid.innerHTML='<div class="pg-note">正在读取插件目录…</div>';
+  const r=await pgCall('market_search',_mk.q,_mk.cat,_mk.page,_mk.size,_mk.sort);
+  if(!r||r.__err||r.ok===false){
+    grid.innerHTML='<div class="pg-note">目录读不到：'
+      +pgEsc((r&&(r.__err||r.error))||'联网失败')+'</div>';
+    return;
+  }
+  const rows=r.rows||[];
+  _mk.total=r.total||0;
+  if(_mk.page===0)grid.innerHTML='';
+  rows.forEach(function(p){grid.appendChild(_mkCard(p))});
+  if(!grid.children.length)grid.innerHTML='<div class="pg-note">没找到匹配的插件。</div>';
+  const more=document.getElementById('mkMore');
+  if(more){
+    const shown=grid.querySelectorAll('.mk-card').length;
+    more.innerHTML=(shown<_mk.total&&shown>0)
+      ? '<button class="hub-btn" onclick="mkMore()">加载更多（'+shown+'/'+_mk.total+'）</button>'
+      : (shown?'<span style="font-size:11px;color:#5f6e82">已显示全部 '+shown+' 个</span>':'');
+  }
+}
+function mkMore(){
+  _mk.page++;
+  mkLoad();
+}
+async function mkInstall(p,btn){
+  const spec=p.npm||p.name;if(!spec)return;
+  const old=btn.textContent;
+  btn.textContent='安装中…';btn.disabled=true;
+  const r=await pgCall('market_install',spec);
+  btn.disabled=false;
+  if(r&&r.ok){
+    btn.textContent='已安装';btn.classList.add('done');
+    p.installed=true;pgToast('已安装 '+spec);
+  }else{
+    btn.textContent=old;
+    pgToast('装不上：'+((r&&(r.error||r.__err))||'未知错误'));
+  }
+}
 function hubRefresh(){
+  if(_hubTab==='installed'){hubLoad('installed');return Promise.resolve()}
+  if(_hubTab==='market'){_mk.page=0;return mkLoad()}
   const v=_hubViews[_hubPid];
   if(!v||!v.refresh)return Promise.resolve();
   return v.refresh().catch(function(e){pgToast('刷新失败：'+(e&&e.message||e))});
@@ -3758,8 +4018,19 @@ _hubViews.__switches={
 };
 async function hubSwToggle(id,on,el){
   const r=await pgCall('plugin_set_enabled',id,on?1:0);
-  if(r&&r.ok)pgToast(r.note||'已保存，重启后生效');
-  else{pgToast('改不了：'+((r&&(r.error||r.__err))||''));if(el)el.checked=!on}
+  if(r&&r.ok){
+    if(el){
+      if(el.classList&&el.classList.contains('hub-sw'))el.classList.toggle('on',!!on);
+      else el.checked=!!on;
+    }
+    const p=(_HUBLIST||[]).filter(function(x){return x.id===id})[0];
+    if(p)p.enabled=!!on;
+    pgToast(r.note||'已保存，重启后生效');
+    if(_hubTab==='installed')hubRenderInstalled();
+  }else{
+    pgToast('改不了：'+((r&&(r.error||r.__err))||''));
+    if(el&&el.checked!==undefined)el.checked=!on;
+  }
 }
 
 // ---- 左侧插件停靠栏（点图标直接进插件中心对应页）----
@@ -3857,21 +4128,37 @@ setTimeout(checkConn,600);
 <div class="modal-mask" id="pluginHub" onclick="if(event.target===this)closePluginHub()">
   <div class="hub">
     <aside class="hub-nav">
-      <div class="hub-nav-title">插件</div>
+      <div class="hub-brand"><span class="hb-logo">🐟</span><span>大肥鱼AI</span><span class="hb-tag">LOCAL</span></div>
+      <div class="hub-sec">插件</div>
       <div class="hub-nav-list" id="hubNav"></div>
       <div class="hub-nav-foot" id="hubFoot">本地运行</div>
     </aside>
     <section class="hub-main">
-      <div class="hub-head">
-        <span class="hub-ico" id="hubIco">🧩</span>
+      <div class="hub-head" id="hubListHead">
         <div>
+          <div class="hub-name" id="hubListName">插件</div>
+          <div class="hub-sub" id="hubListSub">安装、启用和配置插件</div>
+        </div>
+        <div class="hub-actions">
+          <button class="hub-btn" onclick="hubRefresh()">⟳ 刷新</button>
+          <button class="hub-btn hub-x" onclick="closePluginHub()" title="关闭">×</button>
+        </div>
+      </div>
+      <div class="hub-head" id="hubDetailHead" style="display:none">
+        <button class="hub-back" onclick="hubShow('installed')" title="返回">←</button>
+        <span class="hub-ico" id="hubIco">🧩</span>
+        <div style="min-width:0">
           <div class="hub-name" id="hubName">插件</div>
           <div class="hub-sub" id="hubSub"></div>
         </div>
         <div class="hub-actions">
-          <button class="hub-btn" onclick="hubRefresh()">刷新</button>
+          <button class="hub-btn" onclick="hubRefresh()">⟳ 刷新</button>
           <button class="hub-btn hub-x" onclick="closePluginHub()" title="关闭">×</button>
         </div>
+      </div>
+      <div class="hub-tabs" id="hubTabs">
+        <button class="hub-tab on" data-tab="installed" onclick="hubShow('installed')">已安装</button>
+        <button class="hub-tab" data-tab="market" onclick="hubShow('market')">插件市场</button>
       </div>
       <div class="hub-body" id="hubBody"></div>
     </section>
