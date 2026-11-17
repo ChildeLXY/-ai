@@ -15,6 +15,8 @@ import datetime
 import random
 import threading
 
+import sensors_extra
+
 DATA_DIR = os.environ.get("DFY_DATA_DIR") or r"D:\本地部署大肥鱼环境\data"
 CACHE_DIR = os.environ.get("DFY_CACHE_DIR") or r"D:\大肥鱼缓存"
 MOOD_FILE = os.path.join(DATA_DIR, "mood.json")
@@ -37,6 +39,7 @@ SAY = {
     "user_back": ["你回来啦！我一直在等你呢。", "欢迎回来～刚才想死你了。", "（甩尾巴）你终于想起我啦！"],
     "late_night": ["都这么晚了，早点睡嘛，身体要紧。", "夜深了，大肥鱼陪你，但别熬太久。", "快去睡觉，剩下的明天再说啦。"],
     "high_load": ["电脑跑得好卖力，注意别让它太累哦。", "风扇在吼了，我帮你盯着，你也歇口气。"],
+    "high_ping": ["网络有点卡，延迟好高，我先慢慢等。", "网好像不太顺畅，别急。"],
     "lock": ["（锁屏了，我乖乖守着）", "你去忙，我在这儿看家。"],
     "unlock": ["你回来啦，家里一切正常。", "（探头）解锁成功，大肥鱼报告平安！"],
     "offline": ["咦，网络好像断了。", "没网了…我先在本地陪你。"],
@@ -177,8 +180,10 @@ def _default_state():
         "label": "平静",
         "prev": {"away": False, "late": False, "locked": False, "online": True},
         "high_cpu_count": 0,
+        "high_ping_count": 0,
         "desktop_files": [],
         "clip_kind": "",
+        "extras": {},
         "last_fire": {},
         "updated": "",
     }
@@ -195,6 +200,8 @@ def load_state():
             st.setdefault("high_cpu_count", 0)
             st.setdefault("desktop_files", [])
             st.setdefault("clip_kind", "")
+            st.setdefault("extras", {})
+            st.setdefault("high_ping_count", 0)
             return st
     except Exception:
         pass
@@ -301,6 +308,18 @@ def tick():
         # 剪贴板：只记录类型，不读内容、不弹气泡（具体内容需用户同意后由 read_clipboard 取）
         st["clip_kind"] = _clipboard_kind()
 
+        # 扩展传感器：亮度/磁盘/延迟/网速/麦克风/摄像头/NTP校时/播放器
+        extras = sensors_extra.sample_extras(_active_window())
+        st["extras"] = extras
+        # 高延迟：连续 3 次 ping>300ms 才提示（-1 读取失败不计，避免误报）
+        pm = extras.get("pingMs", -1)
+        if pm > 300:
+            st["high_ping_count"] += 1
+            if st["high_ping_count"] == 3:
+                events.append(_fire(st, "high_ping", now_ts))
+        elif pm >= 0:
+            st["high_ping_count"] = 0
+
         # 桌面文件变动：首次只建基线，之后对比新增/删除并触发事件
         snap = _desktop_snapshot()
         old = set(st.get("desktop_files") or [])
@@ -333,4 +352,5 @@ def read_mood():
     st = load_state()
     m = st["mood"]
     return {"label": st["label"], "mood": m, "clip_kind": st.get("clip_kind", ""),
-            "desktop_count": len(st.get("desktop_files", [])), "updated": st.get("updated", "")}
+            "desktop_count": len(st.get("desktop_files", [])),
+            "extras": st.get("extras", {}), "updated": st.get("updated", "")}
