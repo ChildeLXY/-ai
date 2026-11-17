@@ -16,7 +16,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("DFY_DATA_DIR") or r"D:\本地部署大肥鱼环境\data"
 CACHE = r"D:\大肥鱼缓存"
 LOG_PATH = os.path.join(r"D:\大肥鱼缓存", "qqbot.log")
-QQBOT_DIR = r"D:\大肥鱼QQ"
+QQBOT_DIR = os.path.join(BASE, "qqbot_core")
 
 
 def _num(v, default):
@@ -178,7 +178,8 @@ class Bridge:
                 "reply_group_at": True,
                 "reply_group_prefix": ["鱼鱼", "大肥鱼", "肥鱼", "/ai"],
                 "group_whitelist": [],
-                "user_blacklist": [],
+                "user_blacklist": self._read_blacklist(),
+                "blacklist_save": self._save_blacklist,
                 "admin_qq": "",
             },
             # 记忆池：到点写日记、检索条数、日记要不要发空间
@@ -197,6 +198,24 @@ class Bridge:
         except Exception:
             pass
         return cfg
+
+    # -------- 黑名单持久化（settings 里的 qq_blacklist，字符串 QQ 号列表）--------
+    def _read_blacklist(self):
+        try:
+            v = self.get("qq_blacklist")
+            if isinstance(v, list):
+                return [str(x).strip() for x in v if str(x).strip()]
+        except Exception:
+            pass
+        return []
+
+    def _save_blacklist(self, uids):
+        try:
+            lst = sorted({str(x).strip() for x in uids if str(x).strip()})
+            ok = self.set("qq_blacklist", lst) == "ok"
+            return ok, lst
+        except Exception:
+            return False, []
 
     # -------- 生命周期 --------
     def start(self):
