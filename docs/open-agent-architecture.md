@@ -136,7 +136,7 @@ def shutdown(): ...                 # 沿用
 
 - [x] P0 内核（core/：DI 容器 + 事件总线 + 配置 schema，38 项单测全过）
 - [x] P1 插件契约升级与加载器（core/plugin_loader，依赖序/隔离/热插拔，16 项单测全过）
-- [ ] P2 工具插件化
+- [x] P2 DeepBuddy 工具插件化（tool_registry，安全策略独立，23 项单测）
 - [ ] P3 模型 provider
 - [ ] P4 agent 循环
 - [ ] P5 记忆与会话
