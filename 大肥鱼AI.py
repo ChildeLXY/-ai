@@ -2751,20 +2751,40 @@ def plugin_forge_generate(desc, model=None):
 
 
 def _forge_check(pid, code):
-    """id 合法 + 能编译。返回 (ok, 错误说明)。"""
+    """id 合法 + 能编译 + 能在独立子进程里真加载一次。
+
+    最后这步是照 DSH 的 forge 做法搬过来的：插件代码在子进程里 exec_module 一遍，
+    缺 PLUGIN_ID/setup 或者一 import 就炸的，绝不会进主进程、也不会写进 plugins 目录。
+    """
     if not pid or not _PLUGIN_ID_RE.match(pid):
         return False, "PLUGIN_ID 只能用英文小写字母开头 + 小写字母/数字/下划线（2-32 位）"
     import py_compile
     import tempfile
+    import subprocess
     tmp = None
     try:
         fd, tmp = tempfile.mkstemp(suffix=".py", prefix="dfyforge_")
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(code)
         py_compile.compile(tmp, doraise=True, cfile=tmp + "c")
+        probe = (
+            "import importlib.util,sys\n"
+            "spec=importlib.util.spec_from_file_location('dfy_probe',sys.argv[1])\n"
+            "m=importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(m)\n"
+            "assert getattr(m,'PLUGIN_ID',None),'no PLUGIN_ID'\n"
+            "assert getattr(m,'NAME',None),'no NAME'\n"
+            "assert callable(getattr(m,'setup',None)),'no setup'\n"
+            "print('ok')\n"
+        )
+        r = subprocess.run([sys.executable, "-c", probe, tmp],
+                           capture_output=True, text=True, timeout=25)
+        if not (r.returncode == 0 and "ok" in (r.stdout or "")):
+            tail = ((r.stderr or "") + (r.stdout or "")).strip().splitlines()
+            return False, "代码能编译但加载不起来：" + (tail[-1] if tail else "未知错误")
         return True, ""
     except Exception as e:
-        return False, "代码编译不过：%s" % e
+        return False, "代码体检没过：%s" % e
     finally:
         for p in (tmp, (tmp + "c") if tmp else None):
             try:

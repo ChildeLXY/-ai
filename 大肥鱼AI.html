@@ -482,6 +482,41 @@ button.emj-btn:hover{opacity:1;transform:scale(1.08)}
 @keyframes dfspin{to{transform:rotate(360deg)}}
 .df-curtain-t{font-size:14px;color:#9aa0a8}
 @media (max-width:767px){.df-grid{grid-template-columns:200px minmax(0,1fr)}.df-body{padding:0 16px 48px}}
+/* ===== 流畅度 + 苹果式简约（只作用于 DSH 框架，正常模式零影响）=====
+   流畅度：卡片/行做 content-visibility 跳过屏外渲染，去掉重阴影与大范围过渡；
+   审美：SF/苹方字族、负字距、发丝线、克制的圆角与留白。 */
+#dshFrame{
+  font-family:-apple-system,"SF Pro Text","PingFang SC","Helvetica Neue","Microsoft YaHei",sans-serif;
+  font-size:13px;letter-spacing:-.011em;-webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility}
+#dshFrame .df-head .df-title{font-size:22px;line-height:30px;font-weight:600;letter-spacing:-.022em}
+#dshFrame .df-head .df-intro{font-size:13px;line-height:19px;color:#8e8e93;margin-top:3px}
+#dshFrame .df-head{padding:20px 24px 0}
+#dshFrame .df-side{padding:8px 10px}
+#dshFrame .df-brand{font-size:17px;letter-spacing:-.02em}
+#dshFrame .df-sec{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#7c7c81;padding:14px 12px 6px}
+#dshFrame .df-navrow{height:38px;border-radius:10px;font-size:13.5px;transition:background .12s ease-out}
+#dshFrame .df-navrow.on{background:#2d2d2e}
+#dshFrame .df-tab{border-radius:9px;transition:background .12s ease-out,color .12s ease-out}
+#dshFrame .df-body{padding:4px 24px 56px}
+#dshFrame .df-row{min-height:74px;padding:0 14px;border-bottom:1px solid #232324;
+  content-visibility:auto;contain-intrinsic-size:auto 74px}
+#dshFrame .df-tile{width:34px;height:34px;border-radius:9px;background:#232324;border:1px solid #333335}
+#dshFrame .df-sw{width:44px;height:26px;border-radius:26px;background:#3a3a3c;transition:background .18s ease}
+#dshFrame .df-sw::after{width:22px;height:22px;top:2px;left:2px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35);
+  transition:transform .18s cubic-bezier(.32,.72,0,1)}
+#dshFrame .df-sw.on{background:#0a84ff}
+#dshFrame .df-sw.on::after{transform:translateX(18px)}
+#dshFrame .mk-card{content-visibility:auto;contain-intrinsic-size:auto 190px;
+  border-radius:14px;padding:18px 20px;gap:0;transition:border-color .12s ease}
+#dshFrame .mk-grid{gap:14px}
+#dshFrame .mk-install{border-radius:10px;height:32px;padding:0 16px;font-size:13px;
+  transition:background .12s ease}
+#dshFrame .df-return{height:40px;border-radius:10px;letter-spacing:-.01em;
+  background:#f5f5f7;color:#111113}
+#dshFrame .df-return:hover{background:#e8e8ed}
+#dshFrame *{scroll-behavior:auto}
+@media (prefers-reduced-motion:reduce){#dshFrame *{transition:none!important;animation:none!important}}
 /* 顶栏上的模式切换按钮 */
 .dsh-btn{background:var(--card);border:1px solid var(--border);color:var(--text2);border-radius:8px;
   font-size:12.5px;padding:5px 11px;cursor:pointer;font-family:inherit;margin-left:2px}
@@ -1818,7 +1853,7 @@ function applyTheme(){let t=themeMode;if(t==='auto')t=window.matchMedia('(prefer
 var dshMode=false;
 var _dfView='installed';
 var _dfList=[];
-var _dfMk={q:'',cat:'all',page:0,size:40,sort:'stars',total:0,cats:[],timer:null};
+var _dfMk={q:'',cat:'all',page:0,size:24,sort:'stars',total:0,cats:[],timer:null};
 function _dfApi(){return (window.pywebview&&window.pywebview.api)||null}
 function _dfWait(ms){return new Promise(function(r){setTimeout(r,ms)})}
 function toggleDshMode(){if(dshMode)dshExit();else dshEnter(false)}
@@ -1872,13 +1907,17 @@ function dshGo(v){
   var tabs=document.getElementById('dfTabs');
   if(tabs)tabs.style.display=(v==='forge')?'none':'flex';
   var title=document.getElementById('dfTitle'),intro=document.getElementById('dfIntro');
-  if(v==='installed'){if(title)title.textContent='插件';if(intro)intro.textContent='安装、启用和配置插件';_dfLoadInstalled()}
+  if(v==='installed'){if(title)title.textContent='插件';if(intro)intro.textContent='安装、启用和配置插件';_dfEnsureList()}
   else if(v==='market'){if(title)title.textContent='插件市场';if(intro)intro.textContent='从官方目录发现插件';_dfRenderMarket()}
   else if(v==='forge'){if(title)title.textContent='写插件';if(intro)intro.textContent='让大肥鱼按契约生成一个新插件';forgeOpen()}
 }
 function dshRefresh(){
   if(_dfView==='installed')_dfLoadInstalled();
   else if(_dfView==='market')_dfRenderMarket();
+}
+function _dfEnsureList(){
+  // 有缓存就直接渲染，不再往 Python 跑一趟（切 tab 来回点也不卡）
+  if(_dfList&&_dfList.length)_dfRenderInstalled();else _dfLoadInstalled();
 }
 async function _dfLoadInstalled(){
   var api=_dfApi();
@@ -1954,7 +1993,9 @@ async function _dfMkLoad(){
     _dfMk.total=r.total||0;
     if(_dfMk.page===0)grid.innerHTML='';
     if(!rows.length){grid.innerHTML='<div class="df-foot-note" style="padding:20px">没找到匹配的插件。</div>';return}
-    rows.forEach(function(p){grid.appendChild(_dfMkCard(p))});
+    var frag=document.createDocumentFragment();   // 一次性插进去，避免 24 次布局抖动
+    rows.forEach(function(p){frag.appendChild(_dfMkCard(p))});
+    grid.appendChild(frag);
     var more=document.getElementById('dfMkMore');
     if(more){
       var shown=Math.min((_dfMk.page+1)*_dfMk.size,_dfMk.total);
