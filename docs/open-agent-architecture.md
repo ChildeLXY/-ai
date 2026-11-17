@@ -139,7 +139,7 @@ def shutdown(): ...                 # 沿用
 - [x] P2 DeepBuddy 工具插件化（tool_registry，安全策略独立，23 项单测）
 - [x] P3 模型 provider 统一层（model_providers，Ollama/OpenAI 统一，重试/限流/计量/故障转移，16 项单测）
 - [x] P4 agent 循环（agent_loop，act/plan/ask 模式 + 专家 + 计划，可中断可观测，17 项单测）
-- [ ] P5 记忆与会话
+- [x] P5 记忆与会话（core/memory，快照/回滚/压缩/词法检索，19 项单测）
 - [x] P6 MCP client + server（core/mcp，JSON-RPC stdio 双向，16 项单测含端到端）
 - [ ] P7 多代理
 - [ ] P8 开放 API 与市场
