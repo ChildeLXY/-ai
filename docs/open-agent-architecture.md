@@ -140,7 +140,7 @@ def shutdown(): ...                 # 沿用
 - [ ] P3 模型 provider
 - [ ] P4 agent 循环
 - [ ] P5 记忆与会话
-- [ ] P6 MCP
+- [x] P6 MCP client + server（core/mcp，JSON-RPC stdio 双向，16 项单测含端到端）
 - [ ] P7 多代理
 - [ ] P8 开放 API 与市场
 - [ ] P9 接入与前端
