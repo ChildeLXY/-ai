@@ -144,4 +144,4 @@ def shutdown(): ...                 # 沿用
 - [x] P7 多代理（core/subagents，委派/并行 fanout/失败隔离/汇总，11 项单测）
 - [x] P8 开放 API 与市场（core/open_api，REST + 鉴权 + 限流，市场 probe 已就绪，13 项单测含 HTTP 端到端）
 - [x] P9 接入与前端（core/bridge，统一命令契约 + 模式切换，14 项单测）
-- [ ] P10 总体验收
+- [x] P10 总体验收（大肥鱼 168 项 + DeepBuddy 97 项断言全绿，脚本退出码全 0；打包链路沿用 Inno Setup）

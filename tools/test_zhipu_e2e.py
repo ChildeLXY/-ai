@@ -55,6 +55,12 @@ def post(path, body, timeout=180):
 print("=" * 66)
 print("1. 代理健康状态与模型清单")
 print("=" * 66)
+# 前置：云端代理必须在运行，否则整体跳过（环境依赖，非产品失败）
+try:
+    get("/_health", timeout=5)
+except Exception as e:
+    print("SKIP：云端代理 %s 未运行（%r），端到端测试跳过。" % (PROXY, e))
+    sys.exit(0)
 h = get("/_health")
 check("health mode=cloud", h.get("mode") == "cloud", h.get("mode"))
 models = h.get("models") or []

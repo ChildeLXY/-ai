@@ -12,7 +12,8 @@ def grab(name):
 wanted = ["_is_dangerous", "_is_credential_path", "tool_start_process",
           "tool_poll_process", "tool_stop_process", "_bg_read",
           "tool_run_shell", "tool_read_file", "tool_write_file", "tool_append_file",
-          "_abs", "_system_context", "_ask_confirm", "_emit", "_new_task"]
+          "_abs", "_system_context", "_ask_confirm", "_emit", "_new_task",
+          "_bare_start", "_wait_confirm"]
 consts = ["import os", "import re", "import sys", "import json", "import time",
           "import uuid", "import shutil", "import threading",
           "DANGER_PATTERNS", "CREDENTIAL_NAME_PATTERNS", "BG_DIR", "_BG_PROCS",
