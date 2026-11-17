@@ -138,7 +138,7 @@ def shutdown(): ...                 # 沿用
 - [x] P1 插件契约升级与加载器（core/plugin_loader，依赖序/隔离/热插拔，16 项单测全过）
 - [x] P2 DeepBuddy 工具插件化（tool_registry，安全策略独立，23 项单测）
 - [x] P3 模型 provider 统一层（model_providers，Ollama/OpenAI 统一，重试/限流/计量/故障转移，16 项单测）
-- [ ] P4 agent 循环
+- [x] P4 agent 循环（agent_loop，act/plan/ask 模式 + 专家 + 计划，可中断可观测，17 项单测）
 - [ ] P5 记忆与会话
 - [x] P6 MCP client + server（core/mcp，JSON-RPC stdio 双向，16 项单测含端到端）
 - [ ] P7 多代理
