@@ -75,6 +75,21 @@ def _find_npm():
     return ["npm"]
 
 
+# 探测宿主用的 node（不走 npm，直接跑 host.mjs）
+HOST_ENTRY_MJS = os.path.join(HOST_DIR, "host.mjs")
+_NODE_EXE_CANDIDATES = [
+    r"E:\DSH-home\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe",
+    r"D:\nodejs\node.exe",
+]
+
+
+def _find_node():
+    for p in _NODE_EXE_CANDIDATES:
+        if os.path.isfile(p):
+            return p
+    return shutil.which("node") or "node"
+
+
 CATALOG_FILE = os.path.join(CACHE_DIR, "catalog.json")
 META_FILE = os.path.join(CACHE_DIR, "meta.json")
 PID_FILE = os.path.join(CACHE_DIR, "ui.pid")
@@ -673,6 +688,64 @@ def _stage_pkgjson():
     return p
 
 
+def _remove_stage_pkg(name):
+    """探测失败时把这次装进 stage 的包清掉，避免残留被下次安装带回来。"""
+    p = os.path.join(STAGE_DIR, "node_modules", *name.split("/"))
+    if os.path.isdir(p):
+        shutil.rmtree(p, ignore_errors=True)
+    sp = os.path.join(STAGE_DIR, "package.json")
+    d = _read_json(sp, {}) or {}
+    deps = dict(d.get("dependencies") or {})
+    if deps.pop(name, None) is not None:
+        d["dependencies"] = deps
+        _write_json(sp, d)
+
+
+def probe_plugin(main_name):
+    """在独立临时宿主里把插件真加载一次，不碰真实 profile。
+
+    这是市场安装前的自测：以前装完不检查，要等重启真实宿主才发现
+    （比如 dsh-ops 的 inject 依赖）。现在让一个临时 host 只加载它，
+    结果写进 JSON 文件，进程退出后读回来判定。
+    """
+    import tempfile
+    import subprocess as _sp
+    if not main_name:
+        return {"ok": False, "error": "没有插件名，无法探测"}
+    fd, result_path = tempfile.mkstemp(suffix=".json", prefix="dfyprobe_", dir=CACHE_DIR)
+    os.close(fd)
+    env = dict(os.environ)
+    env.update({
+        "DFY_PROBE": "1",
+        "DFY_PROBE_PLUGIN": main_name,
+        "DFY_PROBE_ROOT": os.path.join(STAGE_DIR, "node_modules"),
+        "DFY_PROBE_RESULT": result_path,
+    })
+    try:
+        r = _sp.run([_find_node(), HOST_ENTRY_MJS], env=env,
+                    capture_output=True, text=True, timeout=60,
+                    cwd=HOST_DIR, encoding="utf-8", errors="replace")
+    except Exception as e:
+        try:
+            os.remove(result_path)
+        except Exception:
+            pass
+        return {"ok": False, "error": "探测进程没跑起来：%s" % e}
+    d = _read_json(result_path, None)
+    try:
+        os.remove(result_path)
+    except Exception:
+        pass
+    if not isinstance(d, dict):
+        tail = ((r.stderr or "") + (r.stdout or "")).strip().splitlines()
+        return {"ok": False, "error": "探测没有返回结果（退出码 %d）：%s"
+                % (r.returncode, tail[-1] if tail else "未知")}
+    if not d.get("ok"):
+        return {"ok": False, "incompatible": True,
+                "error": (d.get("error") or "插件加载失败").splitlines()[0][:200]}
+    return {"ok": True, "main": d.get("main") or ""}
+
+
 def install(spec, name_hint=""):
     """装一个插件，落点与 DSH 相同。联网下载，不允许离线。"""
     spec = _guarded_spec(spec)
@@ -724,6 +797,19 @@ def install(spec, name_hint=""):
 
     meta = _read_json(os.path.join(stage_modules, *main_name.split("/"), "package.json"), {}) or {}
     version = meta.get("version") or ""
+
+    # 安装前自测：临时宿主只加载这一个，过了才允许进真实 profile。
+    # 不通过就清理 stage 并中止，真实名单和真实 profile 一个字都不会写。
+    probe = probe_plugin(main_name)
+    if not probe.get("ok"):
+        try:
+            _remove_stage_pkg(main_name)
+        except Exception:
+            pass
+        log("安装被自测拦下 %s：%s" % (main_name, probe.get("error")), "WARN")
+        return {"ok": False, "incompatible": bool(probe.get("incompatible")),
+                "name": main_name, "spec": spec,
+                "error": "插件没通过加载自测：" + probe.get("error", "")}
 
     link_names = added | {main_name}
     linked, skipped, failed = _link_into_profile(stage_modules, link_names)

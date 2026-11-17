@@ -71,6 +71,12 @@ _打不开就双击我.bat
 downloads/*.apk
 downloads/petpack/
 
-# ---------- 8. 本地便携依赖库与 DSH 宿主运行时（含 node_modules，体积大，不进仓库）----------
+# ---------- 8. 本地便携依赖库与 DSH 宿主运行时（大目录/日志/运行时状态不进仓库，源码保留）----------
 /.tools/
-/dsh_host/
+/dsh_host/node_modules/
+/dsh_host/pkgstage/
+/dsh_host/plugins/
+/dsh_host/host-plugins.json
+/dsh_host/*.log
+/dsh_host/*.out
+/dsh_host/*.bak
