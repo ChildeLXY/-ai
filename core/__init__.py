@@ -23,9 +23,11 @@
 from .container import Container, ServiceError
 from .events import EventBus
 from .config import ConfigSchema, ConfigError, field
+from .plugin_loader import PluginLoader, Isolation, PluginLoadError
 
 __all__ = ["Kernel", "Container", "EventBus",
-           "ConfigSchema", "ServiceError", "ConfigError", "field"]
+           "ConfigSchema", "ServiceError", "ConfigError", "field",
+           "PluginLoader", "Isolation", "PluginLoadError"]
 __version__ = "1.0.0"
 
 

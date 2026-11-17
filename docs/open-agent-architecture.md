@@ -135,7 +135,7 @@ def shutdown(): ...                 # 沿用
 ## 九、当前状态
 
 - [x] P0 内核（core/：DI 容器 + 事件总线 + 配置 schema，38 项单测全过）
-- [ ] P1 插件契约与加载器
+- [x] P1 插件契约升级与加载器（core/plugin_loader，依赖序/隔离/热插拔，16 项单测全过）
 - [ ] P2 工具插件化
 - [ ] P3 模型 provider
 - [ ] P4 agent 循环
