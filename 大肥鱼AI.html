@@ -367,6 +367,106 @@ button.emj-btn:hover{opacity:1;transform:scale(1.08)}
 .mk-install.done{background:transparent;color:#3fb950;border-color:rgba(63,185,80,.4);cursor:default}
 .mk-more{text-align:center;margin-top:14px}
 @media (max-width:760px){.mk-grid{grid-template-columns:1fr}}
+/* ===== 配色按 DSH 截图取真实像素（中性深灰，无蓝调） ===== */
+.hub{background:#151517;color:#e7e8ea;border-color:#2b2b2d;
+  --bg:#151517;--card:#232324;--border:#2b2b2d;--text:#e7e8ea;--text2:#9aa0a8;
+  --hover:#232324;--accent:#4d6bfe;--accent-light:rgba(77,107,254,.14)}
+.hub-nav{background:#151517;border-right:1px solid #232324}
+.hub-brand{color:#f2f2f3}
+.hub-brand .hb-tag{color:#c9cdd4;border-color:#3a3a3c;background:#232324}
+.hub-sec{color:#6b6f76}
+.hub-item{color:#c9cdd4}
+.hub-item:hover{background:#232324;color:#fff}
+.hub-item.on{background:#2d2d2e;color:#fff}
+.hub-item .st{color:#6b6f76}
+.hub-nav-foot{color:#6b6f76;border-top:1px solid #232324}
+.hub-main{background:#151517}
+.hub-head{background:#1b1b1c;border-bottom:1px solid #232324}
+.hub-name{color:#f2f2f3;font-size:17px;font-weight:600;letter-spacing:-.1px}
+.hub-sub{color:#9aa0a8;font-size:12.5px}
+.hub-btn{background:#232324;border-color:#333335;color:#c9cdd4;border-radius:8px}
+.hub-btn:hover{background:#2b2b2d;border-color:#3d3d40;color:#fff}
+.hub-back{background:#232324;border-color:#333335;color:#c9cdd4}
+.hub-tab{background:transparent;border-color:#2b2b2d;color:#9aa0a8;border-radius:8px;padding:7px 16px}
+.hub-tab.on{background:#353638;border-color:#3d3d40;color:#fff;font-weight:600}
+.hub-tile{background:#232324;border-color:#333335;border-radius:10px}
+.hub-row{border-bottom:1px solid #232324}
+.hub-row:hover{background:#1b1b1c}
+.hub-row .hx-t{color:#f2f2f3;font-size:14px}
+.hub-row .hx-d{color:#9aa0a8;font-size:12.5px}
+.hub-row .hx-v{color:#8b9099;border-color:#353638;background:#232324}
+.hub-sec-t{color:#8b9099;font-size:12.5px}
+.hub-sw{background:#353638}
+.hub-sw.on{background:#4d6bfe}
+.mk-search,.mk-sort{background:#232324;border-color:#333335;color:#f2f2f3}
+.mk-chip{border-color:#2b2b2d;color:#9aa0a8}
+.mk-chip.on{background:#353638;border-color:#3d3d40;color:#fff}
+.mk-card{background:#2c2c2e;border-color:#353638;border-radius:12px}
+.mk-card:hover{border-color:#454548}
+.mk-name{color:#f2f2f3}
+.mk-meta{color:#8b9099}
+.mk-desc{color:#a8adb5}
+.mk-tag{color:#8b9099;border-color:#3d3d40}
+.mk-install{background:#f9fafb;color:#151517;border-color:#f9fafb;font-weight:600}
+.mk-install:hover{background:#e7e8ea;border-color:#e7e8ea;color:#151517}
+.mk-install.done{background:transparent;color:#4ade80;border-color:rgba(74,222,128,.4)}
+/* ===== DSH 模式：整站换成 DSH 的中性深灰壳子 ===== */
+html[data-dsh="1"]{
+  --bg:#151517;--card:#1b1b1c;--border:#2b2b2d;--text:#e7e8ea;--text2:#9aa0a8;
+  --hover:#232324;--accent:#4d6bfe;--accent-light:rgba(77,107,254,.14);
+  --sidebar-bg:#151517;--header-bg:#1b1b1c;
+}
+html[data-dsh="1"] body{background:#151517;color:#e7e8ea;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+  font-size:13px}
+html[data-dsh="1"] .header{background:#1b1b1c;border-bottom:1px solid #232324;height:46px}
+html[data-dsh="1"] .header h1{font-size:13.5px;font-weight:600;color:#f2f2f3;letter-spacing:0}
+html[data-dsh="1"] .header .badge,
+html[data-dsh="1"] .header .badge i{color:#6b6f76}
+html[data-dsh="1"] .hbtn{background:#232324;border:1px solid #333335;border-radius:8px;color:#c9cdd4;
+  font-size:12.5px;padding:5px 11px}
+html[data-dsh="1"] .hbtn:hover{background:#2b2b2d;color:#fff}
+html[data-dsh="1"] .icon-btn{background:transparent;border-radius:8px;color:#9aa0a8}
+html[data-dsh="1"] .icon-btn:hover{background:#232324;color:#fff}
+html[data-dsh="1"] .sidebar{background:#151517;border-right:1px solid #232324;width:248px;flex-basis:248px}
+html[data-dsh="1"] .side-title{color:#6b6f76;font-size:11px;font-weight:600;letter-spacing:.2px}
+html[data-dsh="1"] .new-chat,
+html[data-dsh="1"] .side-btn{background:#232324;border:1px solid #333335;border-radius:8px;color:#c9cdd4}
+html[data-dsh="1"] .new-chat:hover,
+html[data-dsh="1"] .side-btn:hover{background:#2b2b2d;color:#fff}
+html[data-dsh="1"] .chat-item{border-radius:8px}
+html[data-dsh="1"] .chat-item.active{background:#2d2d2e;color:#fff}
+html[data-dsh="1"] .chat-item:hover{background:#232324}
+html[data-dsh="1"] .abubble{background:#232324;border:1px solid #2b2b2d;border-radius:12px;color:#e7e8ea}
+html[data-dsh="1"] .ububble{background:#2f3137;color:#f2f2f3;border-radius:12px}
+html[data-dsh="1"] .input-wrap{background:#1b1b1c;border:1px solid #333335;border-radius:12px}
+html[data-dsh="1"] #input{background:transparent;color:#e7e8ea}
+html[data-dsh="1"] .send-btn{border-radius:8px}
+html[data-dsh="1"] .msgs{background:#151517}
+html[data-dsh="1"] ::-webkit-scrollbar{width:10px}
+html[data-dsh="1"] ::-webkit-scrollbar-thumb{background:#333335;border-radius:8px}
+html[data-dsh="1"] ::-webkit-scrollbar-track{background:transparent}
+/* 顶栏上的模式切换按钮 */
+.dsh-btn{background:var(--card);border:1px solid var(--border);color:var(--text2);border-radius:8px;
+  font-size:12.5px;padding:5px 11px;cursor:pointer;font-family:inherit;margin-left:2px}
+.dsh-btn:hover{color:var(--text);border-color:var(--accent)}
+.dsh-btn.on{background:#4d6bfe;border-color:#4d6bfe;color:#fff;font-weight:600}
+/* ===== 写插件面板 ===== */
+.forge-win{width:min(880px,92vw);max-height:88vh;display:flex;flex-direction:column;
+  background:#1b1b1c;border:1px solid #2b2b2d;border-radius:16px;overflow:hidden;
+  box-shadow:0 24px 70px rgba(0,0,0,.55);color:#e7e8ea}
+.forge-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:16px 18px;border-bottom:1px solid #232324;background:#1b1b1c}
+.forge-body{padding:16px 18px 18px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.forge-ta{width:100%;min-height:96px;resize:vertical;background:#232324;border:1px solid #333335;
+  border-radius:10px;color:#f2f2f3;font-family:inherit;font-size:13px;line-height:20px;padding:10px 12px;outline:none}
+.forge-ta:focus{border-color:#4d6bfe}
+.forge-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.forge-tip{color:#8b9099;font-size:12.5px}
+.forge-code{flex:1;min-height:180px;max-height:46vh;overflow:auto;margin:0;padding:12px 14px;
+  background:#151517;border:1px solid #2b2b2d;border-radius:10px;color:#cfd3d9;
+  font-family:'SF Mono',Consolas,'Microsoft YaHei',monospace;font-size:12.5px;line-height:19px;white-space:pre-wrap}
+@media (max-width:760px){.forge-win{width:96vw}}
 .hub-face{font-size:46px;text-align:center;line-height:1.1}
 .hub-mv{text-align:center;font-size:20px;font-weight:600;margin-top:2px}
 .pg-dim{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:12px;color:var(--text2)}
@@ -484,6 +584,7 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
     <button id="searchBtn" class="hbtn" onclick="toggleSearch()">离线</button>
     <button id="kbBtn" class="hbtn" onclick="toggleKb()">知识库</button>
     <button id="wbBtn" class="hbtn" onclick="toggleWb()">工作模式</button>
+    <button id="dshBtn" class="dsh-btn" onclick="toggleDshMode()" title="切换到 DeepSeek Harness 同款外观">DSH 模式</button>
     <button id="updBtn" class="hbtn" onclick="checkUpdate(true)" title="检查 Gitee 上有没有新版本">⟳</button>
     <button id="dtBtn" class="hbtn" onclick="toggleDeepThink()" title="开：认真拆问题、逐条核对；关：人格优先、不啰嗦分析">深度思考</button>
     <div class="spacer"></div>
@@ -1665,6 +1766,20 @@ function toggleBtn(){document.getElementById('stopBtn').style.display=busy?'':'n
 function stopGen(){if(abortCtrl)abortCtrl.abort()}
 let themeMode='auto';
 function applyTheme(){let t=themeMode;if(t==='auto')t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.body.dataset.theme=t}
+// ---- DSH 模式：整站切到 DeepSeek Harness 的中性深灰外观 ----
+var dshMode=false;
+function applyDshMode(on){
+  dshMode=!!on;
+  var el=document.documentElement;
+  if(on)el.setAttribute('data-dsh','1');else el.removeAttribute('data-dsh');
+  var b=document.getElementById('dshBtn');
+  if(b)b.classList.toggle('on',!!on);
+}
+function toggleDshMode(){
+  applyDshMode(!dshMode);
+  try{if(window.pywebview&&window.pywebview.api)window.pywebview.api.save_setting('dshMode',dshMode?'1':'0')}catch(e){}
+  if(typeof pgToast==='function')pgToast(dshMode?'已切到 DSH 模式':'已切回原外观');
+}
 function setThemeMode(m){themeMode=m;applyTheme();document.querySelectorAll('#themeGroup .opt').forEach(b=>b.classList.toggle('active',b.dataset.themeMode===m));try{if(window.pywebview&&window.pywebview.api)window.pywebview.api.save_setting('themeMode',m)}catch(e){}}
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(themeMode==='auto')applyTheme()});
 function render(){
@@ -2686,6 +2801,55 @@ function _instRow(p){
     hubShow(p.id);
   };
   return row;
+}
+// ---- 让大肥鱼自己写插件 ----
+var _forgeCode='';
+function _forgeApi(){return (window.pywebview&&window.pywebview.api)||null}
+function _forgeTip(s){var e=document.getElementById('forgeTip');if(e)e.textContent=s}
+function forgeOpen(){var b=document.getElementById('forgeBox');if(b)b.style.display='flex';
+  var t=document.getElementById('forgeDesc');if(t&&!t.value)try{t.focus()}catch(e){}}
+function forgeClose(){var b=document.getElementById('forgeBox');if(b)b.style.display='none'}
+async function forgeGen(){
+  var api=_forgeApi();if(!api){_forgeTip('接口还没就绪');return}
+  var d=document.getElementById('forgeDesc').value.trim();
+  if(!d){_forgeTip('先写一句你要什么插件');return}
+  var btn=document.getElementById('forgeGenBtn');if(btn)btn.disabled=true;
+  _forgeCode='';
+  _forgeTip('大肥鱼在写…（本地模型跑一遍可能要几十秒）');
+  document.getElementById('forgeCode').textContent='（生成中…）';
+  try{
+    var r=await api.plugin_forge_generate(d);
+    if(!r||!r.ok){
+      _forgeTip((r&&r.error)||'生成失败');
+      document.getElementById('forgeCode').textContent=(r&&(r.code||r.raw))||'（这次没写出能编译的代码）';
+      return;
+    }
+    _forgeCode=r.code;
+    document.getElementById('forgeCode').textContent=r.code;
+    _forgeTip('写好了：'+(r.name||r.id)+'（id: '+r.id+'），先看一眼再保存');
+    var sb=document.getElementById('forgeSaveBtn');if(sb)sb.disabled=false;
+  }catch(e){_forgeTip('出错：'+e)}
+  finally{if(btn)btn.disabled=false}
+}
+async function forgeSave(){
+  var api=_forgeApi();if(!api)return;
+  if(!_forgeCode){_forgeTip('还没有代码');return}
+  var sb=document.getElementById('forgeSaveBtn');if(sb)sb.disabled=true;
+  _forgeTip('落盘中…');
+  try{
+    var r=await api.plugin_forge_save(_forgeCode);
+    if(!r||!r.ok){_forgeTip((r&&r.error)||'保存失败');if(sb)sb.disabled=false;return}
+    _forgeTip((r.note||'已保存')+'（'+r.id+'）');
+    if(typeof hubLoad==='function')hubLoad();
+  }catch(e){_forgeTip('出错：'+e);if(sb)sb.disabled=false}
+}
+async function forgeContract(){
+  var api=_forgeApi();if(!api)return;
+  try{
+    var r=await api.plugin_forge_prompt();
+    document.getElementById('forgeCode').textContent=(r&&r.contract)||'';
+    _forgeTip('这是它写插件必须遵守的规矩');
+  }catch(e){_forgeTip('出错：'+e)}
 }
 function hubRenderInstalled(){
   const body=document.getElementById('hubBody');if(!body)return;
@@ -4071,7 +4235,8 @@ async function boot(){
   try{
     const eng=await window.pywebview.api.load_setting('searchEngine');searchEngine=eng||'duckduckgo';{const es=document.getElementById('engineSel');if(es)es.value=searchEngine}
     const av=await window.pywebview.api.load_setting('aiAvatar');if(av){setAiAvatar(av)}
-    const tm=await window.pywebview.api.load_setting('themeMode');if(tm){setThemeMode(tm)}else{setThemeMode('auto')};const ws=await window.pywebview.api.load_setting('webSearchOn');webSearchOn=(ws==='1');setSearchState('auto');
+    const tm=await window.pywebview.api.load_setting('themeMode');if(tm){setThemeMode(tm)}else{setThemeMode('auto')};
+    try{const dm=await window.pywebview.api.load_setting('dshMode');applyDshMode(dm==='1')}catch(e){}const ws=await window.pywebview.api.load_setting('webSearchOn');webSearchOn=(ws==='1');setSearchState('auto');
     const mi=await window.pywebview.api.load_setting('mutterMin');const miEl=document.getElementById('mutterMin');if(miEl)miEl.value=mi||'20';
     const nn=await window.pywebview.api.load_setting('ai_name');const nnEl=document.getElementById('aiNameInput');if(nnEl)nnEl.value=nn||'';
     // 恢复上次选的模型。注意只在"这个 id 还在当前清单里"时才认——
@@ -4140,6 +4305,7 @@ setTimeout(checkConn,600);
           <div class="hub-sub" id="hubListSub">安装、启用和配置插件</div>
         </div>
         <div class="hub-actions">
+          <button class="hub-btn" onclick="forgeOpen()">＋ 写插件</button>
           <button class="hub-btn" onclick="hubRefresh()">⟳ 刷新</button>
           <button class="hub-btn hub-x" onclick="closePluginHub()" title="关闭">×</button>
         </div>
@@ -4162,6 +4328,29 @@ setTimeout(checkConn,600);
       </div>
       <div class="hub-body" id="hubBody"></div>
     </section>
+  </div>
+</div>
+
+<!-- 让大肥鱼自己写插件 -->
+<div id="forgeBox" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.55);align-items:center;justify-content:center" onclick="if(event.target===this)forgeClose()">
+  <div class="forge-win">
+    <div class="forge-head">
+      <div>
+        <div class="hub-name">让大肥鱼写一个插件</div>
+        <div class="hub-sub">它按项目插件契约生成单文件插件，编译通过才落盘</div>
+      </div>
+      <button class="hub-btn hub-x" onclick="forgeClose()">×</button>
+    </div>
+    <div class="forge-body">
+      <textarea id="forgeDesc" class="forge-ta" placeholder="想要什么插件？例如：每半小时提醒我喝水，太频繁就闭嘴；或者：监控我剪贴板里的链接，自动存到知识库"></textarea>
+      <div class="forge-row">
+        <button class="mk-install" id="forgeGenBtn" onclick="forgeGen()">生成代码</button>
+        <button class="hub-btn" id="forgeSaveBtn" onclick="forgeSave()" disabled>保存并启用</button>
+        <button class="hub-btn" onclick="forgeContract()" title="看看它要遵守什么规矩">查看契约</button>
+        <span class="forge-tip" id="forgeTip">先描述，再生成</span>
+      </div>
+      <pre class="forge-code" id="forgeCode">（还没生成）</pre>
+    </div>
   </div>
 </div>
 

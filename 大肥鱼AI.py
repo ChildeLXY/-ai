@@ -2644,6 +2644,194 @@ def plugin_set_enabled(pid, on):
     return {"ok": True, "id": pid, "enabled": want, "restart": True,
             "note": "已%s，重启大肥鱼后生效" % ("开启" if want else "关闭")}
 
+# ===== 自己给自己写插件 =====
+# 模型按插件契约生成一个 plugins/<id>.py，先 py_compile 验一遍再落盘，
+# 落盘即写 plugins.json 打开开关；插件线程在重启后才真正起（同 plugin_set_enabled 的取舍）。
+_PLUGIN_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins")
+_PLUGIN_ID_RE = re.compile(r"^[a-z][a-z0-9_]{1,31}$")
+
+_PLUGIN_CONTRACT = """你在大肥鱼AI里写一个插件。大肥鱼的插件就是 plugins 目录下一个 .py 文件，契约如下：
+
+文件头必须有这四个模块级常量：
+PLUGIN_ID = "英文小写下划线 id"
+NAME = "中文名字"
+ICON = "一个 emoji"
+VERSION = "1.0.0"
+
+必须提供 setup(ctx)：模块被加载时调用一次，里面挂线程必须用 daemon=True，别阻塞主线程。
+可选提供 apis()：返回 {函数名: 函数}，这些函数会直接挂到前端 window.pywebview.api 上，前端可以 await 调用，参数和返回值都要能 JSON 序列化。
+可选提供 shutdown()：停插件时清理。
+可选提供 on_event(event, data)：接收主程序广播的事件。
+
+ctx 能用的东西：
+ctx.plugin_data(PLUGIN_ID, "data.json")  → 该插件专属数据文件路径（在 data/plugins/<id>/ 下，别写别的地方）
+ctx.log(msg)                            → 写日志到缓存目录 _plugins.log
+ctx.chat(text)                          → 让大肥鱼本体回一句话（会带上人格和记忆）
+ctx.ollama_chat(messages, model=None)   → 直接调本地模型，返回文本
+ctx.get_model()                         → 当前模型名
+
+硬约束：
+1. 只用一个文件，不要新增依赖包；只能用 Python 标准库 + 项目里已有的 requests/urllib。
+2. 禁止访问 C 盘任何路径、禁止写注册表、禁止弹窗、禁止 subprocess 起 GUI。
+3. 所有网络请求必须 try/except 兜住，异常只 log 不抛。
+4. 不要 import 大肥鱼主程序的模块，只能通过 ctx 拿能力。
+5. 只输出一个 ```python 代码块，不要解释。"""
+
+
+def _plugin_dir():
+    d = _PLUGIN_DIR
+    if not os.path.isdir(d):
+        try:
+            alt = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "plugins")
+            if os.path.isdir(alt):
+                return alt
+        except Exception:
+            pass
+    return d
+
+
+def _strip_code_fence(text):
+    """模型爱在代码外面包 ```，剥掉围栏并截到第一个 PLUGIN_ID 开始。"""
+    t = text or ""
+    if "```" in t:
+        parts = t.split("```")
+        # 取最长的那个围栏块
+        blocks = [p for p in parts if "PLUGIN_ID" in p]
+        if blocks:
+            t = max(blocks, key=len)
+        else:
+            t = parts[1] if len(parts) > 1 else t
+    if t.lower().startswith("python"):
+        t = t[6:]
+    idx = t.find("PLUGIN_ID")
+    if idx > 0:
+        t = t[idx:]
+    return t.strip() + "\n"
+
+
+def plugin_forge_prompt():
+    """前端展示用：告诉用户模型会按什么规矩写。"""
+    return {"ok": True, "contract": _PLUGIN_CONTRACT,
+            "note": "生成后先编译校验，通过才写进 plugins 目录"}
+
+
+def plugin_forge_generate(desc, model=None):
+    """让模型照插件契约写一个插件，只返回代码，不落盘。"""
+    desc = (desc or "").strip()
+    if not desc:
+        return {"ok": False, "error": "先说清楚这个插件要干什么"}
+    if len(desc) > 2000:
+        desc = desc[:2000]
+    mdl = (model or load_setting("model") or "qwen3:8b")
+    msgs = [
+        {"role": "system", "content": _PLUGIN_CONTRACT},
+        {"role": "user", "content": "我要一个这样的插件：%s\n\n直接给完整代码。" % desc},
+    ]
+    try:
+        raw = _ollama_chat_once(msgs, mdl, timeout=120, num_predict=1400)
+    except Exception as e:
+        return {"ok": False, "error": "模型没写出来：%s" % e}
+    code = _strip_code_fence(raw)
+    if "PLUGIN_ID" not in code or "def setup" not in code:
+        return {"ok": False, "error": "模型这次没按插件契约写（缺 PLUGIN_ID 或 setup），再试一次",
+                "raw": code[:400]}
+    pid = ""
+    m = re.search(r'PLUGIN_ID\s*=\s*["\']([^"\']+)["\']', code)
+    if m:
+        pid = m.group(1).strip()
+    name = ""
+    m2 = re.search(r'NAME\s*=\s*["\']([^"\']+)["\']', code)
+    if m2:
+        name = m2.group(1).strip()
+    # 先做语法体检，省得把坏文件写进插件目录
+    ok, err = _forge_check(pid, code)
+    if not ok:
+        return {"ok": False, "error": err, "code": code, "id": pid}
+    return {"ok": True, "code": code, "id": pid, "name": name or pid, "model": mdl}
+
+
+def _forge_check(pid, code):
+    """id 合法 + 能编译。返回 (ok, 错误说明)。"""
+    if not pid or not _PLUGIN_ID_RE.match(pid):
+        return False, "PLUGIN_ID 只能用英文小写字母开头 + 小写字母/数字/下划线（2-32 位）"
+    import py_compile
+    import tempfile
+    tmp = None
+    try:
+        fd, tmp = tempfile.mkstemp(suffix=".py", prefix="dfyforge_")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(code)
+        py_compile.compile(tmp, doraise=True, cfile=tmp + "c")
+        return True, ""
+    except Exception as e:
+        return False, "代码编译不过：%s" % e
+    finally:
+        for p in (tmp, (tmp + "c") if tmp else None):
+            try:
+                if p and os.path.exists(p):
+                    os.remove(p)
+            except Exception:
+                pass
+
+
+def plugin_forge_save(code, pid=None):
+    """把模型写好的插件落盘 + 打开开关。"""
+    code = _strip_code_fence(code or "")
+    if not code:
+        return {"ok": False, "error": "代码是空的"}
+    m = re.search(r'PLUGIN_ID\s*=\s*["\']([^"\']+)["\']', code)
+    real_id = (pid or (m.group(1) if m else "")).strip()
+    if not real_id and m is None:
+        return {"ok": False, "error": "代码里没有 PLUGIN_ID"}
+    ok, err = _forge_check(real_id, code)
+    if not ok:
+        return {"ok": False, "error": err}
+    d = _plugin_dir()
+    try:
+        os.makedirs(d, exist_ok=True)
+    except Exception as e:
+        return {"ok": False, "error": "插件目录建不了：%s" % e}
+    path = os.path.join(d, real_id + ".py")
+    if not os.path.abspath(path).startswith(os.path.abspath(d) + os.sep):
+        return {"ok": False, "error": "插件 id 不合法"}
+    try:
+        # 覆盖前留一份旧版，免得手滑把已有插件写坏
+        if os.path.exists(path):
+            bak = path + ".bak"
+            try:
+                import shutil as _sh
+                _sh.copy2(path, bak)
+            except Exception:
+                pass
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(code)
+    except Exception as e:
+        return {"ok": False, "error": "写文件失败：%s" % e}
+    try:
+        plugin_set_enabled(real_id, True)
+    except Exception:
+        pass
+    try:
+        _net_log("插件生成：%s → %s" % (real_id, path))
+    except Exception:
+        pass
+    return {"ok": True, "id": real_id, "path": path, "restart": True,
+            "note": "已写进 plugins 目录并打开开关，重启大肥鱼后它就上岗"}
+
+
+def plugin_forge_reveal(pid):
+    """在资源管理器里定位刚写好的插件文件（方便用户自己改）。"""
+    try:
+        path = os.path.join(_plugin_dir(), str(pid or "").strip().lstrip("._") + ".py")
+        if os.path.exists(path):
+            import subprocess as _sp
+            _sp.Popen(["explorer", "/select,", path])
+            return {"ok": True, "path": path}
+        return {"ok": False, "error": "文件不在"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 # ===== 自检回传通道（仅 DFY_SELFTEST=1 时暴露给前端）=====
 # 结果由前端主动推回来：比 Python 定时 evaluate_js 轮询稳，也不会在页面卡住时互相等死。
 _SELFTEST_BOX = {"data": None}
@@ -2703,7 +2891,8 @@ window.expose(*([_safe_api(_f) for _f in (
               qq_zone_publish, qq_zone_delete,
                 screen_size, mouse_click, type_text, press_key, agent_decide,
                 wb_cancel, wb_reset, wb_cancelled, plugin_list,
-              plugin_set_enabled)]
+              plugin_set_enabled, plugin_forge_prompt, plugin_forge_generate,
+              plugin_forge_save, plugin_forge_reveal)]
               + [_safe_api(_f) for _f in PLUGIN_APIS]
               + ([_safe_api(selftest_report)] if os.environ.get("DFY_SELFTEST") == "1" else [])))
 _SELFTEST_JS = r"""
