@@ -534,13 +534,14 @@ class AgentRunner(threading.Thread):
     def run(self):
         w = self.win
         history = ""
+        core.wb_reset()
         for step in range(1, 9):
             if self.stop_flag.is_set() or w.wb_stop:
                 w.sysmsg_signal.emit("⏹ 已停止")
                 break
             w.sysmsg_signal.emit("👀 第%d步：正在看屏幕分析…" % step)
             act = core.agent_decide(self.task, history, step)
-            if self.stop_flag.is_set() or w.wb_stop:
+            if self.stop_flag.is_set() or w.wb_stop or act.get("_cancelled"):
                 w.sysmsg_signal.emit("⏹ 已停止")
                 break
             history += "\n第%d步：%s -> action=%s" % (step, act.get("reason") or "", act.get("action") or "")
@@ -1359,9 +1360,11 @@ class MainWindow(QMainWindow):
         b.style().polish(b)
         if self.wb_on:
             self.wb_stop = False
-            self.add_sys_msg("🖥 工作模式已开启：用读图模型(qwen2.5vl:7b)看屏幕。每步操作会先问你确认再执行；随时点上面按钮停。")
+            core.wb_reset()
+            self.add_sys_msg("🖥 工作模式已开启：用读图模型看屏幕。每步操作会先问你确认再执行；随时点上面按钮停，停止会立即中断模型。")
         else:
             self.wb_stop = True
+            core.wb_cancel()
             self.add_sys_msg("⏹ 工作模式已停止")
 
     def add_sys_msg(self, text):

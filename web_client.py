@@ -13,6 +13,7 @@
     python web_client.py 8899       # 换端口
 """
 import api_base
+import llm_params
 import asyncio
 import json
 import os
@@ -183,8 +184,10 @@ async def handle_send(request):
         "model": model,
         "messages": [{"role": "system", "content": sys_prompt()}] + _hist(chat["msgs"]),
         "stream": True,
-        "keep_alive": "15m" if ("35b" in model or "30b" in model) else "60m",
-        "options": {"num_ctx": 8192, "temperature": 0.85, "num_predict": 1200},
+        # MoE 35B：keep_alive 与全链路统一 30m；num_ctx 走 llm_params（3072），
+        # runner 参数也要跟其他调用方一致，否则 ollama 反复重载 22G
+        "keep_alive": "30m",
+        "options": llm_params.options(1200, 0.85, model=model),
     }
     async with ClientSession(timeout=ClientTimeout(total=30)) as _cs:
         c = await caps(_cs, model)

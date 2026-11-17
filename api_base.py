@@ -107,6 +107,7 @@ def cloud_models(c=None):
             "id": mid,
             "vision": bool(item.get("vision", c.get("vision", False))),
             "thinking": bool(item.get("thinking", c.get("thinking", False))),
+            "context": _guess_context(mid, item.get("context")),
         })
     if not out:
         mid = str(c.get("model") or "").strip()
@@ -115,8 +116,41 @@ def cloud_models(c=None):
                 "id": mid,
                 "vision": bool(c.get("vision", False)),
                 "thinking": bool(c.get("thinking", False)),
+                "context": _guess_context(mid, None),
             })
     return out
+
+
+def _guess_context(model_id, explicit=None):
+    """推断云端模型的上下文窗口上限（tokens）。
+
+    优先用配置里显式给的 context 字段；否则按模型名猜测常见值。
+    这只是给前端面板显示"分母"用的，不影响实际请求——云端窗口由厂商决定。
+    """
+    if explicit:
+        try:
+            return int(explicit)
+        except (TypeError, ValueError):
+            pass
+    m = str(model_id or "").lower()
+    # 长上下文型号
+    for kw, n in (("longcontext", 131072), ("128k", 131072), ("200k", 200000),
+                  ("1m", 1048576), ("256k", 262144)):
+        if kw in m:
+            return n
+    if "deepseek" in m:
+        return 65536
+    if "glm-4" in m or "glm-4." in m:
+        return 131072          # 智谱 GLM-4 系列普遍 128K
+    if "qwen" in m:
+        return 131072
+    if "gpt-4" in m or "gpt-4o" in m:
+        return 128000
+    if "claude" in m:
+        return 200000
+    if "gemini" in m:
+        return 1048576
+    return 32768               # 保守默认
 
 
 def cloud_model_ids(c=None):

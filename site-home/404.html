@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>页面走丢了 · 大肥鱼AI</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/favicon.ico">
+<style>
+  :root{
+    --ink:#0d1424;--gray:#5b6479;--gray2:#8b93a7;--blue:#2f5cff;--line:#e8ecf5;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:var(--font);background:#fff;color:var(--ink);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:40px 24px;text-align:center;-webkit-font-smoothing:antialiased;
+  }
+  .code{
+    font-size:clamp(96px,20vw,180px);font-weight:900;letter-spacing:-.06em;line-height:1;
+    color:var(--blue);opacity:.13;user-select:none;
+  }
+  h1{font-size:clamp(22px,3.4vw,30px);font-weight:900;letter-spacing:-.03em;margin-top:-18px}
+  p{font-size:14px;line-height:1.8;color:var(--gray);margin-top:12px;max-width:26em}
+  .acts{display:flex;gap:10px;margin-top:30px;flex-wrap:wrap;justify-content:center}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;height:42px;padding:0 22px;
+    border-radius:3px;font-size:13.5px;font-weight:500;text-decoration:none;
+    border:1px solid transparent;transition:.18s ease;
+  }
+  .btn-main{background:var(--blue);color:#fff;box-shadow:0 8px 22px -8px rgba(47,92,255,.55)}
+  .btn-main:hover{background:#2549d6;transform:translateY(-1px)}
+  .btn-line{background:#fff;border-color:var(--line);color:var(--ink)}
+  .btn-line:hover{border-color:var(--ink);transform:translateY(-1px)}
+  .back{position:absolute;top:22px;left:26px;display:flex;align-items:center;gap:8px;
+    font-size:14px;font-weight:700;color:var(--ink);text-decoration:none;letter-spacing:-.01em}
+  .back img{width:22px;height:22px;border-radius:6px}
+  footer{position:absolute;bottom:20px;left:0;right:0;text-align:center;font-size:12px;color:var(--gray2)}
+  footer a{color:var(--gray2);text-decoration:none}
+  footer a:hover{color:var(--gray)}
+</style>
+</head>
+<body>
+  <a class="back" href="/"><img src="assets/favicon.ico" alt="">大肥鱼AI</a>
+
+  <div class="code">404</div>
+  <h1>这条鱼游丢了</h1>
+  <p>你要找的页面不在这儿。可能是链接写错了，也可能是它还没被做出来。</p>
+
+  <div class="acts">
+    <a class="btn btn-main" href="/">回首页</a>
+    <a class="btn btn-line" href="https://ai.dabaifan.cn/">去 AI 站</a>
+  </div>
+
+  <footer>
+    <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">湘ICP备2026054051号-1</a>
+  </footer>
+</body>
+</html>

@@ -25,6 +25,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .side-header span{font-weight:700;font-size:15px}
 .new-chat{margin:8px 12px 8px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:11px;cursor:pointer;font-size:14px;font-weight:500}
 .new-chat:hover{opacity:.88}
+.market-btn{margin:2px 12px 8px;background:linear-gradient(135deg,#4c9aff,#7b61ff);color:#fff;border:none;border-radius:10px;padding:10px 12px;cursor:pointer;font-size:13.5px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 3px 12px rgba(76,154,255,.22);transition:.16s;flex:0 0 auto}
+.market-btn:hover{opacity:.92;transform:translateY(-1px)}
+.market-btn .mk-tag{font-size:10px;font-weight:600;background:rgba(255,255,255,.22);padding:1px 6px;border-radius:20px}
 .chat-search{margin:0 12px 8px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;outline:none}
 .side-list{flex:1;overflow-y:auto;padding:0 8px}
 .side-title{font-size:11px;color:var(--text2);padding:10px 10px 4px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
@@ -170,13 +173,70 @@ button.emj-btn:hover{opacity:1;transform:scale(1.08)}
 .emj-tab{border:1px solid var(--border);background:transparent;color:var(--text2);border-radius:14px;padding:3px 11px;font-size:12px;cursor:pointer;white-space:nowrap;font-family:inherit;transition:.15s}
 .emj-tab:hover{background:var(--hover)}
 .emj-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
-.emj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:10px;padding:12px;overflow-y:auto;flex:1;align-content:start;align-items:start}
-.emj-cell{position:relative;aspect-ratio:1/1;border-radius:12px;background:var(--hover);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;padding:5px}
+.emj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:16px;padding:14px;overflow-y:auto;flex:1;align-content:start;align-items:start}
+.emj-cell{position:relative;height:120px;border-radius:12px;background:var(--hover);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;padding:7px;border:1px solid var(--border)}
 .emj-cell:hover{outline:2px solid var(--accent);outline-offset:-2px}
 .emj-cell img{width:100%;height:100%;object-fit:contain;display:block}
 .emj-cell .emj-ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:5px;font-size:10px;color:var(--text2);text-align:center;line-height:1.25;word-break:break-all;overflow:hidden}
 .emj-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--border);font-size:12px;color:var(--text2);flex-shrink:0}
 .emj-more{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;padding:3px 12px;font-size:12px;cursor:pointer;font-family:inherit}
+/* 上下文用量 */
+.ctx-btn{border:1px solid var(--border);background:transparent;color:var(--text2);border-radius:8px;padding:4px 9px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;transition:.15s}
+.ctx-btn:hover{background:var(--hover);color:var(--text)}
+.ctx-panel{position:absolute;right:24px;bottom:calc(100% - 6px);width:330px;background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 14px 44px rgba(0,0,0,.22);display:none;z-index:705;overflow:hidden}
+.ctx-panel.on{display:block}
+.ctx-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);font-size:14px;font-weight:600;color:var(--text)}
+.ctx-x{border:none;background:transparent;color:var(--text2);cursor:pointer;font-size:15px;padding:2px 4px;line-height:1}
+.ctx-body{padding:16px}
+.ctx-pct{font-size:30px;font-weight:700;color:var(--text);line-height:1.1}
+.ctx-pct span{font-size:12px;font-weight:400;color:var(--text2);margin-left:6px}
+.ctx-bar{height:8px;border-radius:6px;background:var(--hover);overflow:hidden;margin:12px 0 16px;display:flex}
+.ctx-bar i{height:100%;border-radius:6px;background:linear-gradient(90deg,#2f9e6f,#e0a13a,#d05a7a);display:block;transition:width .3s}
+.ctx-rows{display:flex;flex-direction:column;gap:10px}
+.ctx-row{display:flex;align-items:center;gap:9px;font-size:12px}
+.ctx-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.ctx-label{color:var(--text);flex:1}
+.ctx-val{color:var(--text2);font-variant-numeric:tabular-nums}
+.ctx-val em{font-style:normal;opacity:.7;margin-left:4px}
+.ctx-foot{margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:11px;line-height:1.5;color:var(--text2)}
+.ctx-slider{padding:14px 16px 16px;border-top:1px solid var(--border)}
+.ctx-slider-top{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text2);margin-bottom:8px}
+.ctx-slider-top b{color:var(--text);font-size:13px}
+.ctx-slider input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;margin:0}
+.ctx-ticks{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:5px;opacity:.8}
+.ctx-slider-note{font-size:10px;line-height:1.5;color:var(--text2);margin-top:9px;opacity:.85}
+/* QQ 对话检测框 */
+.qq-panel{position:absolute;right:24px;bottom:calc(100% - 6px);width:420px;max-width:calc(100vw - 48px);background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 14px 44px rgba(0,0,0,.22);display:none;flex-direction:column;z-index:706;overflow:hidden}
+.qq-panel.on{display:flex}
+.qq-head{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border);font-size:14px;font-weight:600;color:var(--text)}
+.qq-dot{width:9px;height:9px;border-radius:50%;background:#999;flex-shrink:0}
+.qq-dot.on{background:#2f9e6f;box-shadow:0 0 0 3px rgba(47,158,111,.18)}
+.qq-head .ctx-x{margin-left:auto}
+.qq-status{padding:9px 14px;font-size:11px;line-height:1.5;color:var(--text2);border-bottom:1px solid var(--border)}
+.qq-ctrl{display:flex;gap:6px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.qq-btn{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.qq-btn:hover{background:var(--hover)}
+.qq-mode{margin-left:auto;font-size:10px;color:var(--text2);opacity:.8}
+.qq-btn.qq-go{border-color:var(--accent);color:#fff;background:var(--accent);font-weight:600}
+.qq-btn.qq-go:hover{opacity:.9;background:var(--accent)}
+.qq-btn.qq-go:disabled{opacity:.6;cursor:default}
+.qq-qr{padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg);text-align:center}
+.qq-qr img{width:100%;max-width:240px;border:1px solid var(--border);border-radius:10px;display:block;margin:0 auto}
+.qq-qr-tip{font-size:10px;color:var(--text2);margin-top:5px;opacity:.85}
+.qq-cfg{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:11px;color:var(--text2)}
+.qq-cfg label{display:flex;gap:4px;align-items:center;cursor:pointer}
+.qq-cfg select{border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:7px;padding:3px 6px;font-size:11px;font-family:inherit;outline:none}
+.qq-msgs{height:220px;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--bg)}
+.qq-empty{color:var(--text2);font-size:12px;text-align:center;margin:auto;opacity:.7}
+.qq-msg{max-width:88%;padding:7px 10px;border-radius:10px;font-size:12px;line-height:1.5;word-break:break-word}
+.qq-msg.in{align-self:flex-start;background:var(--hover);color:var(--text)}
+.qq-msg.out{align-self:flex-end;background:var(--accent);color:#fff}
+.qq-msg .who{font-size:10px;opacity:.7;display:block;margin-bottom:2px}
+.qq-msg .stk{font-size:11px;opacity:.85;margin-top:3px}
+.qq-send{display:flex;gap:5px;align-items:center;padding:9px 12px;border-top:1px solid var(--border);flex-wrap:wrap}
+.qq-send input,.qq-send select{border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:5px 8px;font-size:11px;font-family:inherit;outline:none}
+.qq-send input:focus{border-color:var(--accent)}
+.qq-hint{padding:7px 12px 11px;font-size:10px;line-height:1.5;color:var(--text2);opacity:.8}
 .emj-more:hover{background:var(--hover)}
 .typing::after{content:'\2588';animation:b 1s infinite}
 @keyframes b{50%{opacity:0}}
@@ -346,6 +406,7 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
   <div style="display:flex;gap:6px"><button class="new-chat" style="flex:1" onclick="newChat()">+ 新对话</button><button class="new-chat" style="flex:0 0 40px;padding:0 6px" title="从磁盘重新加载历史" onclick="reloadHistory()">⟳</button></div>
   <input class="chat-search" id="chatSearch" placeholder="搜索对话..." oninput="renderList()">
   <div class="side-list"><div class="side-title">收藏</div><div id="favList"></div><div class="side-title">历史对话</div><div id="chatList"></div></div>
+  <button class="market-btn" onclick="hubMarketOpen(true)" title="插件市场：内容与 DSH 完全一致，联网安装">🛒 插件市场<span class="mk-tag">联网</span></button>
   <div class="plugin-dock" id="pluginDock">
     <div class="pd-title">插件窗口</div>
     <div class="pd-row" id="pluginDockRow"></div>
@@ -369,7 +430,7 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
     <button class="icon-btn" onclick="doUrl()" title="提取网页">🌐</button>
     <button class="icon-btn" onclick="openKb()" title="知识库文件夹">📁</button>
     <button class="icon-btn" onclick="exportChat()" title="导出">📄</button>
-    <button class="icon-btn" onclick="openPluginHub()" title="插件中心">🧩</button><button class="icon-btn" onclick="openSettings()" title="设置">⚙️</button>
+    <button class="icon-btn" onclick="openPluginHub()" title="插件中心">🧩</button><button class="icon-btn" onclick="hubMarketOpen(true)" title="插件市场（内容与 DSH 一致，联网安装）">🛒</button><button class="icon-btn" onclick="openSettings()" title="设置">⚙️</button>
   </div>
   <div class="mlbar" id="mlbar"></div><div class="mlbar-text" id="mlbarText">正在加载模型...</div><div id="msgs">
     <div class="empty" id="emptyState">
@@ -394,9 +455,58 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
       <div class="emj-grid" id="emjGrid"></div>
       <div class="emj-foot"><span id="emjInfo">…</span><button class="emj-more" id="emjMore" onclick="emjMore()">加载更多</button></div>
     </div>
+    <div class="qq-panel" id="qqPanel">
+      <div class="qq-head">
+        <span>🐧 QQ 对话</span>
+        <span class="qq-dot" id="qqDot" title="连接状态"></span>
+        <button class="ctx-x" onclick="toggleQQPanel(false)" title="关闭">✕</button>
+      </div>
+      <div class="qq-status" id="qqStatus">读取状态中…</div>
+      <div class="qq-ctrl">
+        <button class="qq-btn qq-go" id="qqLoginBtn" onclick="qqLogin()">🚀 一键登录 QQ</button>
+        <button class="qq-btn" id="qqStartBtn" onclick="qqStart()">启动服务</button>
+        <button class="qq-btn" id="qqStopBtn" onclick="qqStop()">停止</button>
+        <button class="qq-btn" onclick="qqRefresh()">刷新</button>
+        <span class="qq-mode" id="qqMode"></span>
+      </div>
+      <div class="qq-qr" id="qqQrWrap" style="display:none">
+        <img id="qqQr" alt="QQ 登录窗口">
+        <div class="qq-qr-tip">↑ QQ 窗口实时画面，手机 QQ 扫码即可（自动刷新）</div>
+      </div>
+      <div class="qq-cfg">
+        <label><input type="checkbox" id="qqAuto" onchange="qqSaveCfg()"> 随大肥鱼启动</label>
+        <label><input type="checkbox" id="qqEmo" onchange="qqSaveCfg()"> 自动配表情包</label>
+        <select id="qqBrain" onchange="qqSaveCfg()" title="QQ 用谁的大脑回答">
+          <option value="desktop">桌面大脑</option>
+          <option value="standalone">独立大脑</option>
+        </select>
+        <button class="qq-btn" onclick="qqReload()" title="人格/记忆改了以后点这个">重载</button>
+      </div>
+      <div class="qq-msgs" id="qqMsgs"><div class="qq-empty">还没有消息。启动服务后，QQ 里发消息就会显示在这里。</div></div>
+      <div class="qq-send">
+        <select id="qqKind"><option value="private">私聊</option><option value="group">群聊</option></select>
+        <input id="qqTarget" placeholder="QQ号/群号" style="width:92px">
+        <input id="qqText" placeholder="发一句话…" style="flex:1;min-width:90px">
+        <input id="qqSticker" placeholder="表情名(可选)" style="width:80px">
+        <button class="qq-btn" onclick="qqDoSend()">发送</button>
+      </div>
+      <div class="qq-hint">点「🚀 一键登录 QQ」会自动关掉旧 QQ、注入 NapCat 拉起客户端，二维码直接显示在上面，扫完自动接上。表情包从 322 张本地图库自动配，或在 QQ 里发「/表情 开心」。</div>
+    </div>
+    <div class="ctx-panel" id="ctxPanel">
+      <div class="ctx-head"><span>上下文用量</span><button class="ctx-x" onclick="toggleCtxPanel(false)" title="关闭">✕</button></div>
+      <div class="ctx-body" id="ctxBody"></div>
+      <div class="ctx-slider">
+        <div class="ctx-slider-top"><span>上下文窗口</span><b id="ctxLimitLabel">8K</b></div>
+        <input type="range" id="ctxRange" min="0" max="5" step="1" value="2" oninput="onCtxSlider(this.value)" onchange="commitCtxSlider(this.value)">
+        <div class="ctx-ticks"><span>2K</span><span>4K</span><span>8K</span><span>16K</span><span>32K</span><span>64K</span></div>
+        <div class="ctx-slider-note" id="ctxSliderNote">窗口越大记得越多，但占显存更多、长上下文可能变慢。改完立即生效。</div>
+      </div>
+    </div>
     <div class="box">
       <button class="emj-btn" id="emjBtn" onclick="toggleEmojiPanel()" title="发表情包（322 张本地图库）">😺</button>
+      <button class="emj-btn" id="qqBtn" onclick="toggleQQPanel()" title="QQ 对话检测框">🐧</button>
       <textarea id="input" rows="1" placeholder="输入消息，回车发送...可拖入文件"></textarea>
+      <button class="ctx-btn" id="ctxBtn" onclick="toggleCtxPanel()" title="发一条消息后显示上下文用量">上下文 0%</button>
       <button class="send" id="stopBtn" onclick="stopGen()" title="停止" style="display:none;background:#e53e3e">■</button>
       <button class="send" id="sendBtn" onclick="send()">↑</button>
     </div>
@@ -587,11 +697,18 @@ let API=LOCAL_API_URL;
 // 本地模型清单只此一份，MODELS 永远是它的副本。
 // （以前是先写 MODELS 再 slice 出 LOCAL_MODELS，一旦某次加载时 MODELS 已被
 //   换成云端那一项，快照就跟着被污染，退不回本地时下拉一直是"云端"。）
-const LOCAL_PRESET=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐：说话自然、会挑表情包）'},{id:'qwen3-vl:4b-instruct',short:'轻快',full:'Qwen3-VL - 4B Instruct（省 1.5G 显存、更快，挑图同样准）'},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（爱推理，看不了图）'},{id:'qwen3.6:35b',short:'深度ProMax',full:'Qwen3.6 - 35B-A3B（最强，能看图，思考链可开关）'}];
+// ctx = 该模型推荐的上下文窗口上限（tokens），用于拨杆档位收敛和面板分母。
+const LOCAL_PRESET=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐：说话自然、会挑表情包）',ctx:32768},{id:'qwen3-vl:4b-instruct',short:'轻快',full:'Qwen3-VL - 4B Instruct（省 1.5G 显存、更快，挑图同样准）',ctx:32768},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（爱推理，看不了图）',ctx:32768},{id:'qwen3.6:35b',short:'深度ProMax',full:'Qwen3.6 - 35B-A3B（最强，能看图，思考链可开关）',ctx:65536}];
 const MODELS=LOCAL_PRESET.slice();
 let MODEL='qwen2.5vl:7b',displayMode='balanced',replyLang='zh-CN';
 let cloudEnabled=false;             // 云端模式当前是否真的开着（以后端配置为准）
 let msgs=[],busy=false,abortCtrl=null,chats=[],currentId=null,webSearchOn=false,searchEngine='duckduckgo',pendingFiles=[],kbOn=false,chatsLoaded=false,wbOn=false,wbStop=false;
+// ===== 上下文用量统计 =====
+// 每轮真实数据来自 Ollama 响应末帧的 prompt_eval_count；分项按各部分文本的中英文加权字符数分摊。
+// parts: {system(系统提示词), tools(工具及子智能体), chat(对话消息), skills(技能/表情包), mcp(连接器及MCP)}
+let CTX_LIMIT=8192;                         // 当前上下文窗口大小，可由下方拨杆调节；与 llm_params.NUM_CTX 同步
+const CTX_STEPS=[2048,4096,8192,16384,32768,65536];  // 拨杆档位
+let CTX={total:0,output:0,parts:{system:0,tools:0,chat:0,skills:0,mcp:0},sysText:'',chatText:'',toolText:'',skillText:'',at:0,model:''};
 const HIST_TURNS=16;  // 送进模型的最近消息条数，防止长对话越聊越慢
 const HIST_AI=2;      // 其中最多带几条"我自己的回复"，见 buildHistMsgs 里的说明
 // ===== 消息时间：每条消息记下真实发生时刻，用来区分"刚刚"和"昨晚" =====
@@ -694,14 +811,16 @@ async function changeModel(){
   if(!cloudEnabled)await preloadModel();
   else{try{await probeModelCaps(MODEL);paintDeepThink()}catch(e){}}
   try{await window.pywebview.api.save_setting('model',MODEL)}catch(e){}
+  // 上下文拨杆按模型适配：切模型后重新读该模型的窗口上限与记忆值
+  try{await initCtxLimit()}catch(e){}
 }
 async function preloadModel(){
   const bar=document.getElementById('mlbar');const txt=document.getElementById('mlbarText');
   bar.classList.add('show');txt.classList.add('show');bar.style.width='15%';
   const m=MODELS.find(x=>x.id===MODEL);txt.textContent='正在加载 '+(m?m.short:MODEL)+'...';
   let w=15;const anim=setInterval(()=>{if(w<80){w+=2;bar.style.width=w+'%'}else{clearInterval(anim)}},300);
-  // num_ctx 必须和正式对话一致（8192），否则 ollama 会按默认上下文加载一次、真正聊天时再重载一遍
-  try{await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,messages:[{role:'user',content:'.'}],stream:false,keep_alive:_keepAliveFor(MODEL),options:{num_predict:1,num_ctx:8192}})})}catch(e){}
+  // num_ctx 必须和正式对话一致，否则 ollama 会按默认上下文加载一次、真正聊天时再重载一遍
+  try{await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,messages:[{role:'user',content:'.'}],stream:false,keep_alive:_keepAliveFor(MODEL),options:{num_predict:1,num_ctx:CTX_LIMIT}})})}catch(e){}
   const check=setInterval(async()=>{
     try{
       const ps=await fetch(API+'/api/ps');const pd=await ps.json();
@@ -1081,7 +1200,7 @@ async function applyCloudConfig(){
         const th=m.thinking?' · 思考':'';
         // 加 ☁ 标识：云端模型和本地模型混在同一个下拉里，
         // 不标出来的话用户切了模型却不知道切到哪儿去了。
-        return {id:id,short:'☁ '+id+tag,full:'☁ '+id+'（云端 API）'+tag+th,cloud:true};
+        return {id:id,short:'☁ '+id+tag,full:'☁ '+id+'（云端 API）'+tag+th,cloud:true,ctx:Number(m.context)||32768};
       }));
       if(!MODELS.some(m=>m.id===c.model)&&MODELS.length)MODEL=MODELS[0].id;
       else if(c.model)MODEL=c.model;
@@ -1097,10 +1216,12 @@ async function applyCloudConfig(){
     if(f)f.textContent=c.enabled?'☁ 云端模型已开启 · 对话会离开本机':'本地部署 - 数据不出本机';
     Object.keys(_capsCache).forEach(k=>delete _capsCache[k]);
     Object.keys(_visCache).forEach(k=>delete _visCache[k]);
+    try{await initCtxLimit()}catch(e){}
   }catch(e){
     // 读配置失败时也必须能显示本地模型，否则下拉会一直挂在"云端"上
     if(!MODELS.some(m=>m.id===MODEL)){MODEL=LOCAL_PRESET[0].id}
     try{MODELS.splice(0,MODELS.length,...LOCAL_PRESET.map(m=>({...m})));refreshModelSel()}catch(_){}
+    try{await initCtxLimit()}catch(e){}
   }
 }
 
@@ -1228,8 +1349,16 @@ function toggleWb(){
   const b=document.getElementById('wbBtn');
   b.textContent=wbOn?'工作模式（点我停）':'工作模式';
   b.classList.toggle('on',wbOn);
-  if(wbOn){wbStop=false;addSysMsg('🖥 工作模式已开启：用读图模型(qwen2.5vl:7b)看屏幕。每步操作会先问你确认再执行；随时点上面按钮停。')}
-  else{wbStop=true;addSysMsg('⏹ 工作模式已停止');}
+  if(wbOn){
+    wbStop=false;
+    try{window.pywebview.api.wb_reset();}catch(e){}
+    addSysMsg('🖥 工作模式已开启：用读图模型看屏幕。每步操作会先问你确认再执行；随时点上面按钮停，停止会立即中断模型。');
+  }
+  else{
+    wbStop=true;
+    try{window.pywebview.api.wb_cancel();}catch(e){}
+    addSysMsg('⏹ 工作模式已停止');
+  }
 }
 function addSysMsg(text){msgs.push({role:'assistant',content:text,think:'',ts:Date.now()});render();saveCurrentChat();}
 // —— 深度思考：插件存状态，这里只做开关和外观 ——
@@ -1350,36 +1479,38 @@ async function toggleDeepThink(){
 }
 async function agentLoop(task){
   let history='';
+  try{await window.pywebview.api.wb_reset();}catch(e){}
   for(let step=1;step<=8;step++){
     if(wbStop){addSysMsg('⏹ 已停止');break;}
     addSysMsg('👀 第'+step+'步：正在看屏幕分析…');
     let act;
     try{act=await window.pywebview.api.agent_decide(task,history,step);}
     catch(e){addSysMsg('❌ 决策出错：'+e.message);break;}
-    if(wbStop){addSysMsg('⏹ 已停止');break;}
+    if(wbStop||act._cancelled){addSysMsg('⏹ 已停止');break;}
     history+='\n第'+step+'步：'+(act.reason||'')+' -> action='+(act.action||'');
     if(act.action==='done'||!act.action){addSysMsg('✅ 任务完成：'+(act.reason||''));break;}
+    const warn=act._dangerous?'⚠️ 检测到危险操作（涉及删除/支付/卸载/关机等），请仔细核对！\n\n':'';
     let desc='';
     if(act.action==='click'){
       const sz=await window.pywebview.api.screen_size();
       const x=Math.round((act.x||0.5)*sz.w),y=Math.round((act.y||0.5)*sz.h);
       desc='点击 ('+x+','+y+')';
-      if(confirm('工作模式要执行：\n\n'+desc+'\n原因：'+(act.reason||'')+'\n\n确定执行？（取消则停止）')){
+      if(confirm(warn+'工作模式要执行：\n\n'+desc+'\n原因：'+(act.reason||'')+'\n\n确定执行？（取消则停止）')){
         await window.pywebview.api.mouse_click(x,y,'left');
         addSysMsg('🖱 已'+desc+' —— '+(act.reason||''));
-      }else{addSysMsg('⏹ 你取消了，已停止');wbStop=true;break;}
+      }else{addSysMsg('⏹ 你取消了，已停止');wbStop=true;try{window.pywebview.api.wb_cancel();}catch(e){}break;}
     }else if(act.action==='type'){
       desc='输入：「'+(act.text||'')+'」';
-      if(confirm('工作模式要执行：\n\n'+desc+'\n原因：'+(act.reason||'')+'\n\n确定执行？')){
+      if(confirm(warn+'工作模式要执行：\n\n'+desc+'\n原因：'+(act.reason||'')+'\n\n确定执行？')){
         await window.pywebview.api.type_text(act.text||'');
         addSysMsg('⌨ 已'+desc);
-      }else{addSysMsg('⏹ 你取消了，已停止');wbStop=true;break;}
+      }else{addSysMsg('⏹ 你取消了，已停止');wbStop=true;try{window.pywebview.api.wb_cancel();}catch(e){}break;}
     }else if(act.action==='key'){
       desc='按键：'+(act.key||'enter');
-      if(confirm('工作模式要执行：\n\n'+desc+'\n原因：'+(act.reason||'')+'\n\n确定执行？')){
+      if(confirm(warn+'工作模式要执行：\n\n'+desc+'\n原因：'+(act.reason||'')+'\n\n确定执行？')){
         await window.pywebview.api.press_key(act.key||'enter');
         addSysMsg('🔘 已'+desc);
-      }else{addSysMsg('⏹ 你取消了，已停止');wbStop=true;break;}
+      }else{addSysMsg('⏹ 你取消了，已停止');wbStop=true;try{window.pywebview.api.wb_cancel();}catch(e){}break;}
     }
     await new Promise(r=>setTimeout(r,1000));
   }
@@ -1626,6 +1757,14 @@ async function send(){
   // 注入本机环境信息（IP/机器名/系统/桌面路径）
   try{const en=await window.pywebview.api.get_env();if(en)sysInject+='\n\n【这台电脑的环境信息】'+en+'。用户问起IP、电脑名、系统、文件位置时基于此回答。';}catch(e){}
   try{const sn=await window.pywebview.api.env_sense();if(sn)sysInject+='\n\n'+sn+'\n以上是你"此刻对这台电脑的体感"，可以自然地据此关心用户（显卡烫提醒散热、用户很久没操作可以撒个娇），把它当成你自己的身体感觉，不要机械罗列这些数字，也不要在回复里念时间。';}catch(e){}
+  try{
+    const md=await window.pywebview.api.read_mood();
+    if(md&&md.label&&md.mood){
+      sysInject+='\n\n【你现在的心情】'+md.label+'（疲惫'+Math.round(md.mood.fatigue)+'、兴奋'+Math.round(md.mood.excitement)
+        +'、无聊'+Math.round(md.mood.boredom)+'、专注'+Math.round(md.mood.focus)+'）'
+        +'让语气自然贴合这个心情：犯困就软一点、无聊会撒娇、开心就活泼、专注就利落；这些分数只用来定语气，不要在回复里念出来。';
+    }
+  }catch(e){}
   // 用户问到文件/文件夹时，自动列出桌面（或提到的目录）
   if(/文件|文件夹|桌面|目录|有什么|列表|documents|downloads|下载|文档/i.test(text)){
     try{
@@ -1728,7 +1867,7 @@ async function send(){
     // 兜底：模型名不在当前可选列表里（典型场景：刚从云端切回本地，页面还没重载，
     // MODEL 仍是 deepseek-chat），直接发出去 Ollama 只会 404，先换成本地第一个模型。
     if(!MODELS.some(m=>m.id===MODEL)){MODEL=MODELS[0].id;try{refreshModelSel()}catch(e){}}
-    const _opts={num_ctx:8192,temperature:dtTemp};
+    const _opts={num_ctx:CTX_LIMIT,temperature:dtTemp};
     if(dtMax>0)_opts.num_predict=dtMax;
     const _body={model:MODEL,messages:[...(sysInject?[{role:'system',content:sysInject}]:[]),...buildHistMsgs()],stream:true,keep_alive:_keepAliveFor(MODEL),options:_opts};
     // 图片只挂在"这一轮"的用户消息上：历史里只留"（发了 N 张图片）"，
@@ -1746,11 +1885,23 @@ async function send(){
     if(_hasThink)_body.think=(dtThink||_leaksNoThink(MODEL));
     // 思考链和正文共用 num_predict 这一个预算：预算小了会被思考吃光，正文只剩几个字。
     if(_hasThink&&(!_opts.num_predict||_opts.num_predict<3000))_opts.num_predict=3000;
+    // —— 上下文用量：记录这一轮各分项的文本快照（真实 token 数等响应回来再填）——
+    try{
+      const _sysMsg=(_body.messages.find(m=>m.role==='system')||{}).content||'';
+      const _chatMsgs=_body.messages.filter(m=>m.role!=='system').map(m=>String(m.content||''));
+      CTX.sysText=_sysMsg;
+      CTX.chatText=_chatMsgs.join('\n');
+      CTX.model=MODEL;
+      // 系统提示词里按标记拆出"工具/子智能体""技能/表情包""连接器"，其余算基础系统提示词
+      const _split=_splitSys(_sysMsg);
+      CTX.toolText=_split.tools;CTX.skillText=_split.skills;
+      CTX._baseSystem=_split.system;CTX._mcp=_split.mcp;
+    }catch(e){}
     const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:abortCtrl.signal,
       body:JSON.stringify(_body)});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const reader=r.body.getReader(),dec=new TextDecoder();let buf='';
-    while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop();for(const line of lines){if(!line.trim())continue;try{const j=JSON.parse(line);if(j.message){if(j.message.thinking&&dtThink)ai.think+=j.message.thinking;if(j.message.content)ai.content+=j.message.content}}catch(e){}}updateLast()}
+    while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop();for(const line of lines){if(!line.trim())continue;try{const j=JSON.parse(line);if(j.done&&typeof j.prompt_eval_count==='number'){ctxApplyUsage(j.prompt_eval_count,j.eval_count||0)}if(j.message){if(j.message.thinking&&dtThink)ai.think+=j.message.thinking;if(j.message.content)ai.content+=j.message.content}}catch(e){}}updateLast()}
   }catch(e){if(abortCtrl.signal.aborted){ai.content+='\n\n*[已停止]*'}else{ai.content='⚠️ 错误：'+e.message}}
   ai.pending=false;busy=false;toggleBtn();
   ai.content=stripTimeMarks(ai.content).trim();
@@ -1869,9 +2020,23 @@ function emjPump(){
     window.pywebview.api.sticker_local(cell.dataset.sid).then(function(r){
       _emjRun--;
       if(r&&r.ok&&r.path&&cell.isConnected){
-        const im=document.createElement('img');
-        im.src='file:///'+String(r.path).replace(/\\/g,'/');
-        cell.innerHTML='';cell.appendChild(im);
+        const gifSrc='file:///'+String(r.path).replace(/\\/g,'/');
+        const tp=r.thumb||'';
+        // 先秒显静态首帧（清楚、无空白），后台把原 gif 加载好再替换成会动的图。
+        // 格子已改固定 120px 高 + object-fit:contain，动图能完整显示、不会被裁成条。
+        // 发送仍走 r.path 原 gif，效果完全不变。
+        const ph=document.createElement('img');
+        if(tp){
+          ph.onerror=function(){ph.onerror=null;cell.innerHTML='<span class="emj-ph">'+esc(r.name||'表情')+'</span>'};
+          ph.src='file:///'+String(tp).replace(/\\/g,'/');
+          cell.innerHTML='';cell.appendChild(ph);
+        }
+        const live=new Image();
+        live.onload=function(){
+          if(cell.isConnected){cell.innerHTML='';cell.appendChild(live)}
+        };
+        live.onerror=function(){};  // 动图加载失败就保留静态首帧，不影响看清
+        live.src=gifSrc;
       }
       emjPump();
     }).catch(function(){_emjRun--;emjPump()});
@@ -1903,6 +2068,326 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&EMJ.on)togg
     if(g.scrollTop+g.clientHeight>=g.scrollHeight-180)emjLoad(false);
   });
 })();
+
+// ================= 上下文用量面板 =================
+// 总量用 Ollama 真实返回的 prompt_eval_count；分项按各部分文本加权字符数分摊到这个真实总量上。
+// 中文字符≈1.4 token、英文/符号≈0.35 token（qwen 系经验值），够反映构成比例。
+function _tokWeight(s){
+  s=String(s||'');if(!s)return 0;
+  const cn=(s.match(/[\u4e00-\u9fff]/g)||[]).length;
+  const other=s.length-cn;
+  return cn*1.4+other*0.35;
+}
+// 把系统提示词按标记拆成 基础系统 / 工具子智能体 / 技能表情包 / 连接器MCP
+function _splitSys(sys){
+  sys=String(sys||'');
+  // 找出所有"工具/技能/连接器"标记的起点，按顺序把文本切成段；每段按它开头的标记归类，
+  // 标记之外的文字（语言/人格/身份/本轮说明）都归系统提示词。
+  const rules=[
+    {key:'tools',re:/【(?:今天是|联网搜索结果|联网能力说明|用户电脑目录扫描结果|这台电脑的环境信息)|你"此刻对这台电脑的体感/g},
+    {key:'skills',re:/【(?:表情包|用户发的表情包)|下面这几张你这次用得上/g},
+    {key:'mcp',re:/连接器及MCP/g},
+    {key:'system',re:/【(?:你的人格设定|当前为专业模式|同系列产品)|【这一轮】/g}
+  ];
+  const cuts=[];
+  rules.forEach(function(g){
+    g.re.lastIndex=0;let m;
+    while((m=g.re.exec(sys))!==null){
+      cuts.push({i:m.index,key:g.key});
+      if(g.re.lastIndex<=m.index)g.re.lastIndex=m.index+1;  // 防死循环
+    }
+  });
+  cuts.sort(function(a,b){return a.i-b.i});
+  const out={system:'',tools:'',skills:'',mcp:''};
+  if(!cuts.length){out.system=sys;return out}
+  out.system=sys.slice(0,cuts[0].i);          // 第一个标记之前 = 系统基础设定
+  for(let k=0;k<cuts.length;k++){
+    const start=cuts[k].i,end=(k+1<cuts.length)?cuts[k+1].i:sys.length;
+    out[cuts[k].key]+=sys.slice(start,end);   // 该标记到下一标记之间归对应类别
+  }
+  return out;
+}
+// 响应回来后：写入真实 token 并按权重分摊出各分项
+function ctxApplyUsage(promptCount,evalCount){
+  try{
+    const base=CTX._baseSystem!=null?CTX._baseSystem:CTX.sysText;
+    const w={
+      system:_tokWeight(base),tools:_tokWeight(CTX.toolText),
+      chat:_tokWeight(CTX.chatText),skills:_tokWeight(CTX.skillText),
+      mcp:_tokWeight(CTX._mcp)
+    };
+    const sum=w.system+w.tools+w.chat+w.skills+w.mcp;
+    const T=Math.max(0,Math.round(promptCount||0));
+    const parts={};
+    Object.keys(w).forEach(function(k){parts[k]=sum>0?Math.round(T*w[k]/sum):0});
+    // 分摊误差补到最大的一项，保证加总=真实总数
+    let diff=T-Object.keys(parts).reduce((a,k)=>a+parts[k],0);
+    if(diff!==0){let big='system';Object.keys(parts).forEach(k=>{if(parts[k]>parts[big])big=k});parts[big]+=diff}
+    CTX.total=T;CTX.output=Math.round(evalCount||0);CTX.parts=parts;CTX.at=Date.now();
+    refreshCtxBtn();
+    if(document.getElementById('ctxPanel')&&document.getElementById('ctxPanel').classList.contains('on'))renderCtxPanel();
+  }catch(e){}
+}
+function ctxPct(){return CTX.total?Math.min(100,CTX.total/CTX_LIMIT*100):0}
+// —— 上下文窗口拨杆（按模型动态适配）——
+function _ctxLabel(n){return n>=1024?(n/1024)+'K':String(n)}
+function _curModel(){return MODELS.find(m=>m.id===MODEL)||null}
+function _isCloudModel(){return !!(cloudEnabled||(_curModel()&&_curModel().cloud))}
+// 当前模型的上下文窗口上限：本地用预设表，云端用模型配置的 context
+function modelCtxCap(){
+  const m=_curModel();
+  const cap=(m&&m.ctx)?m.ctx:32768;
+  return cap;
+}
+// 这个模型下拨杆可选的档位（不超过它的上限）
+function ctxStepsForModel(){
+  const cap=modelCtxCap();
+  const steps=CTX_STEPS.filter(n=>n<=cap);
+  if(!steps.length)steps.push(Math.min(8192,cap));
+  return steps;
+}
+function syncCtxRangeUI(){
+  const steps=ctxStepsForModel(),cap=modelCtxCap();
+  // 把当前值收敛到该模型上限
+  if(CTX_LIMIT>cap)CTX_LIMIT=steps[steps.length-1];
+  let idx=steps.indexOf(CTX_LIMIT);if(idx<0)idx=Math.max(0,steps.indexOf(8192));if(idx<0)idx=steps.length-1;
+  const r=document.getElementById('ctxRange');
+  if(r){r.max=String(steps.length-1);r.value=String(idx)}
+  const lab=document.getElementById('ctxLimitLabel');if(lab)lab.textContent=_ctxLabel(CTX_LIMIT);
+  const ticks=document.querySelectorAll('.ctx-ticks span');
+  ticks.forEach(function(t,i){t.textContent=_ctxLabel(steps[i]||CTX_STEPS[i]||CTX_LIMIT);t.style.display=(i<steps.length)?'':'none'});
+  const note=document.getElementById('ctxSliderNote');
+  if(note){
+    if(_isCloudModel()){
+      note.textContent='☁ 云端模型：实际窗口由服务商决定（上限约 '+_ctxLabel(cap)+'）。这里只用于显示占用比例，不实际改变请求。';
+    }else{
+      note.textContent='「'+(MODEL||'当前模型')+'」上限 '+_ctxLabel(cap)+' · 当前 '+CTX_LIMIT+' tokens。窗口越大记得越多，但占显存更多、可能变慢，改完立即生效。';
+    }
+  }
+}
+function onCtxSlider(v){
+  const steps=ctxStepsForModel();
+  const n=steps[parseInt(v,10)]||CTX_LIMIT;
+  const lab=document.getElementById('ctxLimitLabel');if(lab)lab.textContent=_ctxLabel(n);
+  const note=document.getElementById('ctxSliderNote');
+  if(note)note.textContent=(n>CTX_LIMIT?'调大到 ':'调小到 ')+_ctxLabel(n)+' ——松手后生效';
+}
+async function commitCtxSlider(v){
+  const steps=ctxStepsForModel();
+  const n=steps[parseInt(v,10)]||CTX_LIMIT;
+  if(n===CTX_LIMIT){syncCtxRangeUI();return}
+  CTX_LIMIT=n;
+  try{
+    // 按模型记住这个值
+    const map=await window.pywebview.api.load_setting('ctx_size_map')||{};
+    map[MODEL]=n;
+    window.pywebview.api.save_setting('ctx_size_map',map);
+    // 本地模型：让后端 llm_params 跟着变；云端只前端记着（代理不吃 num_ctx）
+    if(!_isCloudModel())await window.pywebview.api.set_ctx_size(n);
+  }catch(e){}
+  refreshCtxBtn();syncCtxRangeUI();
+  if(document.getElementById('ctxPanel')&&document.getElementById('ctxPanel').classList.contains('on'))renderCtxPanel();
+}
+async function initCtxLimit(){
+  // 先读这个模型上次记住的值；没有就用它的默认档位（8192 或上限内最近档）
+  let saved=0;
+  try{
+    const map=await window.pywebview.api.load_setting('ctx_size_map')||{};
+    saved=Number(map[MODEL])||0;
+  }catch(e){}
+  const steps=ctxStepsForModel(),cap=modelCtxCap();
+  // 注意：绝不拿后端全局 get_ctx_size() 当回退——那是"上一个模型"设的值，
+  // 会把 A 模型的窗口错误地带到从没设过的 B 模型上。没有记忆就用本模型默认档 8K。
+  CTX_LIMIT=(saved&&steps.indexOf(saved)>=0)?saved:(steps.indexOf(8192)>=0?8192:steps[steps.length-1]);
+  // 本地模型：同步后端 llm_params，保证主对话/插件 num_ctx 一致
+  if(!_isCloudModel()){
+    try{await window.pywebview.api.set_ctx_size(CTX_LIMIT)}catch(e){}
+  }
+  syncCtxRangeUI();refreshCtxBtn();
+  if(document.getElementById('ctxPanel')&&document.getElementById('ctxPanel').classList.contains('on'))renderCtxPanel();
+}
+function refreshCtxBtn(){
+  const b=document.getElementById('ctxBtn');if(!b)return;
+  b.textContent='上下文 '+Math.round(ctxPct())+'%';
+  b.title=CTX.total?('本轮 '+CTX.total+' / '+CTX_LIMIT+' tokens（'+new Date(CTX.at).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})+')'):'发一条消息后显示上下文用量';
+}
+function toggleCtxPanel(force){
+  const p=document.getElementById('ctxPanel');if(!p)return;
+  const want=(force===undefined)?!p.classList.contains('on'):!!force;
+  p.classList.toggle('on',want);
+  if(want)renderCtxPanel();
+}
+function renderCtxPanel(){
+  const pct=ctxPct(),used=CTX.total,limit=CTX_LIMIT;
+  const el=document.getElementById('ctxBody');if(!el)return;
+  const p=CTX.parts;
+  const rows=[
+    {k:'system',label:'系统提示词',color:'#7c6cf0'},
+    {k:'tools',label:'工具及子智能体',color:'#2f9e6f'},
+    {k:'chat',label:'对话消息',color:'#e0a13a'},
+    {k:'mcp',label:'连接器及MCP',color:'#5b7fd0'},
+    {k:'skills',label:'技能/表情包',color:'#d05a7a'}
+  ];
+  const t=Math.max(1,used);
+  let html='<div class="ctx-pct">'+pct.toFixed(1)+'%<span> 已使用 '+used+' / '+limit+' tokens</span></div>'
+    +'<div class="ctx-bar"><i style="width:'+Math.max(1,pct)+'%"></i></div>'
+    +'<div class="ctx-rows">';
+  rows.forEach(function(r){
+    const v=p[r.k]||0,pp=(v/t*100);
+    html+='<div class="ctx-row"><span class="ctx-dot" style="background:'+r.color+'"></span>'
+      +'<span class="ctx-label">'+r.label+'</span><span class="ctx-val">'+(used?pp.toFixed(1):'0.0')+'% <em>'+v+' tok</em></span></div>';
+  });
+  const cloud=_isCloudModel();
+  html+='</div><div class="ctx-foot">'+(used
+    ? ('窗口 '+_ctxLabel(limit)+' ('+limit+' tok) · 输出 '+CTX.output+' tok · '+(_curModel()&&_curModel().short||CTX.model||'')+'<br>'
+       +(cloud
+         ? '☁ 云端模型：占用来自服务商返回的 usage，分项按文本量分摊；窗口上限由服务商决定。'
+         : '真实占用来自 Ollama 返回的 token 计数，分项按文本量分摊。'))
+    : (cloud
+        ? '☁ 云端模型：发一条消息后这里会显示服务商返回的真实占用。'
+        : '还没统计到数据——发一条消息后这里会显示真实用量。'))+'</div>';
+  el.innerHTML=html;
+}
+
+// ================= QQ 对话检测框 =================
+let QQ_TIMER=null,QQ_LAST=0,QQ_CFG_LOADED=false,QQ_SHOT_T=0,QQ_SHOT_B=false,QQ_NOPOST=0;
+function toggleQQPanel(force){
+  const p=document.getElementById('qqPanel');if(!p)return;
+  const want=(force===undefined)?!p.classList.contains('on'):!!force;
+  p.classList.toggle('on',want);
+  if(want){qqRefresh();if(!QQ_TIMER)QQ_TIMER=setInterval(qqRefresh,4000)}
+  else if(QQ_TIMER){clearInterval(QQ_TIMER);QQ_TIMER=null}
+}
+async function qqRefresh(){
+  let st=null,ls=null;
+  try{st=await window.pywebview.api.qq_status()}catch(e){}
+  try{ls=await window.pywebview.api.qq_launch_state()}catch(e){}
+  const dot=document.getElementById('qqDot'),sd=document.getElementById('qqStatus');
+  const sb=document.getElementById('qqStartBtn'),modeEl=document.getElementById('qqMode');
+  const lb=document.getElementById('qqLoginBtn');
+  if(!st||!st.ok){if(dot)dot.className='qq-dot';if(sd)sd.textContent='状态读取失败：'+((st&&st.error)||'接口不可用');return}
+  const on=!!st.online, login=st.login||{}, logged=!!login.user_id;
+  if(dot)dot.className='qq-dot'+(on?' on':'');
+  if(sb)sb.textContent=on?'桥接已启动':'启动服务';
+  if(lb){lb.disabled=!!(ls&&ls.running);lb.textContent=(ls&&ls.running)?'登录中…':(logged?'🔁 重新登录':'🚀 一键登录 QQ')}
+  if(modeEl)modeEl.textContent=(st.brain_mode==='desktop'?'🧠 桌面大脑':(st.brain_mode||'独立大脑'))+(st.embedded?' · 内嵌':'');
+  if(sd){
+    if(ls&&(ls.running||ls.error)){
+      const pre=ls.error?'❌ ':(logged?'✅ ':'⏳ ');
+      sd.textContent=pre+(ls.msg||ls.step||'处理中…')+(ls.running?'（'+(ls.elapsed||0)+' 秒）':'');
+      sd.style.color=ls.error?'#e08080':'';
+    }else{
+      sd.style.color='';
+      const bits=[];
+      bits.push(st.qq_running?('QQ 进程 '+(st.qq_count||1)+' 个'):'QQ 客户端没开');
+      bits.push(st.bot_alive?'机器人实例在':'机器人实例没起');
+      bits.push(st.onebot_api?'OneBot 通':'OneBot 未通');
+      bits.push(logged?('已登录 '+(login.nickname||login.user_id)):'未登录');
+      sd.textContent=(on&&logged?'✅ ':'⚠ ')+bits.join(' · ')
+        +' · 表情包 '+(st.sticker_count||0)+' 张'
+        +(st.post_count===0&&st.onebot_api?' · <span style="color:#e0b060">⚠ 收消息通道没通（点插件中心→QQ 对话→修复上报）</span>':'')
+        +(st.need_relogin?' · <span style="color:#e05050">⚠ OneBot 断了，需要重登 QQ（会自动重试）</span>':'')
+        +(st.slow_model?' · <span style="color:#e0b060">主模型超时，暂用兜底小模型</span>':'')
+        +(on&&logged?'':'　→ 点「🚀 一键登录 QQ」自动搞定');
+    }
+  }
+  // 没登录时把机器人 QQ 窗口的画面（二维码）显示出来；绝不截你自己在用的号
+  const wrap=document.getElementById('qqQrWrap'),img=document.getElementById('qqQr');
+  const needQr=!logged&&(!!st.bot_alive||!!(ls&&ls.need_qr));
+  if(wrap)wrap.style.display=needQr?'':'none';
+  if(needQr&&img&&Date.now()-QQ_SHOT_T>2500&&!QQ_SHOT_B){
+    QQ_SHOT_T=Date.now();QQ_SHOT_B=true;
+    window.pywebview.api.qq_login_shot().then(function(r){
+      if(r&&r.ok)img.src=r.data;
+      QQ_SHOT_B=false;
+    }).catch(function(){QQ_SHOT_B=false});
+  }
+  // 回填配置勾选（只在面板打开时读一次）
+  if(!QQ_CFG_LOADED){
+    QQ_CFG_LOADED=true;
+    try{
+      const a=window.pywebview.api;
+      const auto=await a.load_setting('qq_autostart'),emo=await a.load_setting('qq_stickers'),bm=await a.load_setting('qq_brain_mode');
+      const ae=document.getElementById('qqAuto'),ee=document.getElementById('qqEmo'),bs=document.getElementById('qqBrain');
+      if(ae)ae.checked=String(auto)==='1';
+      if(ee)ee.checked=(String(emo)!=='0');
+      if(bs)bs.value=(bm||'desktop');
+    }catch(e){}
+  }
+  // 消息流
+  const box=document.getElementById('qqMsgs');
+  const list=(st.recent||[]).slice(-40);
+  if(!box)return;
+  const sig=list.map(m=>m.t+m.dir+m.text).join('|');
+  if(sig===QQ_LAST)return;   // 没变化不重绘，避免滚动跳动
+  QQ_LAST=sig;
+  if(!list.length){box.innerHTML='<div class="qq-empty">还没有消息。启动服务后，QQ 里发消息就会显示在这里。</div>';return}
+  box.innerHTML=list.map(m=>{
+    const cls=m.dir==='out'?'out':'in';
+    const esc=s=>String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    return '<div class="qq-msg '+cls+'"><span class="who">'+esc(m.t)+(m.who?' · '+esc(m.who):'')+'</span>'
+      +esc(m.text)+(m.sticker?'<div class="stk">🖼 '+esc(m.sticker)+'</div>':'')+'</div>';
+  }).join('');
+  box.scrollTop=box.scrollHeight;
+}
+async function qqLogin(){
+  const lb=document.getElementById('qqLoginBtn');
+  if(lb){lb.disabled=true;lb.textContent='登录中…'}
+  let r=null;
+  try{r=await window.pywebview.api.qq_launch(false)}catch(e){r={ok:false,error:e.message}}
+  if(r&&!r.ok&&r.need_confirm){
+    const ok=confirm('机器人要独占 QQ 客户端才能注入 NapCat。\n\n现在开着 QQ（约 '+r.count+' 个窗口），会被一起关掉——你自己的号也会下线，登录好之后可以再开回来。\n\n继续？');
+    if(!ok){if(lb){lb.disabled=false;lb.textContent='🚀 一键登录 QQ'}return}
+    try{r=await window.pywebview.api.qq_launch(true)}catch(e){r={ok:false,error:e.message}}
+  }
+  if(r&&!r.ok){
+    alert('启动失败：'+(r.error||'未知')+'\n可以在「插件中心 → QQ 对话」里改 QQ 路径/NapCat 目录。');
+    if(lb){lb.disabled=false;lb.textContent='🚀 一键登录 QQ'}
+    return;
+  }
+  // 登录过程用 1.5 秒的节奏刷，二维码能尽快出来
+  const t=setInterval(qqRefresh,1500);
+  setTimeout(function(){clearInterval(t)},180000);
+  setTimeout(qqRefresh,600);
+}
+async function qqStart(){
+  const b=document.getElementById('qqStartBtn');if(b)b.textContent='启动中…';
+  try{const r=await window.pywebview.api.qq_start('onebot');if(r&&!r.ok)alert('启动失败：'+(r.error||'未知错误'))}catch(e){alert('启动失败：'+e.message)}
+  setTimeout(qqRefresh,1200);
+}
+async function qqStop(){
+  try{await window.pywebview.api.qq_stop()}catch(e){}
+  setTimeout(qqRefresh,800);
+}
+async function qqDoSend(){
+  const target=document.getElementById('qqTarget').value.trim();
+  const text=document.getElementById('qqText').value.trim();
+  const sticker=document.getElementById('qqSticker').value.trim();
+  const kind=document.getElementById('qqKind').value;
+  if(!target){alert('请填 QQ号/群号');return}
+  if(!text&&!sticker){alert('写点什么，或填个表情名');return}
+  let r=null;
+  try{r=await window.pywebview.api.qq_send(target,text,kind,sticker)}catch(e){}
+  if(r&&r.ok){document.getElementById('qqText').value='';document.getElementById('qqSticker').value='';setTimeout(qqRefresh,600)}
+  else alert('发送失败：'+((r&&r.error)||'服务未启动？'));
+}
+async function qqSaveCfg(){
+  try{
+    const a=window.pywebview.api;
+    const autoOn=document.getElementById('qqAuto').checked;
+    try{await a.qq_set_autostart(autoOn)}catch(e){await a.save_setting('qq_autostart',autoOn?'1':'0')}
+    await a.save_setting('qq_stickers',document.getElementById('qqEmo').checked?'1':'0');
+    await a.save_setting('qq_brain_mode',document.getElementById('qqBrain').value);
+    if(document.getElementById('qqPanel').classList.contains('on')){
+      try{await a.qq_reload()}catch(e){}
+    }
+  }catch(e){}
+}
+async function qqReload(){
+  let r=null;try{r=await window.pywebview.api.qq_reload()}catch(e){}
+  alert(r&&r.ok?'已重载人格/记忆/表情包':'重载失败：'+((r&&r.error)||'未启动？'));
+  qqRefresh();
+}
 
 // ================= 本地插件 UI：心情挂饰 + 主动搭话 =================
 (function(){
@@ -1956,6 +2441,9 @@ window.__dfyEvent=function(evt,data){
     if(evt==='speak_up'&&data&&data.prompt&&!busy){
       const inp=document.getElementById('input');
       if(inp){inp.value=data.prompt;send()}
+    }
+    if(evt==='qq_msg'||evt==='qq_status'){
+      if(typeof qqRefresh==='function'&&document.getElementById('qqPanel')&&document.getElementById('qqPanel').classList.contains('on'))qqRefresh();
     }
   }catch(e){}
 };
@@ -2591,6 +3079,657 @@ setInterval(function(){
   if(_hubOpen && _hubPid==='live_cast') hubLiveRefresh();
 }, 2000);
 
+_hubViews.qq_chat={
+  icon:'🐧',name:'QQ 对话',sub:'一键登录 · 收发消息 · 自动配表情包',
+  mount:function(b){
+    const inp='background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-family:inherit';
+    b.innerHTML=
+      // ---- 一键登录（原来要双击 .bat 的活，全搬这里）----
+      '<div class="pg-card"><div class="pg-h"><span>① 登录 QQ</span>'
+      +'<button class="opt" style="padding:3px 10px;font-size:12px" onclick="hubQQRefresh()">重新检测</button></div>'
+      +'<div class="pg-row" style="gap:8px;flex-wrap:wrap">'
+      +'<button class="opt" id="qqHubGo" style="padding:7px 16px;font-size:13px;font-weight:600" onclick="hubQQLaunch()">🚀 启动 QQ 并登录</button>'
+      +'<button class="opt" onclick="hubQQKill()" title="只关机器人那个，你自己的 QQ 不动">关掉机器人 QQ</button>'
+      +'<button class="opt" onclick="hubQQBring()" title="把机器人 QQ 窗口提到最前面">看 QQ 窗口</button>'
+      +'<button class="opt" id="qqHubForce" style="display:none;color:#e08080" onclick="hubQQForce()" title="会关掉机器上所有 QQ，包括你自己在用的">重启 QQ 并登录（关全部）</button></div>'
+      +'<div class="pg-note" id="qqHubLaunchMsg" style="margin-top:8px">点上面按钮就行：自动关掉旧 QQ → 注入 NapCat → 拉起 QQ → 等扫码/自动登录 → 接上大肥鱼。全程不用管命令行。</div>'
+      +'<div id="qqHubSteps" style="margin-top:10px"></div>'
+      +'<div id="qqHubQrWrap" style="display:none;margin-top:10px">'
+      +'<img id="qqHubQr" alt="QQ 登录窗口" style="width:100%;max-width:340px;border:1px solid var(--border);border-radius:10px;display:block">'
+      +'<div class="pg-note" style="margin-top:6px">↑ 这是 QQ 窗口的实时画面（每 2.5 秒刷新），手机 QQ 扫里面的码即可。</div></div>'
+      +'<div id="qqHubLog" style="margin-top:8px;font-size:11px;line-height:1.7;color:var(--text2);max-height:110px;overflow:auto"></div></div>'
+
+      // ---- 连接状态 ----
+      +'<div class="pg-card"><div class="pg-h"><span>② 连接状态</span>'
+      +'<button class="opt" style="padding:3px 10px;font-size:12px" onclick="hubQQRefresh()">刷新</button></div>'
+      +'<div class="pg-note" id="qqHubStatus">读取中…</div>'
+      +'<div id="qqHubReport" style="display:none;margin-top:8px;padding:9px 11px;border-radius:8px;background:rgba(224,176,96,.12);border:1px solid rgba(224,176,96,.4);font-size:12px;line-height:1.65">'
+      +'<b>⚠ 消息进不来（能发不能收）</b><br><span id="qqHubReportMsg"></span>'
+      +'<div class="pg-row" style="margin-top:7px"><button class="opt" onclick="hubQQFixReport()">修复上报配置</button>'
+      +'<button class="opt" onclick="hubQQForce()">重启 QQ 并登录</button></div></div>'
+      +'<div class="pg-row" id="qqHubWhoRow" style="display:none;align-items:center;gap:10px;margin-top:8px">'
+      +'<img id="qqHubAvatar" alt="" style="width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--bg)">'
+      +'<div><div id="qqHubWho" style="font-size:13px;font-weight:600"></div>'
+      +'<div class="pg-note" id="qqHubWhoSub" style="margin:0"></div></div></div>'
+      +'<div class="pg-row" style="margin-top:8px">'
+      +'<button class="opt" onclick="window.pywebview.api.qq_start(\'onebot\').then(hubQQRefresh)">只启动桥接</button>'
+      +'<button class="opt" onclick="window.pywebview.api.qq_stop().then(hubQQRefresh)">停止桥接</button>'
+      +'<button class="opt" onclick="window.pywebview.api.qq_reload()">重载人格/记忆</button></div></div>'
+
+      // ---- 设置 ----
+      +'<div class="pg-card"><div class="pg-h"><span>③ 设置</span></div>'
+      +'<label class="pg-chk"><input type="checkbox" id="qqHubAuto" onchange="hubQQSave()"> 随大肥鱼自动启动</label>'
+      +'<label class="pg-chk"><input type="checkbox" id="qqHubEmo" onchange="hubQQSave()"> 自动配表情包</label>'
+      +'<div class="pg-row"><span>回答用谁的大脑：</span>'
+      +'<select id="qqHubBrain" onchange="hubQQSave()" style="'+inp+'">'
+      +'<option value="desktop">桌面大脑（共用人格记忆）</option><option value="standalone">独立大脑</option></select></div>'
+      +'<div class="pg-row" style="margin-top:10px;flex-wrap:wrap;gap:10px">'
+      +'<span>机器人 QQ 号 <input id="qqHubBot" style="width:120px;'+inp+'"></span>'
+      +'<span>OneBot 端口 <input id="qqHubApiPort" style="width:70px;'+inp+'"></span>'
+      +'<span>桥接端口 <input id="qqHubPort" style="width:70px;'+inp+'" disabled title="改端口要改 NapCat 上报地址，一般不用动"></span></div>'
+      +'<div class="pg-row" style="margin-top:8px;flex-wrap:wrap;gap:10px">'
+      +'<span>QQ.exe <input id="qqHubExe" style="width:200px;'+inp+'"></span>'
+      +'<span>NapCat 目录 <input id="qqHubNap" style="width:170px;'+inp+'"></span></div>'
+      +'<div class="pg-row" style="margin-top:8px"><button class="opt" onclick="hubQQSavePath()">保存路径/号码</button>'
+      +'<span class="pg-note" id="qqHubPathMsg" style="margin:0"></span></div>'
+      +'<div class="pg-note" style="margin-top:6px">表情包从 322 张本地图库自动配；QQ 里发「/表情 开心」可手动指定。</div></div>'
+
+      // ---- 语音 ----
+      +'<div class="pg-card"><div class="pg-h"><span>④ 语音条</span>'
+      +'<span class="pg-note" id="qqVoiceStat" style="margin:0"></span></div>'
+      +'<label class="pg-chk"><input type="checkbox" id="qqHubVoice" onchange="hubQQSave()"> 会发语音（文字念成语音条发出去）</label>'
+      +'<div class="pg-row" style="margin-top:8px;flex-wrap:wrap;gap:10px">'
+      +'<span>音色 <select id="qqHubVoiceName" onchange="hubQQSave()" style="'+inp+'"></select></span>'
+      +'<span>语速 <select id="qqHubVoiceRate" onchange="hubQQSave()" style="'+inp+'">'
+      +'<option value="-10%">慢</option><option value="+0%">正常</option><option value="+8%">稍快</option><option value="+18%">快</option></select></span></div>'
+      +'<div class="pg-row" style="margin-top:8px;flex-wrap:wrap;gap:8px">'
+      +'<span>随机发语音 <input id="qqHubVoiceProb" type="range" min="0" max="100" step="5" style="width:120px" oninput="document.getElementById(\'qqVoiceProbV\').textContent=this.value+\'%\'" onchange="hubQQSave()">'
+      +'<b id="qqVoiceProbV" style="font-size:12px">25%</b></span>'
+      +'<label class="pg-chk" style="margin:0"><input type="checkbox" id="qqHubVoiceText" onchange="hubQQSave()"> 语音之外也发文字</label></div>'
+      +'<div class="pg-row" style="margin-top:8px"><input id="qqVoiceTry" placeholder="试听一句话…" style="flex:1;'+inp+'">'
+      +'<button class="opt" onclick="hubQQVoiceTry()">发给我听听</button></div>'
+      +'<div class="pg-note" style="margin-top:6px">用微软 edge-tts 合成（免费、不用显卡），NapCat 自动转 QQ 的 SILK 语音。'
+      +'QQ 里说「发条语音」「用语音说」必发；说「/语音 文字」直接念这句；模型偶尔也会自己写 [语音] 只用嘴说。</div></div>'
+
+      +'<div class="pg-card"><div class="pg-h"><span>⑤ DeepBuddy（动手能力）</span>'
+      +'<span class="pg-note" id="qqBuddyStat" style="margin:0">检测中…</span></div>'
+      +'<div class="pg-note">本地 Agent 执行层：真能跑命令、读写文件、装东西。开大肥鱼AI 时会自动把它一起带起来，'
+      +'QQ 里发「/执行 任务」就让它真去做。</div>'
+      +'<div class="pg-row" style="margin-top:8px;flex-wrap:wrap;gap:8px">'
+      +'<button class="opt" onclick="hubBuddyLaunch()">启动 DeepBuddy</button>'
+      +'<button class="opt" onclick="hubBuddyLoad()">刷新</button>'
+      +'<button class="opt" onclick="hubBuddyTools()">看工具</button></div>'
+      +'<div class="pg-view" id="qqBuddyTools" style="display:none;max-height:150px;overflow:auto;margin-top:8px"></div>'
+      +'<div class="pg-note" style="margin-top:6px">聊天里没人能点「允许执行」，所以危险命令（删除、格式化这类）'
+      +'会被自动拒绝——这是故意的，别当成它做不到。</div></div>'
+
+      +'<div class="pg-card"><div class="pg-h"><span>⑥ DSH 插件（转接口）</span>'
+      +'<span class="pg-note" id="qqDshStat" style="margin:0">检测中…</span></div>'
+      +'<div class="pg-note">让 DSH 生态的插件（人设 soul-md、心情 feiyu-mood、贴纸 nekowhale…）直接作用在她身上：'
+      +'插件往提示词里注入的人设/记忆/心情，以及它们注册的工具，都会自动接进来。</div>'
+      +'<div class="pg-row" style="margin-top:8px;flex-wrap:wrap;gap:8px">'
+      +'<button class="opt" onclick="hubDshStart()">启动宿主</button>'
+      +'<button class="opt" onclick="hubDshRestart()">重启宿主</button>'
+      +'<button class="opt" onclick="hubDshLoad()">刷新</button>'
+      +'<button class="opt" onclick="hubDshCtx()">看注入内容</button></div>'
+      +'<div id="qqDshPlugins" style="margin-top:8px">加载中…</div>'
+      +'<div class="pg-view" id="qqDshCtxBox" style="display:none;max-height:180px;overflow:auto;margin-top:8px"></div>'
+      +'<div class="pg-h" style="margin-top:12px"><span>插件市场</span><span class="pg-note" style="margin:0" id="qqMarketStat">与 DSH 同源 · 联网</span></div>'
+      +'<div class="pg-note">内容与 DSH 内置市场完全一致（同一份官方目录），装下来的包也落在 DSH 的 profile 里，两边共用。联网不可关闭。</div>'
+      +'<div class="pg-row" style="margin-top:8px;gap:8px;flex-wrap:wrap">'
+      +'<button class="opt" onclick="hubMarketOpen()" style="font-weight:600">🛒 打开插件市场窗口</button>'
+      +'<button class="opt" onclick="hubMarketStatus()">刷新状态</button></div>'
+      +'<div class="pg-row" style="margin-top:6px"><input id="qqDshQ" placeholder="或在这里快速搜索：记忆 / 贴纸 / 心情" style="flex:1;'+inp+'">'
+      +'<button class="opt" onclick="hubDshSearch()">搜索</button>'
+      +'<button class="opt" onclick="hubDshSearch(1)">热门</button></div>'
+      +'<div id="qqDshMarket" style="margin-top:8px"></div></div>'
+
+      +'<div class="pg-card"><div class="pg-h"><span>最近消息</span></div>'
+      +'<div class="pg-view" id="qqHubMsgs" style="max-height:260px;overflow:auto">加载中…</div></div>'
+      +'<div class="pg-card"><div class="pg-h"><span>手动发一条</span></div>'
+      +'<div class="pg-row"><select id="qqHubKind" style="'+inp+'"><option value="private">私聊</option><option value="group">群聊</option></select>'
+      +'<input id="qqHubTarget" placeholder="QQ号/群号" style="width:110px;'+inp+'">'
+      +'<input id="qqHubSticker" placeholder="表情名(可选)" style="width:90px;'+inp+'"></div>'
+      +'<div class="pg-row" style="margin-top:6px"><input id="qqHubText" placeholder="发一句话…" style="flex:1;'+inp+'">'
+      +'<button class="opt" onclick="hubQQSend()">发送</button></div></div>';
+  },
+  refresh:async function(){await hubQQLoadCfg();await hubQQRefresh();hubDshLoad();hubBuddyLoad();hubMarketStatus()}
+};
+
+// ===== QQ 空间（说说）：让大肥鱼自己发空间 =====
+_hubViews.qq_zone={
+  icon:'🌌',name:'QQ 空间',sub:'自己发说说 · AI 代写 · 自动配图',
+  mount:function(b){
+    const inp='background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-family:inherit';
+    b.innerHTML=
+      '<div class="pg-card"><div class="pg-h"><span>连接状态</span>'
+      +'<button class="opt" style="padding:3px 10px;font-size:12px" onclick="qzRefresh()">刷新</button></div>'
+      +'<div class="pg-note" id="qzStatus">读取中…</div>'
+      +'<div class="pg-note" style="margin-top:6px;opacity:.75">说说走 NapCat 的 QQ 空间接口发布，需要 QQ 已登录（与「QQ 对话」共用同一个登录态）。</div></div>'
+
+      +'<div class="pg-card"><div class="pg-h"><span>发一条说说</span></div>'
+      +'<textarea id="qzText" rows="3" placeholder="写点什么…也可以先给个方向，再点「让大肥鱼写一条」" style="width:100%;box-sizing:border-box;'+inp+';resize:vertical;line-height:1.6"></textarea>'
+      +'<div class="pg-row" style="margin-top:8px"><span>配图</span>'
+      +'<select id="qzImgMode" onchange="qzImgModeChange()" style="'+inp+'">'
+      +'<option value="auto">自动配一张（322 张图库）</option>'
+      +'<option value="none">不配图</option>'
+      +'<option value="pick">指定表情</option></select>'
+      +'<input id="qzImgName" placeholder="表情名，如 猫猫搓手" style="width:130px;display:none;'+inp+'"></div>'
+      +'<div class="pg-row" style="margin-top:8px;flex-wrap:wrap;gap:8px">'
+      +'<button class="opt" onclick="qzPreview()">让大肥鱼写一条</button>'
+      +'<button class="opt" onclick="qzPublish()">发到空间</button>'
+      +'<span class="pg-note" id="qzHint" style="margin:0"></span></div></div>'
+
+      +'<div class="pg-card"><div class="pg-h"><span>自动发</span></div>'
+      +'<label class="pg-chk"><input type="checkbox" id="qzAuto" onchange="qzSaveCfg()"> 定时自动发说说</label>'
+      +'<label class="pg-chk"><input type="checkbox" id="qzDry" onchange="qzSaveCfg()"> 试运行（只生成不发布，先看几轮效果）</label>'
+      +'<label class="pg-chk"><input type="checkbox" id="qzAutoImg" onchange="qzSaveCfg()"> 自动配图</label>'
+      +'<div class="pg-row" style="margin-top:10px;flex-wrap:wrap;gap:12px">'
+      +'<span>间隔 <input id="qzInterval" type="number" min="10" style="width:66px;'+inp+'" onchange="qzSaveCfg()"> 分钟</span>'
+      +'<span>每日上限 <input id="qzDaily" type="number" min="1" max="20" style="width:56px;'+inp+'" onchange="qzSaveCfg()"> 条</span>'
+      +'<span>可见 <select id="qzRight" onchange="qzSaveCfg()" style="'+inp+'">'
+      +'<option value="1">所有人</option><option value="4">仅好友</option><option value="64">仅自己</option></select></span></div>'
+      +'<div class="pg-row" style="margin-top:8px"><span>安静时段 <input id="qzQuietA" type="number" min="0" max="23" style="width:50px;'+inp+'" onchange="qzSaveCfg()"> 点到 <input id="qzQuietB" type="number" min="0" max="23" style="width:50px;'+inp+'" onchange="qzSaveCfg()"> 点（起=止 不启用）</span></div>'
+      +'<div class="pg-row" style="margin-top:8px"><input id="qzStyle" placeholder="文风要求，如：少用感叹号、别太正经" style="flex:1;'+inp+'" onchange="qzSaveCfg()"></div>'
+      +'<div class="pg-note" style="margin-top:8px">自动发按人格 + 记忆 + 当前时间现写，配图从图库按文案挑。默认试运行，确认效果后再关掉。</div></div>'
+
+      +'<div class="pg-card"><div class="pg-h"><span>最近发过的</span></div>'
+      +'<div class="pg-view" id="qzHist" style="max-height:300px;overflow:auto">加载中…</div></div>';
+  },
+  refresh:async function(){await qzLoadCfg();await qzRefresh()}
+};
+function _qzEsc(s){return String(s||'').replace(/[&<>]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])})}
+async function qzLoadCfg(){
+  try{
+    const r=await window.pywebview.api.qq_zone_cfg();
+    const c=(r&&r.cfg)||{};
+    const set=function(id,v){const e=document.getElementById(id);if(e)e.value=v};
+    const chk=function(id,v){const e=document.getElementById(id);if(e)e.checked=!!v};
+    chk('qzAuto',c['自动发']);chk('qzDry',c['试运行']);chk('qzAutoImg',c['自动配图']);
+    set('qzInterval',c['间隔分钟']);set('qzDaily',c['每日上限']);
+    set('qzRight',c['查看权限']);set('qzQuietA',c['安静起']);set('qzQuietB',c['安静止']);
+    set('qzStyle',c['风格']||'');
+  }catch(e){}
+}
+async function qzSaveCfg(){
+  try{
+    const g=function(id){const e=document.getElementById(id);return e?e.value:''};
+    const ck=function(id){const e=document.getElementById(id);return e?!!e.checked:false};
+    await window.pywebview.api.qq_zone_set_cfg({
+      '自动发':ck('qzAuto'),'试运行':ck('qzDry'),'自动配图':ck('qzAutoImg'),
+      '间隔分钟':parseInt(g('qzInterval')||'180',10),'每日上限':parseInt(g('qzDaily')||'3',10),
+      '查看权限':parseInt(g('qzRight')||'1',10),
+      '安静起':parseInt(g('qzQuietA')||'1',10),'安静止':parseInt(g('qzQuietB')||'8',10),
+      '风格':g('qzStyle')
+    });
+    qzRefresh();
+  }catch(e){}
+}
+function qzImgModeChange(){
+  const m=document.getElementById('qzImgMode'),n=document.getElementById('qzImgName');
+  if(n)n.style.display=(m&&m.value==='pick')?'':'none';
+}
+async function qzRefresh(){
+  const sd=document.getElementById('qzStatus');
+  let st=null;try{st=await window.pywebview.api.qq_zone_status()}catch(e){}
+  if(!st||!st.ok){if(sd)sd.textContent='状态读取失败'+((st&&st.error)?'：'+st.error:'');return}
+  if(sd){
+    const nxt=st.next_auto_at?new Date(st.next_auto_at*1000).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}):'—';
+    sd.innerHTML=(st.online?'✅ NapCat 已连接':'⭕ NapCat 未连接（先启动 QQ 对话并登录）')
+      +' · QQ '+(st.uin||'?')+(st.nick?' '+_qzEsc(st.nick):'')
+      +'<br>图库 '+st.sticker_count+' 张 · 今日已发 <b>'+st.today+'</b>/'+st.daily_limit+' 条'
+      +' · 自动发 '+(st.auto?('开'+(st.dry_run?'（试运行）':'')+'，下次 '+nxt):'关')
+      +(st.last_error?'<br><span style="color:#e08080">上次错误：'+_qzEsc(st.last_error)+'</span>':'');
+  }
+  const box=document.getElementById('qzHist');
+  if(!box)return;
+  const list=(st.history||[]);
+  if(!list.length){box.innerHTML='<div class="pg-note">还没发过。上面的「发到空间」或「让大肥鱼写一条」试试。</div>';return}
+  box.innerHTML=list.map(function(h){
+    return '<div style="padding:7px 0;border-bottom:1px solid var(--border)">'
+      +'<div style="color:var(--text2);font-size:11px">'+_qzEsc(h.time)+' · '
+      +(h.mode==='auto'?'自动':(h.mode==='ai'?'AI 代写':'手动'))
+      +(h.ok?' · <span style="color:#5fbf7f">已发布</span>':' · <span style="color:#e08080">失败</span>')
+      +(h.images&&h.images.length?' · 🖼':'')+'</div>'
+      +'<div style="margin:3px 0;line-height:1.5">'+_qzEsc(h.text)+'</div>'
+      +(h.err?'<div style="color:#e08080;font-size:11px">'+_qzEsc(h.err)+'</div>':'')
+      +(h.tid?'<button class="opt" style="padding:1px 8px;font-size:11px;margin-top:3px" onclick="qzDelete(\''+_qzEsc(h.tid)+'\')">删除这条</button>':'')
+      +'</div>';
+  }).join('');
+}
+async function qzPreview(){
+  const t=document.getElementById('qzText'),h=document.getElementById('qzHint');
+  const hint=t?t.value.trim():'';
+  if(h)h.textContent='正在写…';
+  try{
+    const r=await window.pywebview.api.qq_zone_preview(hint);
+    if(r&&r.ok){
+      if(t)t.value=r.text;
+      if(h)h.textContent=r.image?('已配图：'+r.image+'（可直接改，改完点「发到空间」）'):'没配图，可直接发';
+      qzImgModeChange();
+    }else if(h)h.textContent='生成失败：'+((r&&r.error)||'未知');
+  }catch(e){if(h)h.textContent='生成失败';}
+}
+async function qzPublish(){
+  const t=document.getElementById('qzText'),h=document.getElementById('qzHint');
+  const text=t?t.value.trim():'';
+  if(!text){if(h)h.textContent='先写点内容，或点「让大肥鱼写一条」';return}
+  const mode=(document.getElementById('qzImgMode')||{}).value||'auto';
+  const name=(document.getElementById('qzImgName')||{}).value||'';
+  if(mode==='pick'&&!name){if(h)h.textContent='选了「指定表情」但没填名字';return}
+  if(h)h.textContent='正在发…';
+  try{
+    const r=await window.pywebview.api.qq_zone_publish(text,mode==='pick'?name:'',mode==='auto');
+    if(r&&r.ok){
+      if(h)h.textContent='✅ 已发到空间'+(r.sticker?'（配图：'+r.sticker+'）':(r.warn?'（'+r.warn+'）':''));
+      if(t)t.value='';
+      qzRefresh();
+    }else if(h)h.textContent='❌ '+((r&&r.error)||'发布失败');
+  }catch(e){if(h)h.textContent='❌ 发布失败';}
+}
+async function qzDelete(tid){
+  if(!confirm('确定删掉这条说说？'))return;
+  try{
+    const r=await window.pywebview.api.qq_zone_delete(tid);
+    if(!(r&&r.ok))alert('删除失败：'+((r&&r.error)||'未知'));
+    qzRefresh();
+  }catch(e){alert('删除失败');}
+}
+async function hubQQLoadCfg(){
+  try{
+    const a=window.pywebview.api;
+    const auto=await a.load_setting('qq_autostart'),emo=await a.load_setting('qq_stickers'),bm=await a.load_setting('qq_brain_mode');
+    const ae=document.getElementById('qqHubAuto'),ee=document.getElementById('qqHubEmo'),bs=document.getElementById('qqHubBrain');
+    if(ae)ae.checked=String(auto)==='1';
+    if(ee)ee.checked=(String(emo)!=='0');
+    if(bs)bs.value=(bm||'desktop');
+    // 语音设置
+    try{
+      const vOn=await a.load_setting('qq_voice_enabled'),vName=await a.load_setting('qq_voice_name'),
+            vRate=await a.load_setting('qq_voice_rate'),vProb=await a.load_setting('qq_voice_prob'),
+            vText=await a.load_setting('qq_voice_text');
+      _qqFillVoices(vName||'zh-CN-XiaoyiNeural');
+      const ve=document.getElementById('qqHubVoice'),vn=document.getElementById('qqHubVoiceName'),
+            vr=document.getElementById('qqHubVoiceRate'),vp=document.getElementById('qqHubVoiceProb'),
+            vt=document.getElementById('qqHubVoiceText');
+      if(ve)ve.checked=(String(vOn)==='1');
+      if(vr)vr.value=(vRate||'+8%');
+      if(vp){vp.value=(vProb==null||vProb==='')?25:parseInt(vProb,10);
+             const l=document.getElementById('qqVoiceProbV');if(l)l.textContent=vp.value+'%';}
+      if(vt)vt.checked=(String(vText)==='1');
+    }catch(e){}
+    const p=await a.qq_paths();
+    const c=(p&&p.cfg)||{};
+    const set=function(id,v){const e=document.getElementById(id);if(e)e.value=(v==null?'':v)};
+    set('qqHubBot',c.qq_bot);set('qqHubApiPort',c.api_port);set('qqHubPort',c.bridge_port);
+    set('qqHubExe',c.qq_exe);set('qqHubNap',c.napcat_dir);
+    const pm=document.getElementById('qqHubPathMsg');
+    if(pm)pm.textContent=(p&&p.ok)?'文件都在 ✓':('缺：'+((p&&p.missing)||[]).join('、'));
+  }catch(e){}
+}
+let _QQ_VOICES=null;
+async function _qqFillVoices(cur){
+  const sel=document.getElementById('qqHubVoiceName');if(!sel)return;
+  if(!_QQ_VOICES){
+    try{const r=await window.pywebview.api.qq_voice_list();_QQ_VOICES=(r&&r.voices)||[]}catch(e){_QQ_VOICES=[]}
+    if(!_QQ_VOICES||!_QQ_VOICES.length)_QQ_VOICES=[
+      ['zh-CN-XiaoyiNeural','晓伊（少女，默认）'],
+      ['zh-CN-XiaoxiaoNeural','晓晓（温柔女声）'],
+      ['zh-CN-YunxiNeural','云希（少年男声）']];
+  }
+  sel.innerHTML=_QQ_VOICES.map(function(v){return '<option value="'+v[0]+'">'+v[1]+'</option>'}).join('');
+  if(cur)sel.value=cur;
+}
+// ===== DeepBuddy 执行层 =====
+async function hubBuddyLoad(){
+  const el=document.getElementById('qqBuddyStat'); if(!el)return;
+  let s={};
+  try{ s=await pywebview.api.qq_buddy_status(); }catch(e){ el.textContent='读不到状态'; return; }
+  el.innerHTML=(s.running?'🟢 运行中':'⚪ 未启动')
+    +(s.loaded?(' · 工具 '+(s.tools||0)+' 个'):'')
+    +((s.exists===false)?' · 找不到文件':'');
+}
+async function hubBuddyLaunch(){
+  const el=document.getElementById('qqBuddyStat'); if(el)el.textContent='启动中…';
+  let r={};
+  try{ r=await pywebview.api.qq_buddy_launch(); }catch(e){ r={ok:false,error:String(e)}; }
+  if(!r.ok) alert('启动失败：'+(r.error||''));
+  setTimeout(hubBuddyLoad,1500);
+}
+async function hubBuddyTools(){
+  const box=document.getElementById('qqBuddyTools'); if(!box)return;
+  if(box.style.display!=='none'){ box.style.display='none'; return; }
+  box.style.display='block'; box.textContent='读取中…';
+  let r={tools:[]};
+  try{ r=await pywebview.api.qq_buddy_tools(); }catch(e){}
+  const ts=r.tools||[];
+  box.textContent = ts.length
+    ? ts.map(t=>'· '+t.name+(t.description?('  — '+t.description.slice(0,70)):'')).join('\n')
+    : '（没加载到工具）';
+}
+
+// ===== DSH 插件转接口 =====
+async function hubDshLoad(){
+  const el=document.getElementById('qqDshStat'); if(!el)return;
+  let st={};
+  try{ st=await pywebview.api.qq_dsh_status(); }catch(e){ el.textContent='读不到状态'; return; }
+  el.innerHTML=(st.online?'✅ 在线':'⚪ 离线')
+    +(st.online?(' · 注入 '+(st.context_len||0)+' 字 · 工具 '+(st.tools||0)+' 个'):'')
+    +(st.enabled?'':'（设置里已关闭）');
+  const box=document.getElementById('qqDshPlugins'); if(!box)return;
+  const list=st.installed||[];
+  if(!list.length){ box.textContent='还没装 DSH 插件'; return; }
+  box.innerHTML=list.map(p=>{
+    const ok=p.loaded?'<span style="color:#2e9e5b">已加载</span>':'<span style="opacity:.6">未加载</span>';
+    return '<label class="pg-chk" style="display:block;margin:6px 0">'
+      +'<input type="checkbox" '+(p.enabled?'checked':'')+' onchange="hubDshToggle(\''+p.name+'\',this.checked)"> '
+      +'<b>'+p.name+'</b> <span class="pg-note">v'+(p.version||'?')+' · '+ok+'</span>'
+      +'<div class="pg-note" style="margin-left:22px">'+((p.description||'').slice(0,110))+'</div></label>';
+  }).join('');
+}
+async function hubDshStart(){
+  const el=document.getElementById('qqDshStat'); if(el)el.textContent='启动中…';
+  try{ const r=await pywebview.api.qq_dsh_start(); if(!r.ok)alert('启动失败：'+(r.error||'')); }catch(e){}
+  await hubDshLoad();
+}
+async function hubMarketOpen(){
+  const el=document.getElementById('qqMarketStat');
+  try{
+    const r=await pywebview.api.qq_market_open();
+    if(r.ok){
+      if(el) el.textContent = r.already ? '窗口已开着（已切到前面）' : '窗口已打开';
+      if(!r.already) setTimeout(hubMarketStatus, 2500);
+    }else{
+      if(el) el.textContent='打开失败：'+(r.error||'');
+      alert('插件市场打不开：' + (r.error||'未知原因'));
+    }
+  }catch(e){
+    if(el) el.textContent='打开失败：'+e.message;
+    alert('插件市场打不开：' + e.message);
+  }
+}
+async function hubMarketStatus(){
+  const el=document.getElementById('qqMarketStat'); if(!el) return;
+  try{
+    const s=await pywebview.api.qq_market_status();
+    const bits=[];
+    if(s.total) bits.push(s.total+' 个插件');
+    if(s.pid) bits.push('窗口开着');
+    if(s.fetching) bits.push('联网中');
+    else if(s.age!=null) bits.push(s.age<90?'刚更新':Math.round(s.age/60)+' 分钟前');
+    if(s.error) bits.push('⚠ '+String(s.error).slice(0,40));
+    el.textContent = bits.join(' · ') || '与 DSH 同源 · 联网';
+  }catch(e){ el.textContent='状态读取失败'; }
+}
+async function hubDshRestart(){
+  const el=document.getElementById('qqDshStat'); if(el)el.textContent='重启中…（约 10 秒）';
+  try{ const r=await pywebview.api.qq_dsh_restart(); if(!r.ok)alert('重启失败：'+(r.error||'')); }catch(e){}
+  setTimeout(hubDshLoad,3000);
+}
+async function hubDshToggle(name,on){
+  try{
+    const r=await pywebview.api.qq_dsh_toggle(name,on);
+    if(r.ok&&r.need_restart){
+      if(confirm((on?'已启用 ':'已停用 ')+name+'，需要重启宿主才生效。现在重启？')) await hubDshRestart();
+    }
+  }catch(e){}
+  await hubDshLoad();
+}
+async function hubDshSearch(hot){
+  const box=document.getElementById('qqDshMarket'); if(!box)return;
+  const q=hot?'':(document.getElementById('qqDshQ').value||'').trim();
+  box.textContent='搜索中…';
+  let r={items:[]};
+  try{ r=await pywebview.api.qq_dsh_search(q); }catch(e){ box.textContent='搜索失败'; return; }
+  const items=r.items||[];
+  if(!items.length){ box.textContent='没搜到相关插件'; return; }
+  box.innerHTML=items.map(p=>
+    '<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid rgba(128,128,128,.15)">'
+    +'<div style="flex:1"><b>'+p.name+'</b> '
+    +'<span class="pg-note">['+(p.source||'npm')+']</span>'
+    +(p.version?' <span class="pg-note">v'+p.version+'</span>':'')
+    +(p.stars?' <span class="pg-note">★'+p.stars+'</span>':'')
+    +'<div class="pg-note">'+((p.description||'').slice(0,120))+'</div></div>'
+    +(p.installed
+      ?'<span class="pg-note" style="white-space:nowrap">已装</span>'
+      :'<button class="opt" onclick="hubDshInstall(\''+(p.install||p.name).replace(/'/g,'')+'\')">安装</button>')
+    +'</div>').join('');
+}
+async function hubDshInstall(name){
+  if(!confirm('安装 '+name+' 到 DSH profile？装完需要重启宿主。'))return;
+  const box=document.getElementById('qqDshMarket');
+  if(box)box.insertAdjacentHTML('afterbegin','<div id="qqDshInstalling" class="pg-note">正在安装 '+name+'…（可能要 1~2 分钟）</div>');
+  let r={};
+  try{ r=await pywebview.api.qq_dsh_install(name); }catch(e){ r={ok:false,error:String(e)}; }
+  const tip=document.getElementById('qqDshInstalling'); if(tip)tip.remove();
+  if(r.ok){ alert('装好了。重启宿主后生效。'); await hubDshRestart(); }
+  else alert('安装失败：\n'+(r.error||'').slice(0,400));
+}
+async function hubDshCtx(){
+  const box=document.getElementById('qqDshCtxBox'); if(!box)return;
+  if(box.style.display!=='none'){ box.style.display='none'; return; }
+  box.style.display='block'; box.textContent='读取中…';
+  let r={parts:[]};
+  try{ r=await pywebview.api.qq_dsh_context(); }catch(e){}
+  const rows=(r.parts||[]).map(p=>'【'+p.name+' / '+p.kind+'】\n'+p.text).join('\n\n');
+  box.textContent=(r.mood?('心情：'+r.mood+'\n\n'):'')+(rows||'（当前没有注入内容）');
+}
+
+async function hubQQVoiceTry(){
+  const g=function(id){const e=document.getElementById(id);return e?(e.value||'').trim():''};
+  const txt=g('qqVoiceTry')||'在的呀，我在听你说呢。';
+  pgToast('正在合成语音…');
+  let r=null;
+  try{r=await window.pywebview.api.qq_voice_say(txt,g('qqHubTarget'))}catch(e){r={ok:false,error:e.message}}
+  if(r&&r.ok)pgToast('已发到你 QQ（'+r.kb+'KB，音色 '+((document.getElementById('qqHubVoiceName')||{}).value||'')+'）');
+  else pgToast('发不出去：'+((r&&r.error)||'未知'));
+}
+async function hubQQSavePath(){
+  const g=function(id){const e=document.getElementById(id);return e?e.value.trim():''};
+  const pm=document.getElementById('qqHubPathMsg');
+  if(pm)pm.textContent='保存中…';
+  try{
+    const r=await window.pywebview.api.qq_cfg_save({qq_bot:g('qqHubBot'),qq_api_port:g('qqHubApiPort'),
+      qq_exe:g('qqHubExe'),qq_napcat_dir:g('qqHubNap')});
+    if(pm)pm.textContent=(r&&r.ok)?'已保存 ✓':'保存失败';
+    if(r&&r.ok)hubQQLoadCfg();
+  }catch(e){if(pm)pm.textContent='保存失败';}
+}
+async function hubQQSave(){
+  try{
+    const a=window.pywebview.api;
+    const on=document.getElementById('qqHubAuto').checked;
+    try{await a.qq_set_autostart(on)}catch(e){await a.save_setting('qq_autostart',on?'1':'0')}
+    await a.save_setting('qq_stickers',document.getElementById('qqHubEmo').checked?'1':'0');
+    await a.save_setting('qq_brain_mode',document.getElementById('qqHubBrain').value);
+    // 语音
+    const vg=function(id){const e=document.getElementById(id);return e?e:null};
+    const vOn=vg('qqHubVoice'),vName=vg('qqHubVoiceName'),vRate=vg('qqHubVoiceRate'),
+          vProb=vg('qqHubVoiceProb'),vText=vg('qqHubVoiceText');
+    if(vOn)await a.save_setting('qq_voice_enabled',vOn.checked?'1':'0');
+    if(vName)await a.save_setting('qq_voice_name',vName.value);
+    if(vRate)await a.save_setting('qq_voice_rate',vRate.value||'+8%');
+    if(vProb)await a.save_setting('qq_voice_prob',String(vProb.value));
+    if(vText)await a.save_setting('qq_voice_text',vText.checked?'1':'0');
+    await a.qq_reload();
+  }catch(e){}
+}
+// ---- 一键启动 / 关 QQ / 拿窗口 ----
+async function hubQQLaunch(force){
+  const b=document.getElementById('qqHubGo'),msg=document.getElementById('qqHubLaunchMsg');
+  const restore=function(){if(b){b.disabled=false;b.textContent='🚀 启动 QQ 并登录'}};
+  if(b){b.disabled=true;b.textContent='启动中…'}
+  if(msg)msg.textContent='正在准备…';
+  let r=null;
+  try{r=await window.pywebview.api.qq_launch(!!force)}catch(e){if(msg)msg.textContent='启动失败：'+e.message;restore();return}
+  // 机器上还开着你的 QQ：机器人注入不进去，问一句再关
+  if(r&&!r.ok&&r.need_confirm){
+    const ok=confirm('机器人要独占 QQ 客户端才能注入 NapCat。\n\n现在开着 QQ（约 '+r.count+' 个窗口），会被一起关掉——你自己的号也会下线，登录好之后可以再开回来。\n\n继续？');
+    if(!ok){if(msg)msg.textContent='已取消。你自己的 QQ 没动。';restore();return}
+    try{r=await window.pywebview.api.qq_launch(true)}catch(e){if(msg)msg.textContent='启动失败：'+e.message;restore();return}
+  }
+  if(r&&!r.ok){if(msg)msg.textContent='启动失败：'+(r.error||'未知');restore()}
+  hubQQTick(true);
+}
+async function hubQQForce(){
+  if(!confirm('会关掉现在开着的所有 QQ（包括你自己在用的号），然后重新注入机器人。\n\n登录好之后你可以再把 QQ 开回来。确定？'))return;
+  hubQQLaunch(true);
+}
+async function hubQQKill(){
+  if(!confirm('关掉机器人那个 QQ？你自己登着的 QQ 不会被关。'))return;
+  try{await window.pywebview.api.qq_kill('bot')}catch(e){}
+  hubQQTick(true);
+}
+async function hubQQBring(){
+  let r=null;try{r=await window.pywebview.api.qq_bring()}catch(e){}
+  if(!(r&&r.ok))pgToast('没找到 QQ 窗口，先点「启动 QQ 并登录」');
+}
+const QQ_STAGES=['关闭旧 QQ','注入 NapCat','等待 OneBot','启动桥接'];
+let QQ_SHOT_AT=0,QQ_SHOT_BUSY=false,QQ_LAUNCH_SEEN=false;
+function _qqStepsHtml(st){
+  const cur=st.step||'';
+  let idx=-1;
+  for(let i=0;i<QQ_STAGES.length;i++)if(cur===QQ_STAGES[i]){idx=i;break}
+  const done=st.step==='完成';
+  const failed=!!st.error||st.step==='未登录';
+  let h='';
+  QQ_STAGES.forEach(function(name,i){
+    let icon='○',col='var(--text2)';
+    if(done){icon='✓';col='#5fbf7f'}
+    else if(failed&&i===idx){icon='!';col='#e08080'}
+    else if(i<idx){icon='✓';col='#5fbf7f'}
+    else if(i===idx){icon='⏳';col='var(--accent)'}
+    h+='<div style="display:flex;gap:8px;align-items:center;font-size:12px;color:'+col+';padding:2px 0">'
+      +'<span style="width:14px;text-align:center">'+icon+'</span><span>'+name+'</span></div>';
+  });
+  return h;
+}
+async function hubQQShot(force){
+  if(QQ_SHOT_BUSY)return;
+  const now=Date.now();
+  if(!force&&now-QQ_SHOT_AT<2500)return;
+  QQ_SHOT_AT=now;QQ_SHOT_BUSY=true;
+  try{
+    const r=await window.pywebview.api.qq_login_shot();
+    const wrap=document.getElementById('qqHubQrWrap'),img=document.getElementById('qqHubQr');
+    if(r&&r.ok&&img){img.src=r.data;if(wrap)wrap.style.display=''}
+    else if(wrap){wrap.style.display='none'}
+  }catch(e){}
+  QQ_SHOT_BUSY=false;
+}
+async function hubQQTick(force){
+  let st=null;
+  try{st=await window.pywebview.api.qq_launch_state()}catch(e){}
+  if(st){
+    const msg=document.getElementById('qqHubLaunchMsg');
+    const go=document.getElementById('qqHubGo');
+    const forceBtn=document.getElementById('qqHubForce');
+    if(msg){
+      let t=st.msg||'';
+      if(st.running)t+='（已 '+(st.elapsed||0)+' 秒）';
+      msg.textContent=t||'未启动。点上面按钮开始。';
+      msg.style.color=(st.error||st.account_wrong)?'#e08080':'';
+    }
+    if(go){
+      go.disabled=!!st.running;
+      go.textContent=st.running?'启动中…':(st.logged_in?'🔁 重新登录机器人':'🚀 启动 QQ 并登录');
+    }
+    if(forceBtn)forceBtn.style.display=(st.account_wrong||st.force_hint)?'':'none';
+    const sbox=document.getElementById('qqHubSteps');
+    if(sbox)sbox.innerHTML=(st.running||st.finished||st.logged_in)?_qqStepsHtml(st):'';
+    const lbox=document.getElementById('qqHubLog');
+    if(lbox){
+      const lg=(st.log||[]).slice(-8);
+      lbox.innerHTML=lg.map(function(x){
+        return '<div style="'+(x.lv==='err'?'color:#e08080':(x.lv==='warn'?'color:#e0b060':''))+'">'+pgEsc(x.t)+' '+pgEsc(x.m)+'</div>';
+      }).join('');
+    }
+    // 只有确认了「这是我们拉起来的机器人实例」才截图——绝不截你自己在用的 QQ
+    const wrap=document.getElementById('qqHubQrWrap');
+    const botKnown=!!(st.bot_pids&&st.bot_pids.length)||!!st.need_qr;
+    if(botKnown&&!st.logged_in)hubQQShot(force);
+    else if(wrap)wrap.style.display='none';
+  }
+  hubQQRefresh();
+}
+async function hubQQRefresh(){
+  let st=null;try{st=await window.pywebview.api.qq_status()}catch(e){}
+  const sd=document.getElementById('qqHubStatus');if(!sd)return;
+  if(!st||!st.ok){sd.textContent='状态读取失败';return}
+  const login=st.login||{};
+  const line=[];
+  line.push(st.qq_running?'<span style="color:#5fbf7f">✅ QQ 客户端在跑</span>':'<span style="color:#e08080">⭕ QQ 客户端没开</span>');
+  line.push(st.onebot_api?'<span style="color:#5fbf7f">✅ OneBot 已连通</span>':'<span style="color:#e08080">⭕ OneBot 未连通</span>');
+  line.push(login.user_id?'<span style="color:#5fbf7f">✅ 已登录 '+(login.nickname||'')+'('+login.user_id+')</span>':'<span style="color:#e08080">⭕ 未登录</span>');
+  line.push(st.online?'<span style="color:#5fbf7f">✅ 桥接在跑</span>':'<span style="color:#e08080">⭕ 桥接没起</span>');
+  sd.innerHTML=line.join(' · ')+'<br><span style="opacity:.75">表情包 '+(st.sticker_count||0)+' 张 · 待处理 '+(st.pending||0)+(st.embedded?' · 内嵌运行':'')
+    +(st.qq_count>1?' · 机器上一共 '+(st.qq_count)+' 个 QQ 进程（其中 1 个是机器人）':'')
+    +' · '+(st.voice_enabled?'🔊 语音 '+(st.voice_name||'').replace('zh-CN-','').replace('Neural','')+'（已说 '+(st.voice_said||0)+' 句）':'🔇 语音关')+'</span>';
+  const vs=document.getElementById('qqVoiceStat');
+  if(vs)vs.textContent=st.voice_enabled?('已说 '+(st.voice_said||0)+' 句'):'未开启';
+  // 上报链路自检：在线但从来没收到过 NapCat 的上报 = 消息会「发过去没人回」
+  const rp=document.getElementById('qqHubReport');
+  if(rp){
+    const noPost=(typeof st.post_count==='number')&&st.post_count===0&&st.onebot_api;
+    QQ_NOPOST=noPost?(QQ_NOPOST+1):0;
+    if(QQ_NOPOST>=3){
+      rp.style.display='block';
+      const m=document.getElementById('qqHubReportMsg');
+      if(m)m.textContent='机器人已经登录（OneBot 也通），但 NapCat 一次都没把消息推过来。'
+        +'常见原因：上报配置没生效（之前被带 BOM 的 JSON 坑过）。点「修复上报配置」，再点「重启 QQ 并登录」。';
+    }else{
+      rp.style.display='none';
+    }
+  }
+  // 机器人号身份（头像 + 昵称 + QQ号）——靠 OneBot 返回的登录信息，不是靠猜窗口
+  const row=document.getElementById('qqHubWhoRow'),av=document.getElementById('qqHubAvatar');
+  const who=document.getElementById('qqHubWho'),sub=document.getElementById('qqHubWhoSub');
+  if(row&&av&&who){
+    if(login.user_id){
+      row.style.display='flex';
+      const u=String(login.user_id);
+      if(av.dataset.uin!==u){
+        av.dataset.uin=u;
+        av.src='https://q1.qlogo.cn/g?b=sdk&nk='+encodeURIComponent(u)+'&s=100';
+      }
+      who.textContent=(login.nickname||'（无昵称）')+'（'+u+'）';
+      if(sub)sub.textContent='这是真正在跑机器人的那个号';
+    }else{
+      row.style.display='none';
+    }
+  }
+  const box=document.getElementById('qqHubMsgs');if(!box)return;
+  const list=(st.recent||[]).slice(-30);
+  if(!list.length){box.innerHTML='<div class="pg-note">还没有消息，给机器人发一句试试。</div>';return}
+  const sig=list.map(function(m){return m.t+m.dir+m.text}).join('|');
+  if(box.dataset.sig===sig)return;
+  box.dataset.sig=sig;
+  box.innerHTML=list.map(function(m){
+    const esc=function(s){return String(s||'').replace(/[&<>]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])})};
+    return '<div style="padding:5px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text2);font-size:11px">'+esc(m.t)+' '+(m.dir==='out'?'↗':'↙')+' '+esc(m.who)+'</span><div>'+esc(m.text)+(m.sticker?' <b>🖼'+esc(m.sticker)+'</b>':'')+'</div></div>';
+  }).join('');
+  box.scrollTop=box.scrollHeight;
+}
+async function hubQQFixReport(){
+  let r=null;
+  try{r=await window.pywebview.api.qq_fix_report()}catch(e){r={ok:false,error:e.message}}
+  const el=document.getElementById('qqHubReportMsg');
+  if(el)el.textContent=(r&&r.ok)?(r.hint||'已检查完毕'):('修复失败：'+((r&&r.error)||'未知'));
+  hubQQRefresh();
+}
+async function hubQQSend(){
+  const target=(document.getElementById('qqHubTarget')||{}).value;
+  const text=(document.getElementById('qqHubText')||{}).value;
+  const sticker=(document.getElementById('qqHubSticker')||{}).value;
+  const kind=(document.getElementById('qqHubKind')||{}).value||'private';
+  if(!target||!text){pgToast('填 QQ号和消息');return}
+  let r=null;try{r=await window.pywebview.api.qq_send(target,text,kind,sticker||'')}catch(e){}
+  if(r&&r.ok){document.getElementById('qqHubText').value='';hubQQRefresh()}else pgToast('发送失败：'+((r&&r.error)||'未启动'));
+}
+// QQ 插件页打开时：1.5 秒刷进度+二维码，消息沿用 4 秒
+setInterval(function(){if(_hubOpen&&_hubPid==='qq_chat')hubQQTick(false)},1500);
+setInterval(function(){if(_hubOpen&&_hubPid==='qq_chat')hubQQRefresh()},4000);
+
 _hubViews.__switches={
   icon:'⚙',name:'插件开关',sub:'改完重启大肥鱼生效',
   mount:function(b){
@@ -2668,6 +3807,7 @@ async function boot(){
     // 云端模式换过渠道后清单会变，认一个不在清单里的旧 id 会让下拉框空白。
     const md=await window.pywebview.api.load_setting('model');
     if(md&&MODELS.some(m=>m.id===md)){MODEL=md;refreshModelSel()}
+    try{await initCtxLimit()}catch(e){}   // 恢复模型后按该模型重算上下文窗口
     try{const ds=await window.pywebview.api.deep_think_state();if(ds&&ds.ok){deepThink=!!ds.on;paintDeepThink()}}catch(e){}
     try{await probeModelCaps(MODEL);paintDeepThink()}catch(e){}
     // Gitee 自动更新：后台线程启动时已查过，这里只取结果提示，不额外发网络请求

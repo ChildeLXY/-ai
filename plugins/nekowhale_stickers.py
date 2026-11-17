@@ -169,6 +169,33 @@ def _local_path(it):
     return os.path.join(_gif_dir(), "%s.gif" % h)
 
 
+def _thumb_path(gif_path):
+    """给预览用的静态首帧缩略图路径（只用于界面预览，发送仍用原 gif）。
+
+    缩略图放在 gif/thumb/ 下、与 gif 同名 .png。缺了就现场从首帧生成一张，
+    这样以后新下载的表情包在面板里同样是清清楚楚的静态图、不会叠帧。
+    原始 gif 一个字节都不动。
+    """
+    try:
+        d = os.path.dirname(gif_path)
+        name = os.path.splitext(os.path.basename(gif_path))[0] + ".png"
+        td = os.path.join(d, "thumb")
+        tp = os.path.join(td, name)
+        if os.path.exists(tp) and os.path.getsize(tp) > 0:
+            return tp
+        os.makedirs(td, exist_ok=True)
+        from PIL import Image
+        resample = getattr(Image, "Resampling", Image).LANCZOS
+        with Image.open(gif_path) as im:
+            im.seek(0)
+            im = im.convert("RGBA")
+            im.thumbnail((240, 240), resample)
+            im.save(tp, "PNG", optimize=True)
+        return tp
+    except Exception:
+        return gif_path  # 生成失败就退回原图，至少不影响发送
+
+
 def _remote_url(it):
     return "%s%s/%s/%s?h=%s" % (
         SITE, GIF_BASE,
@@ -644,7 +671,7 @@ def sticker_local(sticker_id):
         return {"ok": False, "error": "找不到这张表情包"}
     lp = _local_path(it)
     if os.path.exists(lp) and os.path.getsize(lp) > 0:
-        return {"ok": True, "path": lp, "cached": True, "url": ""}
+        return {"ok": True, "path": lp, "thumb": _thumb_path(lp), "cached": True, "url": ""}
     with _lock:
         if it.get("hash") in _downloading:
             return {"ok": False, "error": "正在下载中", "url": _remote_url(it)}
@@ -654,7 +681,7 @@ def sticker_local(sticker_id):
     finally:
         _downloading.discard(it.get("hash"))
     if p:
-        return {"ok": True, "path": p, "cached": False, "url": ""}
+        return {"ok": True, "path": p, "thumb": _thumb_path(p), "cached": False, "url": ""}
     return {"ok": False, "error": "下载失败", "url": _remote_url(it)}
 
 

@@ -56,11 +56,42 @@ if (-not $watcherRunning) {
     Start-Process $pythonw -ArgumentList (Join-Path $dir "pet_mutter_watcher.py") -WorkingDirectory $dir -WindowStyle Hidden
 }
 
+# 情绪守望者：更新情绪(mood.json)、检测离开/回来/深夜/高负载/锁屏/断网事件并触发气泡
+$moodRunning = Get-CimInstance Win32_Process -Filter "Name='pythonw.exe' or Name='python.exe'" | Where-Object { $_.CommandLine -like "*mood_watcher*" }
+if (-not $moodRunning) {
+    Start-Process $pythonw -ArgumentList (Join-Path $dir "mood_watcher.py") -WorkingDirectory $dir -WindowStyle Hidden
+}
+
 # 网页客户端：手机/平板/PC 用浏览器就能聊（默认 8848）
 # 不想要的话，把下面这段注释掉，或者设环境变量 DFY_NO_WEB=1
 if ($env:DFY_NO_WEB -ne "1") {
     $webRunning = Get-CimInstance Win32_Process -Filter "Name='pythonw.exe' or Name='python.exe'" | Where-Object { $_.CommandLine -like "*web_client.py*" }
     if (-not $webRunning) {
         Start-Process $pythonw_ai -ArgumentList (Join-Path $dir "web_client.py"), "8848" -WorkingDirectory $dir -WindowStyle Hidden
+    }
+}
+
+# ===== QQ 接入（内嵌桥接由大肥鱼AI.py 自己起；这里只负责把 QQ 客户端拉起来）=====
+# 开关：D:/大肥鱼QQ/auto_start.flag 存在才自动拉 QQ（界面勾选"随大肥鱼启动"会写这个文件）。
+# 这样 QQ 进程归当前桌面会话，不会被后台工具会话回收。
+$qqFlag = "D:/大肥鱼QQ/auto_start.flag"
+if (Test-Path $qqFlag) {
+    $qqRunning = Get-Process QQ -ErrorAction SilentlyContinue
+    if (-not $qqRunning) {
+        $qqExe = "D:/QQ/QQ.exe"
+        $launcher = "D:/NapCat/NapCatWinBootMain.exe"
+        $hookDll = "D:/NapCat/NapCatWinBootHook.dll"
+        if ((Test-Path $qqExe) -and (Test-Path $launcher)) {
+            $env:ELECTRON_RUN_AS_NODE = ""
+            $env:NODE_OPTIONS = ""
+            $env:NODE_CHANNEL_FD = ""
+            $env:VM_OPTIONS = ""
+            $env:NAPCAT_PATCH_PACKAGE = "D:/NapCat/qqnt.json"
+            $env:NAPCAT_LOAD_PATH = "D:/NapCat/loadNapCat.js"
+            $env:NAPCAT_INJECT_PATH = $hookDll
+            $env:NAPCAT_LAUNCHER_PATH = $launcher
+            $env:NAPCAT_MAIN_PATH = "D:/NapCat/napcat.mjs"
+            Start-Process -FilePath $launcher -ArgumentList $qqExe,$hookDll,"-q","1834347962" -WorkingDirectory "D:/NapCat" -WindowStyle Minimized
+        }
     }
 }

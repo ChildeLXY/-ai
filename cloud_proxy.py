@@ -407,11 +407,19 @@ async def _cloud_attempt(request, c, payload, streaming, state):
                 out = {"role": "assistant", "content": text}
                 if thinking:
                     out["thinking"] = thinking
-                return web.json_response({
-                    "model": model,
-                    "message": out,
-                    "done": True, "done_reason": "stop",
-                }, headers=CORS)
+                # 云端 usage → Ollama 风格 token 计数字段，供前端"上下文用量"面板显示真实占用。
+                # OpenAI 兼容端点在非流式响应最后带 usage.prompt_tokens / completion_tokens。
+                resp = {"model": model, "message": out,
+                        "done": True, "done_reason": "stop"}
+                try:
+                    u = data.get("usage") or {}
+                    if isinstance(u.get("prompt_tokens"), int):
+                        resp["prompt_eval_count"] = u["prompt_tokens"]
+                    if isinstance(u.get("completion_tokens"), int):
+                        resp["eval_count"] = u["completion_tokens"]
+                except Exception:
+                    pass
+                return web.json_response(resp, headers=CORS)
 
             # ---- 流式：上游 SSE → 下游 Ollama NDJSON ----
             resp = web.StreamResponse(headers=dict(
@@ -421,6 +429,7 @@ async def _cloud_attempt(request, c, payload, streaming, state):
             state["prepared"] = True
 
             buf = ""
+            usage = {}          # 收集流里出现的 usage（部分厂商最后一块带）
             async for raw in up.content.iter_any():
                 buf += raw.decode("utf-8", errors="replace")
                 while "\n" in buf:
@@ -434,6 +443,16 @@ async def _cloud_attempt(request, c, payload, streaming, state):
                         break
                     try:
                         j = json.loads(data)
+                    except Exception:
+                        continue
+                    # 有些厂商把 usage 放在没有 choices 的帧里，单独收下
+                    try:
+                        u = j.get("usage")
+                        if isinstance(u, dict) and u:
+                            usage = u
+                    except Exception:
+                        pass
+                    try:
                         delta = j["choices"][0]["delta"]
                     except Exception:
                         continue
@@ -446,9 +465,15 @@ async def _cloud_attempt(request, c, payload, streaming, state):
                         await resp.write(ollama_chunk(
                             model, content, thinking).encode("utf-8"))
 
-            await resp.write(json.dumps({
-                "model": model, "done": True, "done_reason": "stop",
-            }).encode("utf-8"))
+            final = {"model": model, "done": True, "done_reason": "stop"}
+            try:
+                if isinstance(usage.get("prompt_tokens"), int):
+                    final["prompt_eval_count"] = usage["prompt_tokens"]
+                if isinstance(usage.get("completion_tokens"), int):
+                    final["eval_count"] = usage["completion_tokens"]
+            except Exception:
+                pass
+            await resp.write(json.dumps(final, ensure_ascii=False).encode("utf-8"))
             await resp.write_eof()
             return resp
 
@@ -608,8 +633,9 @@ async def handle_tags(request):
             "digest": "cloud-model",
             "details": {"family": "cloud", "parameter_size": "cloud",
                         "quantization_level": "N/A"},
-            # 自定义字段，前端据此知道这个模型看得了图 / 有思维链
+            # 自定义字段，前端据此知道这个模型看得了图 / 有思维链 / 上下文上限
             "cloud_vision": m["vision"], "cloud_thinking": m["thinking"],
+            "context": m.get("context") or 32768,
         })
     return web.json_response({"models": out}, headers=CORS)
 

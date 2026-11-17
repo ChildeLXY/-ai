@@ -70,3 +70,7 @@ _打不开就双击我.bat
 # 下载分发的二进制（APK / 桌宠动作包），不进仓库
 downloads/*.apk
 downloads/petpack/
+
+# ---------- 8. 本地便携依赖库与 DSH 宿主运行时（含 node_modules，体积大，不进仓库）----------
+/.tools/
+/dsh_host/

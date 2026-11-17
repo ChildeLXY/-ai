@@ -1249,11 +1249,98 @@ def press_key(keys):
         return str(e)
 
 
-def agent_decide(task, history="", step=0):
-    """截图 -> 视觉模型看屏幕 -> 输出下一步动作 JSON。"""
+# ============ 工作模式：可中断停止 + 可靠性 ============
+_WB_CANCEL = threading.Event()
+
+# 危险动作关键词：命中时强制标记，让前端二次确认（防止误点删除/支付/卸载等）
+_DANGER_WORDS = ("删除", "卸载", "格式化", "清空", "支付", "转账", "关机", "重启",
+                 "注销", "永久", "移除", "回收站", "覆盖", "确认删除", "关闭程序")
+
+
+class _TaskCancelled(Exception):
+    pass
+
+
+def wb_reset():
+    _WB_CANCEL.clear()
+    return "ok"
+
+
+def wb_cancel():
+    _WB_CANCEL.set()
+    return "ok"
+
+
+def wb_cancelled():
+    return _WB_CANCEL.is_set()
+
+
+def _danger_hit(task, action, window_title, reason):
+    blob = " ".join(str(x) for x in (task, action, window_title, reason))
+    return any(w in blob for w in _DANGER_WORDS)
+
+
+def _parse_action(content):
+    content = re.sub(r"<think>[\s\S]*?</think>", "", content or "").strip()
+    m = re.search(r"\{[\s\S]*\}", content)
+    if not m:
+        return None
     try:
+        return json.loads(m.group(0))
+    except Exception:
+        return None
+
+
+def _wb_chat_stream(sys_p, user_msg, img_b64, json_mode, deadline):
+    """流式调用视觉模型，逐段检查取消标志与单步超时；返回拼接文本。"""
+    body = llm_params.payload(
+        "qwen2.5vl:7b",
+        [{"role": "system", "content": sys_p},
+         {"role": "user", "content": user_msg, "images": [img_b64]}],
+        stream=True, num_predict=300, temperature=0.1)
+    if json_mode:
+        body["format"] = "json"
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(api_base.url("/api/chat"), data=data,
+                                 headers={"Content-Type": "application/json"})
+    parts = []
+    with _LOCAL_OPENER.open(req, timeout=30) as r:
+        for raw in r:
+            if _WB_CANCEL.is_set():
+                try:
+                    r.close()
+                except Exception:
+                    pass
+                raise _TaskCancelled()
+            if time.time() > deadline:
+                try:
+                    r.close()
+                except Exception:
+                    pass
+                return "".join(parts)
+            line = raw.decode("utf-8", errors="replace").strip()
+            if not line:
+                continue
+            try:
+                j = json.loads(line)
+            except Exception:
+                continue
+            c = (j.get("message") or {}).get("content") or ""
+            if c:
+                parts.append(c)
+            if j.get("done"):
+                break
+    return "".join(parts)
+
+
+def agent_decide(task, history="", step=0):
+    """截图 -> 视觉模型看屏幕 -> 输出下一步动作 JSON。
+    可中断（wb_cancel）、JSON 强约束、解析失败重试、环境注入、危险动作标记。"""
+    try:
+        if _WB_CANCEL.is_set():
+            return {"action": "done", "reason": "已停止", "_cancelled": True}
         shot = take_screenshot()
-        if not shot or shot.startswith("["):
+        if not shot or str(shot).startswith("["):
             return {"action": "done", "reason": "截图失败"}
         try:
             img_b64 = _image_b64(shot, max_px=1024)
@@ -1261,31 +1348,39 @@ def agent_decide(task, history="", step=0):
             with open(shot, "rb") as f:
                 img_b64 = base64.b64encode(f.read()).decode()
         sw = screen_size()
+        win_title = _active_window() or ""
+        env_ctx = (
+            "【真实环境，唯一权威依据】当前时间：%s；当前激活窗口：%s；屏幕分辨率：%dx%d。"
+            "禁止从聊天记录推算时间。" % (get_time(), win_title, sw["w"], sw["h"])
+        )
         sys_p = (
-            "你是一个能操控这台 Windows 电脑的智能助手（WorkBuddy模式）。"
+            "你是一个能操控这台 Windows 电脑的智能助手（工作模式）。"
             "我会给你当前屏幕截图和用户任务。你只输出一个 JSON，不要任何解释文字。"
             '格式：{"reason":"一句话说明","action":"click|type|key|done",'
             '"x":0到1之间的数,"y":0到1之间的数,"text":"要输入的文字","key":"要按的键"}\n'
             "规则：click 时给归一化坐标 x/y（左上角0,0 右下角1,1）；type 时 text 为要输入的内容；"
             "key 时 key 如 enter/ctrl+s/alt+tab；任务完成或无法继续时 action=done。"
-            "屏幕分辨率 %dx%d。谨慎操作，不要点删除/确认删除这类危险按钮。" % (sw["w"], sw["h"])
+            "谨慎操作，不要点删除/确认删除/支付/卸载这类危险按钮。\n" + env_ctx
         )
         user_msg = "用户任务：" + task + "\n历史步骤：" + (history or "无") + "\n第%d步。现在截图如上，下一步做什么？只输出JSON。" % step
-        payload = llm_params.payload(
-            "qwen2.5vl:7b",
-            [{"role": "system", "content": sys_p},
-             {"role": "user", "content": user_msg, "images": [img_b64]}],
-            stream=False, num_predict=300, temperature=0.1)
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(api_base.url("/api/chat"), data=data,
-                                     headers={"Content-Type": "application/json"})
-        with _LOCAL_OPENER.open(req, timeout=120) as r:
-            result = json.loads(r.read().decode("utf-8"))
-        content = result.get("message", {}).get("content", "").strip()
-        content = re.sub(r"<think>[\s\S]*?</think>", "", content).strip()
-        m = re.search(r"\{[\s\S]*\}", content)
-        action = json.loads(m.group(0)) if m else {"action": "done", "reason": "模型未输出动作"}
+
+        try:
+            deadline = time.time() + 90
+            content = _wb_chat_stream(sys_p, user_msg, img_b64, True, deadline)
+            action = _parse_action(content)
+            if action is None and not _WB_CANCEL.is_set():
+                # 解析失败重试一次：去掉 JSON 约束，避免个别模型被约束后行为异常
+                deadline = time.time() + 60
+                content = _wb_chat_stream(sys_p, user_msg, img_b64, False, deadline)
+                action = _parse_action(content)
+        except _TaskCancelled:
+            return {"action": "done", "reason": "已停止", "_cancelled": True}
+
+        if action is None:
+            action = {"action": "done", "reason": "模型未输出有效动作"}
         action["_screenshot"] = shot
+        action["_dangerous"] = bool(_danger_hit(task, action.get("action"),
+                                                win_title, action.get("reason")))
         return action
     except Exception as e:
         return {"action": "done", "reason": "决策出错：" + str(e)}

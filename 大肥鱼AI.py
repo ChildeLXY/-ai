@@ -853,10 +853,97 @@ def press_key(keys):
     except Exception as e:
         return str(e)
 
-def agent_decide(task, history="", step=0):
-    """截图 -> 视觉模型(qwen2.5vl:7b)看屏幕 -> 输出下一步动作 JSON。"""
+# ============ 工作模式：可中断停止 + 可靠性 ============
+_WB_CANCEL = threading.Event()
+
+# 危险动作关键词：命中时强制标记，让前端二次确认（防止误点删除/支付/卸载等）
+_DANGER_WORDS = ("删除", "卸载", "格式化", "清空", "支付", "转账", "关机", "重启",
+                 "注销", "永久", "移除", "回收站", "覆盖", "确认删除", "关闭程序")
+
+
+class _TaskCancelled(Exception):
+    pass
+
+
+def wb_reset():
+    _WB_CANCEL.clear()
+    return "ok"
+
+
+def wb_cancel():
+    _WB_CANCEL.set()
+    return "ok"
+
+
+def wb_cancelled():
+    return _WB_CANCEL.is_set()
+
+
+def _danger_hit(task, action, window_title, reason):
+    blob = " ".join(str(x) for x in (task, action, window_title, reason))
+    return any(w in blob for w in _DANGER_WORDS)
+
+
+def _parse_action(content):
+    content = re.sub(r"<think>[\s\S]*?</think>", "", content or "").strip()
+    m = re.search(r"\{[\s\S]*\}", content)
+    if not m:
+        return None
     try:
-        import base64 as b64
+        return json.loads(m.group(0))
+    except Exception:
+        return None
+
+
+def _wb_chat_stream(sys_p, user_msg, img_b64, json_mode, deadline):
+    """流式调用视觉模型，逐段检查取消标志与单步超时；返回拼接文本。"""
+    body = llm_params.payload(
+        "qwen3-vl:2b",
+        [{"role": "system", "content": sys_p},
+         {"role": "user", "content": user_msg, "images": [img_b64]}],
+        stream=True, num_predict=1000, temperature=0.1)
+    body["think"] = True
+    if json_mode:
+        body["format"] = "json"
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(api_base.url("/api/chat"), data=data,
+                                 headers={"Content-Type": "application/json"})
+    parts = []
+    with _LOCAL_OPENER.open(req, timeout=30) as r:
+        for raw in r:
+            if _WB_CANCEL.is_set():
+                try:
+                    r.close()
+                except Exception:
+                    pass
+                raise _TaskCancelled()
+            if time.time() > deadline:
+                try:
+                    r.close()
+                except Exception:
+                    pass
+                return "".join(parts)
+            line = raw.decode("utf-8", errors="replace").strip()
+            if not line:
+                continue
+            try:
+                j = json.loads(line)
+            except Exception:
+                continue
+            c = (j.get("message") or {}).get("content") or ""
+            if c:
+                parts.append(c)
+            if j.get("done"):
+                break
+    return "".join(parts)
+
+
+def agent_decide(task, history="", step=0):
+    """截图 -> 视觉模型看屏幕 -> 输出下一步动作 JSON。
+    可中断（wb_cancel）、JSON 强约束、解析失败重试、环境注入、危险动作标记。"""
+    try:
+        if _WB_CANCEL.is_set():
+            return {"action": "done", "reason": "已停止", "_cancelled": True}
         shot = take_screenshot()
         if not shot or shot.startswith("["):
             return {"action": "done", "reason": "截图失败"}
@@ -870,36 +957,44 @@ def agent_decide(task, history="", step=0):
             small = os.path.join(cache_dir, "wb_small.jpg")
             im.save(small, "JPEG", quality=70)
             with open(small, "rb") as f:
-                img_b64 = b64.b64encode(f.read()).decode()
+                img_b64 = base64.b64encode(f.read()).decode()
         except Exception:
             with open(shot, "rb") as f:
-                img_b64 = b64.b64encode(f.read()).decode()
+                img_b64 = base64.b64encode(f.read()).decode()
         sw = screen_size()
+        win_title = _active_window() or ""
+        env_ctx = (
+            "【真实环境，唯一权威依据】当前时间：%s；当前激活窗口：%s；屏幕分辨率：%dx%d。"
+            "禁止从聊天记录推算时间。" % (get_time(), win_title, sw["w"], sw["h"])
+        )
         sys_p = (
-            "你是一个能操控这台 Windows 电脑的智能助手（WorkBuddy模式）。"
+            "你是一个能操控这台 Windows 电脑的智能助手（工作模式）。"
             "我会给你当前屏幕截图和用户任务。你只输出一个 JSON，不要任何解释文字。"
             '格式：{"reason":"一句话说明","action":"click|type|key|done",'
             '"x":0到1之间的数,"y":0到1之间的数,"text":"要输入的文字","key":"要按的键"}\n'
             "规则：click 时给归一化坐标 x/y（左上角0,0 右下角1,1）；type 时 text 为要输入的内容；"
             "key 时 key 如 enter/ctrl+s/alt+tab；任务完成或无法继续时 action=done。"
-            "屏幕分辨率 %dx%d。谨慎操作，不要点删除/确认删除这类危险按钮。" % (sw["w"], sw["h"])
+            "谨慎操作，不要点删除/确认删除/支付/卸载这类危险按钮。\n" + env_ctx
         )
         user_msg = "用户任务：" + task + "\n历史步骤：" + (history or "无") + "\n第%d步。现在截图如上，下一步做什么？只输出JSON。" % step
-        payload = llm_params.payload(
-            "qwen2.5vl:7b",
-            [{"role": "system", "content": sys_p},
-             {"role": "user", "content": user_msg, "images": [img_b64]}],
-            stream=False, num_predict=300, temperature=0.1)
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(api_base.url("/api/chat"), data=data,
-                                     headers={"Content-Type": "application/json"})
-        with _LOCAL_OPENER.open(req, timeout=120) as r:
-            result = json.loads(r.read().decode("utf-8"))
-        content = result.get("message", {}).get("content", "").strip()
-        content = re.sub(r"<think>[\s\S]*?</think>", "", content).strip()
-        m = re.search(r"\{[\s\S]*\}", content)
-        action = json.loads(m.group(0)) if m else {"action": "done", "reason": "模型未输出动作"}
+
+        try:
+            deadline = time.time() + 120
+            content = _wb_chat_stream(sys_p, user_msg, img_b64, True, deadline)
+            action = _parse_action(content)
+            if action is None and not _WB_CANCEL.is_set():
+                # 解析失败重试一次：去掉 JSON 约束，避免个别模型被约束后行为异常
+                deadline = time.time() + 90
+                content = _wb_chat_stream(sys_p, user_msg, img_b64, False, deadline)
+                action = _parse_action(content)
+        except _TaskCancelled:
+            return {"action": "done", "reason": "已停止", "_cancelled": True}
+
+        if action is None:
+            action = {"action": "done", "reason": "模型未输出有效动作"}
         action["_screenshot"] = shot
+        action["_dangerous"] = bool(_danger_hit(task, action.get("action"),
+                                                win_title, action.get("reason")))
         return action
     except Exception as e:
         return {"action": "done", "reason": "决策出错：" + str(e)}
@@ -1073,6 +1168,473 @@ def load_setting(key):
         return ""
     except:
         return ""
+
+def set_ctx_size(n):
+    """前端"上下文用量"面板的拨杆：设置上下文窗口大小。
+
+    同时做两件事：
+      1. 写 settings.json（ctx_size）——重启后仍然保留；
+      2. 运行时 apply_ctx() 改 llm_params.NUM_CTX——主对话和所有插件立刻统一生效，
+         不用重启，也不会因为主对话/插件 num_ctx 不一致让 Ollama 反复重载模型。
+    """
+    import llm_params as _lp
+    val = _lp.apply_ctx(n)
+    try:
+        save_setting("ctx_size", val)
+    except Exception:
+        pass
+    return {"ok": True, "ctx": val}
+
+
+def get_ctx_size():
+    """读当前生效的上下文窗口大小。"""
+    import llm_params as _lp
+    return {"ok": True, "ctx": _lp.current_ctx()}
+
+
+# ============ QQ 桥接（内嵌在主进程，qq_bridge.py）============
+# 生命周期跟着主程序，不再起独立进程（独立进程会被工具会话回收）。
+_QQ = None                    # qq_bridge.Bridge 实例，window 建好后初始化
+_QQ_PUSH = {"fn": None}       # push_event 延迟绑定（定义在后面 2057 行）
+
+
+def _qq_event(evt, data):
+    fn = _QQ_PUSH.get("fn")
+    if fn:
+        fn(evt, data)
+
+
+def _qq_init():
+    """创建内嵌桥接对象（只建对象，不起服务）。"""
+    global _QQ
+    if _QQ is not None:
+        return _QQ
+    try:
+        import qq_bridge
+        _QQ = qq_bridge.Bridge(load_setting, save_setting, _qq_event,
+                               log_fn=(lambda m, lv="INFO": logging.info("QQ | " + str(m))))
+    except Exception as e:
+        logging.warning("QQ 桥接模块加载失败：%s", e)
+    return _QQ
+
+
+def qq_status():
+    """QQ 桥接状态（给主界面 🐧 面板轮询）。"""
+    b = _qq_init()
+    if not b:
+        return {"ok": True, "online": False, "error": "桥接模块不可用",
+                "onebot_api": False, "recent": [], "sticker_count": 0}
+    st = b.status()
+    st["script_exists"] = True
+    return st
+
+
+def qq_start(mode="onebot"):
+    """启动内嵌 QQ 桥接服务。"""
+    b = _qq_init()
+    if not b:
+        return {"ok": False, "error": "桥接模块不可用"}
+    return b.start()
+
+
+def qq_stop():
+    """停止内嵌 QQ 桥接服务。"""
+    b = _qq_init()
+    if not b:
+        return {"ok": True, "note": "桥接模块不可用"}
+    return b.stop()
+
+
+def qq_send(target, text, kind="private", sticker=""):
+    """手动发一条消息/表情包（🐧 面板用）。"""
+    b = _qq_init()
+    if not b:
+        return {"ok": False, "error": "桥接模块不可用"}
+    return b.send(target, text, kind, sticker)
+
+
+def qq_reload():
+    """重新加载人格/记忆/表情包（改了设置后用）。"""
+    b = _qq_init()
+    return b.refresh() if b else {"ok": False, "error": "桥接模块不可用"}
+
+
+# ---------- QQ 客户端启动（界面一键：关 QQ → 注入 → 等登录 → 起桥接）----------
+def _ql_cfg():
+    """把设置里的 QQ 路径/端口拼成启动器要的配置。"""
+    import qq_launcher
+    return qq_launcher.cfg_from(load_setting)
+
+
+def qq_paths():
+    """检查 QQ / NapCat 文件是否齐，顺便回传当前配置。"""
+    try:
+        import qq_launcher
+        c = _ql_cfg()
+        r = qq_launcher.check_files(c)
+        r["cfg"] = {k: c[k] for k in ("qq_exe", "napcat_dir", "qq_bot", "api_port", "bridge_port")}
+        r["qq_running"] = qq_launcher.qq_running()
+        return r
+    except Exception as e:
+        return {"ok": False, "error": str(e), "missing": []}
+
+
+def qq_launch(force_all=False):
+    """一键启动 QQ：后台跑完整条链，界面轮询 qq_launch_state 看进度。
+
+    force_all=True 才关掉机器上所有 QQ（含用户自己的）；默认只重启机器人实例。
+    """
+    try:
+        import qq_launcher
+
+        def _ready():
+            b = _qq_init()
+            if not b:
+                return {"ok": False, "error": "桥接模块不可用"}
+            return b.start() if not b.running else {"ok": True, "already": True}
+
+        flag = force_all in (True, 1, "1", "true", "True")
+        return qq_launcher.launch(_ql_cfg(), on_ready=_ready, kill_all=bool(flag))
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_launch_state():
+    """启动进度 + 端口/登录实时状态（带机器人号校验）。"""
+    try:
+        import qq_launcher
+        want = str(load_setting("qq_bot") or "1834347962")
+        return qq_launcher.state(bot_uin=want)
+    except Exception as e:
+        return {"ok": False, "error": str(e), "running": False}
+
+
+def qq_login_shot():
+    """把**机器人实例**的 QQ 窗口（含二维码）截给界面看。"""
+    try:
+        import qq_launcher
+        return qq_launcher.login_shot()
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_bring():
+    """把机器人 QQ 窗口提到最前面。"""
+    try:
+        import qq_launcher
+        return qq_launcher.activate_window()
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_voice_say(text="", target="", kind="private"):
+    """把一段文字念成语音条发到 QQ（界面上「试听」用）。"""
+    try:
+        b = _qq_init()
+        if not b:
+            return {"ok": False, "error": "桥接模块不可用"}
+        if not getattr(b, "running", False):
+            return {"ok": False, "error": "QQ 桥接没启动，先「启动 QQ 并登录」"}
+        return b.voice_say(text, target, kind)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_voice_list():
+    """可选音色清单（给设置页下拉用）。"""
+    try:
+        import qqbot as _qb
+        return {"ok": True, "voices": _qb.Voice.VOICES}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "voices": []}
+
+
+# ---------------- DeepBuddy 执行层 ----------------
+# DeepBuddy 是本地的一套 Agent（工具集 + 危险命令确认门 + 后台进程），
+# 这里把它接进来：开大肥鱼AI 时一起拉起，QQ 里也能让它真动手。
+def qq_buddy_status():
+    try:
+        import dfy_buddy
+        return dfy_buddy.status()
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_buddy_launch():
+    try:
+        import dfy_buddy
+        return dfy_buddy.launch()
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_buddy_tools():
+    try:
+        import dfy_buddy
+        return {"ok": True, "tools": dfy_buddy.tools()}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "tools": []}
+
+
+# ---------------- DSH 插件转接口 ----------------
+# 让 DSH 生态的插件（人设/记忆/心情/贴纸…）对本地大肥鱼生效。
+# 底层是 dsh_host 那个兼容宿主，这里只做代理，方便前端调用。
+def qq_dsh_status():
+    try:
+        import dfy_dsh
+        return dfy_dsh.status()
+    except Exception as e:
+        return {"ok": False, "online": False, "error": str(e)}
+
+
+def qq_dsh_start():
+    try:
+        import dfy_dsh
+        return dfy_dsh.start()
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_dsh_restart():
+    try:
+        import dfy_dsh
+        return dfy_dsh.restart_host()
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_dsh_search(q=""):
+    try:
+        import dfy_dsh
+        return {"ok": True, "items": dfy_dsh.market_search(q)}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "items": []}
+
+
+def qq_dsh_install(name=""):
+    """装插件：落点与 DSH 一致（profile/node_modules + package.json）。"""
+    try:
+        import dfy_dsh
+        return dfy_dsh.market_install(name)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_dsh_toggle(name="", enabled=True):
+    try:
+        import dfy_dsh
+        return dfy_dsh.toggle_plugin(name, bool(enabled))
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_dsh_context():
+    try:
+        import dfy_dsh
+        return {"ok": True, "parts": dfy_dsh.context_parts(force=True),
+                "text": dfy_dsh.context_text(True)[:8000]}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "parts": [], "text": ""}
+
+
+# ---------------- DSH 插件市场（独立弹窗） ----------------
+def qq_market_open():
+    try:
+        import dfy_market
+        return dfy_market.open_window()
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_market_status():
+    out = {"ok": True, "pid": 0}
+    try:
+        import dfy_market
+        out["pid"] = dfy_market.window_pid()
+        out.update(dfy_market.status())
+    except Exception as e:
+        out["error"] = str(e)
+    return out
+
+
+def qq_market_close():
+    try:
+        import dfy_market
+        return dfy_market.close_window()
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_zone_status():
+    """空间面板状态：登录态、今日计数、下次自动时间、历史。"""
+    try:
+        import dfy_qzone as qq_zone
+        return qq_zone.status()
+    except Exception as e:
+        return {"ok": False, "error": str(e), "history": []}
+
+
+def qq_zone_cfg():
+    """读空间配置（前端用中文键名）。"""
+    try:
+        import dfy_qzone as qq_zone
+        return {"ok": True, "cfg": qq_zone._cfg()}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "cfg": {}}
+
+
+def qq_zone_set_cfg(cfg=None):
+    """写空间配置。前端传的是中文键名字典。"""
+    try:
+        cfg = cfg or {}
+        for k in _QZ_KEYS:
+            if k not in cfg:
+                continue
+            v = cfg[k]
+            if isinstance(v, bool):
+                v = "1" if v else "0"
+            save_setting("qzone_" + k, v)
+        # 配置改了就重启定时器判断（线程里每轮都会重读，无需重启）
+        try:
+            import dfy_qzone as qq_zone
+            qq_zone.start_scheduler()
+        except Exception:
+            pass
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_zone_preview(hint=""):
+    """让模型写一条说说（不发布）。"""
+    try:
+        import dfy_qzone as qq_zone
+        r = qq_zone.ai_write(hint or "", want_image=True)
+        if r.get("ok"):
+            return {"ok": True, "text": r.get("text", ""), "image": r.get("image", ""),
+                    "image_path": r.get("image_path", "")}
+        return r
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_zone_publish(text="", pick_name="", auto_img=False):
+    """发一条说说。pick_name：指定表情名；auto_img：按文案自动挑图。"""
+    try:
+        import dfy_qzone as qq_zone
+        text = (text or "").strip()
+        if not text:
+            return {"ok": False, "error": "内容为空"}
+        name, path = "", ""
+        if pick_name:
+            name, path = qq_zone.pick_sticker(pick_name)
+            if not path:
+                return {"ok": False, "error": "没找到表情「%s」" % pick_name}
+        elif auto_img:
+            name, path = qq_zone.pick_sticker(text)
+        imgs = [path] if path else []
+        r = qq_zone.publish(text, ugc_right=qq_zone._cfg()["查看权限"], images=imgs)
+        qq_zone.bump_today()
+        qq_zone._add_hist({
+            "time": time.strftime("%m-%d %H:%M"), "mode": "manual",
+            "ok": bool(r.get("ok")), "text": text,
+            "images": imgs if r.get("images") else [],
+            "err": "" if r.get("ok") else r.get("error", ""),
+            "tid": r.get("tid", ""),
+        })
+        if r.get("ok"):
+            out = {"ok": True, "tid": r.get("tid", ""),
+                   "sticker": name if r.get("images") else ""}
+            if r.get("warn"):
+                out["warn"] = r["warn"]
+            return out
+        return r
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_zone_delete(tid=""):
+    """删一条说说。"""
+    try:
+        import dfy_qzone as qq_zone
+        r = qq_zone.delete(tid)
+        if r.get("ok"):
+            h = [x for x in qq_zone._hist() if str(x.get("tid")) != str(tid)]
+            try:
+                json.dump(h, open(qq_zone.HIST_PATH, "w", encoding="utf-8"),
+                          ensure_ascii=False)
+            except Exception:
+                pass
+        return r
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+
+def qq_fix_report():
+    """自检并修复 NapCat 的上报配置（带 BOM 会导致整份配置读不到）。"""
+    try:
+        import qq_launcher
+
+        def _g(k):
+            try:
+                return load_setting(k)
+            except Exception:
+                return None
+
+        r = qq_launcher.ensure_report(qq_launcher.cfg_from(_g))
+        if r.get("ok"):
+            r["hint"] = ("已修正：%s。需要重启 QQ 才会生效，点「重启 QQ 并登录」。" % r.get("action")
+                         if r.get("changed") else "上报配置本来就是对的，不用改。")
+        return r
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_kill(mode="bot"):
+    """关 QQ：mode='bot' 只关机器人实例；mode='all' 全关（需用户在界面确认）。"""
+    try:
+        import qq_launcher
+        if str(mode) == "all":
+            return qq_launcher.stop_all()
+        return qq_launcher.stop_bot()
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_cfg_save(payload):
+    """保存 QQ 相关配置（QQ 号 / QQ.exe / NapCat 目录 / 端口）。"""
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except Exception:
+            payload = {}
+    ok_keys = ("qq_bot", "qq_exe", "qq_napcat_dir", "qq_api_port")
+    saved = {}
+    try:
+        for k, v in (payload or {}).items():
+            if k in ok_keys:
+                save_setting(k, str(v))
+                saved[k] = str(v)
+        return {"ok": True, "saved": saved}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def qq_set_autostart(on):
+    """写/删 QQ 自启标记文件，供 start.ps1 在下次启动大肥鱼时拉起 QQ 客户端。"""
+    flag = r"D:\大肥鱼QQ\auto_start.flag"
+    try:
+        if on:
+            with open(flag, "w", encoding="utf-8") as f:
+                f.write("1")
+        elif os.path.exists(flag):
+            os.remove(flag)
+        save_setting("qq_autostart", "1" if on else "0")
+        return {"ok": True, "on": bool(on)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
 
 # ============ 跨对话长期记忆 ============
 def _default_memory():
@@ -1895,15 +2457,22 @@ window = webview.create_window(
 # DFY_START_TAB=cloud：窗口一打开就停在指定设置页（截图、复现问题时用）
 def _jump_start_tab():
     tab = os.environ.get("DFY_START_TAB")
-    if not tab:
-        return
-    try:
-        # 云端那类页面在设置弹窗里，得先 openSettings 再切 tab。
-        # 延迟交给页面自己做：loaded 时脚本可能还没执行完。
-        window.evaluate_js(
-            "setTimeout(function(){try{openSettings();switchTab(%r)}catch(e){}},1500)" % tab)
-    except Exception:
-        pass
+    if tab:
+        try:
+            # 云端那类页面在设置弹窗里，得先 openSettings 再切 tab。
+            # 延迟交给页面自己做：loaded 时脚本可能还没执行完。
+            window.evaluate_js(
+                "setTimeout(function(){try{openSettings();switchTab(%r)}catch(e){}},1500)" % tab)
+        except Exception:
+            pass
+    # DFY_AUTO_MARKET=1：自检用——启动后自动点一次"插件市场"，把前端到后端的链路跑通
+    if os.environ.get("DFY_AUTO_MARKET") == "1":
+        try:
+            window.evaluate_js(
+                "setTimeout(function(){try{hubMarketOpen()}catch(e){"
+                "document.title='ERR '+e.message}},2500)")
+        except Exception:
+            pass
 
 
 try:
@@ -1959,6 +2528,8 @@ try:
             pass
 
     _pctx.push_event = _push_event
+    # 让内嵌 QQ 桥接也能用同一条事件通道推消息到前端
+    _QQ_PUSH["fn"] = _push_event
     PLUGIN_APIS, PLUGIN_MANIFEST = _plugins.load_plugins(_pctx)
 except Exception as _e:
     try:
@@ -2014,15 +2585,47 @@ def selftest_report(payload):
     return "ok"
 
 
+# 启动时把上次的上下文窗口大小应用上（前端滑块调过的值）。必须在插件加载前，
+# 这样插件第一次调用 llm_params 时拿到的就是用户设定的 num_ctx。
+try:
+    import llm_params as _lp0
+    _saved_ctx = load_setting("ctx_size")
+    if _saved_ctx:
+        _lp0.apply_ctx(_saved_ctx)
+except Exception:
+    pass
+
+def read_mood():
+    """读取情绪引擎当前状态（由 mood_watcher 维护的 mood.json），供主对话注入。"""
+    try:
+        mp = os.path.join(os.path.dirname(memory_file), "mood.json")
+        if not os.path.exists(mp):
+            return {}
+        with open(mp, "r", encoding="utf-8-sig") as f:
+            st = json.load(f)
+        return {"label": st.get("label", ""), "mood": st.get("mood", {}), "updated": st.get("updated", "")}
+    except Exception:
+        return {}
+
 window.expose(*([_safe_api(_f) for _f in (
               load_chats, save_chats, delete_chat_disk, web_search, repo_search, read_file, read_image, run_python, kb_search, open_kb,
               take_screenshot, read_clipboard, write_clipboard, extract_url, tts_speak, gen_title, open_folder, pick_avatar, save_avatar, save_setting, load_setting,
-              load_memory, save_memory, remember_fact, reflect_memory, pet_mutter,
+              load_memory, save_memory, remember_fact, reflect_memory, pet_mutter, read_mood,
               gen_persona, test_persona, get_time, get_time_brief, get_env, list_dir, env_sense, model_caps,
                 check_update, do_update, update_status,
-                get_api_base, cloud_config_get, cloud_config_save, cloud_test,
-                cloud_fetch_models,
-                screen_size, mouse_click, type_text, press_key, agent_decide, plugin_list,
+              get_api_base, cloud_config_get, cloud_config_save, cloud_test,
+              cloud_fetch_models, set_ctx_size, get_ctx_size,
+              qq_status, qq_start, qq_stop, qq_send, qq_reload, qq_set_autostart,
+              qq_launch, qq_launch_state, qq_login_shot, qq_bring, qq_kill, qq_paths, qq_cfg_save,
+              qq_fix_report, qq_voice_say, qq_voice_list,
+              qq_dsh_status, qq_dsh_start, qq_dsh_restart, qq_dsh_search,
+              qq_dsh_install, qq_dsh_toggle, qq_dsh_context,
+              qq_market_open, qq_market_status, qq_market_close,
+              qq_buddy_status, qq_buddy_launch, qq_buddy_tools,
+              qq_zone_status, qq_zone_cfg, qq_zone_set_cfg, qq_zone_preview,
+              qq_zone_publish, qq_zone_delete,
+                screen_size, mouse_click, type_text, press_key, agent_decide,
+                wb_cancel, wb_reset, wb_cancelled, plugin_list,
               plugin_set_enabled)]
               + [_safe_api(_f) for _f in PLUGIN_APIS]
               + ([_safe_api(selftest_report)] if os.environ.get("DFY_SELFTEST") == "1" else [])))
@@ -2376,5 +2979,111 @@ try:
         threading.Thread(target=auto_update_loop, daemon=True, name="gitee-update").start()
 except Exception:
     pass
+
+# QQ 桥接自启：设置里 qq_autostart=1 时随主程序一起起来（内嵌线程，跟着本进程活）
+def _qq_boot():
+    """开机就绪：起桥接；如果机器上一个 QQ 都没开，顺手把机器人 QQ 拉起来。"""
+    try:
+        r = qq_start("onebot")
+    except Exception as e:
+        r = {"ok": False, "error": str(e)}
+    try:
+        if str(load_setting("qq_autostart") or "0") not in ("1", "true", "True"):
+            return
+        import time as _t
+
+        _t.sleep(2)
+        import qq_launcher
+        # 已经登录就不用管；有 QQ 在跑（大概率是你自己的）也绝不擅自杀
+        try:
+            cur = _QQ.status() if _QQ else {}
+        except Exception:
+            cur = {}
+        if cur.get("logged_in"):
+            return
+        if qq_launcher.qq_running():
+            print("[QQ] 机器上已有 QQ 在运行，跳过自动拉起（避免关掉你自己的号）")
+            return
+        print("[QQ] 没有 QQ 在运行，自动拉起机器人实例…")
+        qq_launcher.launch(qq_launcher.cfg_from(load_setting), kill_all=True)
+    except Exception as e:
+        print("[QQ] 自动拉起失败：%r" % e)
+
+
+try:
+    if str(load_setting("qq_autostart") or "0") in ("1", "true", "True"):
+        threading.Thread(target=_qq_boot, daemon=True, name="qq-autostart").start()
+except Exception:
+    pass
+
+# 空间定时发说说：线程里每轮都重读配置，界面上开关改了立刻生效
+try:
+    import dfy_qzone as _qzone
+    _qzone.start_scheduler()
+    print("[Qzone] 定时器已启动")
+except Exception as _e:
+    import traceback as _tb
+    try:
+        with open(r"D:\大肥鱼缓存\qzone.log", "a", encoding="utf-8") as _f:
+            _f.write("[%s][ERROR] 定时器启动失败：%r\n%s\n" % (
+                time.strftime("%H:%M:%S"), _e, _tb.format_exc()))
+    except Exception:
+        pass
+    print("[Qzone] 定时器启动失败：%r" % _e)
+
+# 内存看护：模型进程提优先级、浏览器降级，内存紧张时修剪浏览器工作集，
+# 优先保证大肥鱼（35B 模型）不换页、思维在线
+try:
+    import dfy_mem_guard as _guard
+    _guard.start(interval=60, min_avail_gb=8.0)
+    print("[MemGuard] 内存看护已启动")
+except Exception as _e:
+    print("[MemGuard] 启动失败：%r" % _e)
+
+# DeepBuddy：开大肥鱼AI 的时候把它也带起来（已经在跑就不重复起）。
+# 它是一整套 Agent 执行层（工具集 + 危险命令确认门 + 后台进程），
+# QQ 那边要用它的能力，所以两件事一起做：拉起窗口、预热模块。
+def _boot_buddy():
+    try:
+        import dfy_buddy
+        r = dfy_buddy.launch()
+        print("[DeepBuddy] %s" % r)
+        dfy_buddy.module()
+    except Exception as _e:
+        print("[DeepBuddy] 启动失败：%r" % _e)
+
+
+try:
+    threading.Thread(target=_boot_buddy, daemon=True, name="deepbuddy").start()
+except Exception:
+    pass
+
+# DSH 插件转接口：后台把兼容宿主拉起来（不阻塞界面）。
+# 宿主是 D:/大肥鱼AI/dsh_host/host.mjs，负责加载 DSH 插件并把
+# 「插件注入的提示词 + 注册的工具」开成 HTTP 给机器人和界面用。
+def _boot_dsh_host():
+    try:
+        import dfy_dsh
+        if not dfy_dsh.enabled():
+            print("[DSH] 转接口已在设置里关闭")
+            return
+        r = dfy_dsh.ensure()
+        print("[DSH] 宿主：%s" % r)
+    except Exception as _e:
+        print("[DSH] 启动失败：%r" % _e)
+
+
+try:
+    threading.Thread(target=_boot_dsh_host, daemon=True, name="dsh-host").start()
+except Exception:
+    pass
+
+# 托盘：点关闭不退出，缩到系统托盘；真要退从托盘菜单选「退出」
+try:
+    import dfy_tray
+    dfy_tray.install(window, icon_path)
+    print("[托盘] 已挂载")
+except Exception as _e:
+    print("[托盘] 挂载失败：%r" % _e)
 
 webview.start(storage_path=os.environ.get("DFY_WV2_PROFILE") or "D:\\大肥鱼缓存\\wv2_profile")
