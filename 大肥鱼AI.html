@@ -517,6 +517,36 @@ button.emj-btn:hover{opacity:1;transform:scale(1.08)}
 #dshFrame .df-return:hover{background:#e8e8ed}
 #dshFrame *{scroll-behavior:auto}
 @media (prefers-reduced-motion:reduce){#dshFrame *{transition:none!important;animation:none!important}}
+/* ===== DSH 框架内聊天页（苹果式气泡 + 发丝线）===== */
+.df-newchat{background:#232324;border:1px solid #333335;border-radius:9px;color:#c9cdd4;
+  height:34px;font-size:12.5px;cursor:pointer;font-family:inherit;margin:0 2px 8px;flex-shrink:0}
+.df-newchat:hover{background:#2b2b2d;color:#fff}
+.df-chat-msgs{flex:1;overflow-y:auto;padding:22px 24px 18px;display:flex;flex-direction:column;gap:14px;min-height:0}
+.df-msg{display:flex;gap:9px;max-width:76%;animation:dfmsg-in .18s ease-out}
+@keyframes dfmsg-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.df-msg.u{align-self:flex-end;flex-direction:row-reverse}
+.df-msg.a{align-self:flex-start}
+.df-bubble{padding:10px 14px;font-size:13.5px;line-height:20px;letter-spacing:-.01em;
+  border-radius:17px;white-space:pre-wrap;word-break:break-word}
+.df-msg.u .df-bubble{background:#0a84ff;color:#fff;border-bottom-right-radius:6px}
+.df-msg.a .df-bubble{background:#232324;border:1px solid #2e2e30;color:#e9eaec;border-bottom-left-radius:6px}
+.df-msg .df-avatar{width:28px;height:28px;border-radius:50%;background:#232324;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:15px}
+.df-msg-time{font-size:10.5px;color:#6b6f76;margin-top:4px}
+.df-typing{display:inline-flex;gap:4px;align-items:center;padding:4px 2px}
+.df-typing i{width:6px;height:6px;border-radius:50%;background:#8e8e93;animation:dftyp 1.1s infinite}
+.df-typing i:nth-child(2){animation-delay:.18s}.df-typing i:nth-child(3){animation-delay:.36s}
+@keyframes dftyp{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+.df-chat-input{padding:12px 24px 16px;border-top:1px solid #232324;background:#151517;display:flex;gap:10px;flex-shrink:0}
+.df-chat-input input{flex:1;background:#232324;border:1px solid #333335;border-radius:20px;
+  padding:10px 18px;color:#f2f2f3;font-size:13.5px;outline:none;font-family:inherit}
+.df-chat-input input:focus{border-color:#0a84ff}
+.df-send{width:40px;height:40px;border-radius:50%;border:none;background:#0a84ff;color:#fff;
+  font-size:17px;cursor:pointer;flex-shrink:0;font-family:inherit}
+.df-send:disabled{background:#3a3a3c;color:#7c7c81;cursor:default}
+.df-chat-empty{margin:auto;text-align:center;color:#6b6f76;font-size:13px;line-height:22px}
+.df-chat-empty .big{font-size:40px;display:block;margin-bottom:10px}
+@media (max-width:767px){.df-chat-msgs,.df-chat-input{padding-left:14px;padding-right:14px}.df-msg{max-width:88%}}
 /* 顶栏上的模式切换按钮 */
 .dsh-btn{background:var(--card);border:1px solid var(--border);color:var(--text2);border-radius:8px;
   font-size:12.5px;padding:5px 11px;cursor:pointer;font-family:inherit;margin-left:2px}
@@ -1893,10 +1923,11 @@ function _dfFillChats(){
   try{arr=(typeof chats!=='undefined'&&Array.isArray(chats))?chats:[]}catch(e){arr=[]}
   if(!arr.length){box.innerHTML='<div class="df-foot-note" style="padding:6px 12px">还没有会话</div>';return}
   box.innerHTML='';
-  arr.slice(0,20).forEach(function(ch){
+  arr.slice(0,30).forEach(function(ch){
     var r=document.createElement('div');r.className='df-navrow';
+    if(_dfChat.id===ch.id)r.classList.add('on');
     r.innerHTML='<span class="df-ic">💬</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+pgEsc(ch.title||ch.name||'未命名会话')+'</span>';
-    r.onclick=function(){dshExit().then(function(){try{loadChat(ch.id)}catch(e){}})};
+    r.onclick=function(){dshOpenChat(ch.id)};
     box.appendChild(r);
   });
 }
@@ -1904,12 +1935,139 @@ function dshGo(v){
   _dfView=v;
   document.querySelectorAll('#dshFrame .df-navrow[data-view]').forEach(function(el){el.classList.toggle('on',el.dataset.view===v)});
   document.querySelectorAll('#dfTabs .df-tab').forEach(function(el){el.classList.toggle('on',el.dataset.view===v)});
-  var tabs=document.getElementById('dfTabs');
-  if(tabs)tabs.style.display=(v==='forge')?'none':'flex';
+  var tabs=document.getElementById('dfTabs'),body=document.getElementById('dfBody'),cv=document.getElementById('dfChatView');
+  var inChat=(v==='chat');
+  if(tabs)tabs.style.display=(v==='forge'||inChat)?'none':'flex';
+  if(body)body.style.display=inChat?'none':'block';
+  if(cv)cv.style.display=inChat?'flex':'none';
   var title=document.getElementById('dfTitle'),intro=document.getElementById('dfIntro');
   if(v==='installed'){if(title)title.textContent='插件';if(intro)intro.textContent='安装、启用和配置插件';_dfEnsureList()}
   else if(v==='market'){if(title)title.textContent='插件市场';if(intro)intro.textContent='从官方目录发现插件';_dfRenderMarket()}
   else if(v==='forge'){if(title)title.textContent='写插件';if(intro)intro.textContent='让大肥鱼按契约生成一个新插件';forgeOpen()}
+  else if(v==='chat'){
+    if(title)title.textContent=(_dfChat&&_dfChat.id)?'聊天':'开始聊天';
+    if(intro)intro.textContent='与主程序共用同一份会话数据';
+    if(!_dfChat.id){dshRenderEmpty();return}
+    dshChatRender();
+  }
+}
+// ---- 框架内聊天 ----
+var _dfChat={id:null,msgs:[]};
+var _dfBusy=false;
+function dshNewChat(){
+  var id='c'+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36);
+  var ch={id:id,title:'新对话',msgs:[],ts:Date.now()};
+  try{
+    chats.unshift(ch);
+    if(chats.length>200)chats.length=200;
+  }catch(e){}
+  _dfChat={id:id,msgs:[]};
+  dshGo('chat');
+  _dfFillChats();
+  var inp=document.getElementById('dfChatInput');if(inp)try{inp.focus()}catch(e){}
+}
+function dshOpenChat(id){
+  var ch=null;
+  try{ch=chats.filter(function(c){return c.id===id})[0]}catch(e){}
+  if(!ch)return;
+  _dfChat={id:id,msgs:JSON.parse(JSON.stringify(ch.msgs||[]))};
+  dshGo('chat');
+  _dfFillChats();
+}
+function dshRenderEmpty(){
+  var box=document.getElementById('dfChatMsgs');if(!box)return;
+  box.innerHTML='<div class="df-chat-empty"><span class="big">🐟</span>选一个会话，或者点侧栏「＋ 新对话」<br>这里的聊天和主程序共用同一份会话数据</div>';
+}
+function dshChatRender(){
+  var box=document.getElementById('dfChatMsgs');if(!box)return;
+  var list=_dfChat.msgs;
+  if(!list.length){dshRenderEmpty();return}
+  box.innerHTML='';
+  var frag=document.createDocumentFragment();
+  list.forEach(function(m){
+    if(!m.content)return;
+    frag.appendChild(_dfMsgEl(m));
+  });
+  box.appendChild(frag);
+  box.scrollTop=box.scrollHeight;
+}
+function _dfMsgEl(m){
+  var wrap=document.createElement('div');
+  wrap.className='df-msg '+(m.role==='user'?'u':'a');
+  var av=document.createElement('div');av.className='df-avatar';
+  av.textContent=m.role==='user'?'🧑':'🐟';
+  var b=document.createElement('div');
+  var bub=document.createElement('div');bub.className='df-bubble';
+  bub.textContent=m.content;
+  b.appendChild(bub);
+  if(m.ts){var tm=document.createElement('div');tm.className='df-msg-time';
+    var d=new Date(m.ts);tm.textContent=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+    b.appendChild(tm);}
+  wrap.appendChild(av);wrap.appendChild(b);
+  return wrap;
+}
+function dshChatSend(){
+  if(_dfBusy)return;
+  var inp=document.getElementById('dfChatInput');
+  var text=(inp.value||'').trim();
+  if(!text)return;
+  if(!_dfChat.id)dshNewChat();
+  inp.value='';
+  dshChatRun(text);
+}
+async function dshChatRun(text){
+  var box=document.getElementById('dfChatMsgs');
+  var um={role:'user',content:text,ts:Date.now()};
+  _dfChat.msgs.push(um);
+  box.appendChild(_dfMsgEl(um));
+  var ai={role:'assistant',content:'',ts:Date.now(),pending:true};
+  _dfChat.msgs.push(ai);
+  var aw=document.createElement('div');aw.className='df-msg a';
+  aw.innerHTML='<div class="df-avatar">🐟</div><div><div class="df-bubble"><span class="df-typing"><i></i><i></i><i></i></span></div></div>';
+  box.appendChild(aw);box.scrollTop=box.scrollHeight;
+  _dfBusy=true;
+  var sendBtn=document.querySelector('.df-send');if(sendBtn)sendBtn.disabled=true;
+  var sys='你是大肥鱼AI，开发者 Childe，运行在用户本地。像微信聊天一样回：一两句口语，不分行、不啰嗦、不主动提时间。';
+  var hist=_dfChat.msgs.filter(function(m){return m!==ai}).map(function(m){return {role:m.role,content:m.content}});
+  var body0={model:MODEL,messages:[{role:'system',content:sys}].concat(hist),
+    stream:true,options:{num_ctx:CTX_LIMIT,temperature:0.8}};
+  try{
+    if(!MODELS.some(function(m){return m.id===MODEL})){MODEL=MODELS[0].id}
+    var r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body0)});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var reader=r.body.getReader(),dec=new TextDecoder(),buf='';
+    var bubEl=aw.querySelector('.df-bubble');
+    while(true){
+      var chunk=await reader.read();if(chunk.done)break;
+      buf+=dec.decode(chunk.value,{stream:true});
+      var lines=buf.split('\n');buf=lines.pop();
+      for(var li=0;li<lines.length;li++){
+        if(!lines[li].trim())continue;
+        try{
+          var j=JSON.parse(lines[li]);
+          if(j.message&&j.message.content){ai.content+=j.message.content;
+            bubEl.textContent=ai.content;box.scrollTop=box.scrollHeight}
+        }catch(e){}
+      }
+    }
+  }catch(e){ai.content='⚠️ 出错：'+e.message;
+    var be=aw.querySelector('.df-bubble');if(be)be.textContent=ai.content}
+  ai.pending=false;_dfBusy=false;if(sendBtn)sendBtn.disabled=false;
+  dshChatPersist();
+}
+function dshChatPersist(){
+  try{
+    var ch=chats.filter(function(c){return c.id===_dfChat.id})[0];
+    if(!ch)return;
+    ch.msgs=JSON.parse(JSON.stringify(_dfChat.msgs));
+    ch.ts=Date.now();
+    if((!ch.title||ch.title==='新对话')&&ch.msgs.length){
+      var first=ch.msgs.filter(function(m){return m.role==='user'})[0];
+      if(first)ch.title=first.content.slice(0,18);
+    }
+    window.pywebview.api.save_chats(chats);
+    _dfFillChats();
+  }catch(e){}
 }
 function dshRefresh(){
   if(_dfView==='installed')_dfLoadInstalled();
@@ -4611,10 +4769,12 @@ setTimeout(checkConn,600);
         <span class="df-brand">大肥鱼 · DSH</span>
       </div>
       <div class="df-sec">导航</div>
+      <div class="df-navrow" data-view="chat" onclick="dshGo('chat')"><span class="df-ic">💬</span><span>聊天</span></div>
       <div class="df-navrow" data-view="installed" onclick="dshGo('installed')"><span class="df-ic">🧩</span><span>插件</span></div>
       <div class="df-navrow" data-view="market" onclick="dshGo('market')"><span class="df-ic">🛒</span><span>插件市场</span></div>
       <div class="df-navrow" data-view="forge" onclick="dshGo('forge')"><span class="df-ic">✍️</span><span>写插件</span></div>
       <div class="df-sec">工作区</div>
+      <button class="df-newchat" onclick="dshNewChat()">＋ 新对话</button>
       <div class="df-list" id="dfChatList"></div>
       <div class="df-sidefoot">
         <button class="df-return" onclick="dshExit()">← 返回大肥鱼模式</button>
@@ -4636,6 +4796,13 @@ setTimeout(checkConn,600);
         <button class="df-tab" data-view="market" onclick="dshGo('market')">插件市场</button>
       </div>
       <div class="df-body" id="dfBody"></div>
+      <div id="dfChatView" style="display:none;flex:1;min-height:0;flex-direction:column">
+        <div class="df-chat-msgs" id="dfChatMsgs"></div>
+        <div class="df-chat-input">
+          <input id="dfChatInput" placeholder="输入消息，回车发送…" onkeydown="if(event.key==='Enter')dshChatSend()">
+          <button class="df-send" onclick="dshChatSend()" title="发送">↑</button>
+        </div>
+      </div>
     </section>
   </div>
 </div>
