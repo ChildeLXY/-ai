@@ -41,6 +41,8 @@ SAY = {
     "unlock": ["你回来啦，家里一切正常。", "（探头）解锁成功，大肥鱼报告平安！"],
     "offline": ["咦，网络好像断了。", "没网了…我先在本地陪你。"],
     "online": ["网络恢复啦！", "有网了，又能一起冲浪了。"],
+    "desktop_add": ["你桌面上多了点东西，我帮你留意着呢。", "（探头）桌面有新文件，需要我帮你整理吗？"],
+    "desktop_remove": ["桌面上少了个文件，我记下来啦。", "有东西被清走了，桌面清爽一点。"],
 }
 
 # ---------- ctypes 结构体模块级（避免函数内定义跨线程段错误） ----------
@@ -127,6 +129,47 @@ def _up_seconds():
     return ctypes.windll.kernel32.GetTickCount64() // 1000
 
 
+def _clipboard_kind():
+    """只判断剪贴板里是什么类型，不读具体内容（保护隐私）。"""
+    try:
+        u = ctypes.windll.user32
+        if not u.OpenClipboard(None):
+            return "未知"
+        try:
+            if u.IsClipboardFormatAvailable(15):    # CF_HDROP 文件
+                return "文件"
+            if u.IsClipboardFormatAvailable(8):     # CF_DIB 图片
+                return "图片"
+            if u.IsClipboardFormatAvailable(13):    # CF_UNICODETEXT 文本
+                return "文本"
+            return "空"
+        finally:
+            u.CloseClipboard()
+    except Exception:
+        return "未知"
+
+
+def _desktop_dir():
+    """取真实桌面目录，兼容 OneDrive 接管。"""
+    home = os.path.expanduser("~")
+    cands = [os.path.join(home, "Desktop"),
+             os.path.join(home, "OneDrive", "Desktop"),
+             os.path.join(home, "OneDrive", "桌面"),
+             os.path.join(home, "桌面")]
+    for c in cands:
+        if os.path.isdir(c):
+            return c
+    return cands[0]
+
+
+def _desktop_snapshot():
+    """桌面当前顶层条目名集合。"""
+    try:
+        return set(os.listdir(_desktop_dir()))
+    except Exception:
+        return set()
+
+
 # ---------- 持久化 ----------
 def _default_state():
     return {
@@ -134,6 +177,8 @@ def _default_state():
         "label": "平静",
         "prev": {"away": False, "late": False, "locked": False, "online": True},
         "high_cpu_count": 0,
+        "desktop_files": [],
+        "clip_kind": "",
         "last_fire": {},
         "updated": "",
     }
@@ -148,6 +193,8 @@ def load_state():
             st.setdefault("prev", _default_state()["prev"])
             st.setdefault("last_fire", {})
             st.setdefault("high_cpu_count", 0)
+            st.setdefault("desktop_files", [])
+            st.setdefault("clip_kind", "")
             return st
     except Exception:
         pass
@@ -250,6 +297,20 @@ def tick():
             st["high_cpu_count"] = 0
 
         p.update(away=away, late=late, locked=locked, online=online)
+
+        # 剪贴板：只记录类型，不读内容、不弹气泡（具体内容需用户同意后由 read_clipboard 取）
+        st["clip_kind"] = _clipboard_kind()
+
+        # 桌面文件变动：首次只建基线，之后对比新增/删除并触发事件
+        snap = _desktop_snapshot()
+        old = set(st.get("desktop_files") or [])
+        if old:
+            if snap - old:
+                events.append(_fire(st, "desktop_add", now_ts))
+            if old - snap:
+                events.append(_fire(st, "desktop_remove", now_ts))
+        st["desktop_files"] = sorted(snap)
+
         save_state(st)
         return [e for e in events if e]
 
@@ -271,4 +332,5 @@ def read_mood():
     """供主程序/前端：返回当前情绪摘要。"""
     st = load_state()
     m = st["mood"]
-    return {"label": st["label"], "mood": m, "updated": st.get("updated", "")}
+    return {"label": st["label"], "mood": m, "clip_kind": st.get("clip_kind", ""),
+            "desktop_count": len(st.get("desktop_files", [])), "updated": st.get("updated", "")}
