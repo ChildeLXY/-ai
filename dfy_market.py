@@ -38,6 +38,12 @@ PROFILE_MODULES = os.path.join(PROFILE_DIR, "node_modules")
 PROFILE_PKG = os.path.join(PROFILE_DIR, "package.json")
 PATCH_FILE = os.path.join(PROFILE_DIR, "cordis.patch.yml")
 
+# 兼容宿主真正用来决定"加载哪些插件"的名单。
+# 市场原先只写 profile/package.json + cordis.patch.yml，而 dsh_host/host.mjs
+# 读的是 host-plugins.json —— 这个文件没人维护，结果就是插件装进了
+# node_modules、profile 也记了账，但宿主启动时压根不看它，等于装了不生效。
+HOST_MANIFEST = os.path.join(HOST_DIR, "host-plugins.json")
+
 CATALOG_URL = "https://awesome-dsh-plugin.com/plugins.json"
 NPM_REGISTRY = "https://registry.npmmirror.com"
 LOG_PATH = os.path.join(CACHE_DIR, "market.log")
@@ -316,16 +322,111 @@ def _patch_names():
     return names
 
 
+def host_manifest():
+    """读宿主的加载名单。宿主、市场和界面共用这一份，避免三处各说各话。"""
+    d = _read_json(HOST_MANIFEST, None)
+    if not isinstance(d, dict):
+        d = {}
+    lst = d.get("plugins")
+    if not isinstance(lst, list):
+        d["plugins"] = []
+    d.setdefault("entryOverrides", {})
+    return d
+
+
+def host_enable(name, on=True):
+    """把插件加入/移出宿主的加载名单 —— 这一步才真正决定它跑不跑。"""
+    name = (name or "").strip()
+    if not name:
+        return False
+    d = host_manifest()
+    lst = [x for x in (d.get("plugins") or []) if isinstance(x, str)]
+    if on:
+        if name not in lst:
+            lst.append(name)
+    else:
+        lst = [x for x in lst if x != name]
+        ov = d.get("entryOverrides") or {}
+        if isinstance(ov, dict):
+            ov.pop(name, None)
+    d["plugins"] = lst
+    try:
+        _write_json(HOST_MANIFEST, d)
+    except Exception as e:
+        log("写宿主名单失败：%r" % e, "WARN")
+        return False
+    log("宿主名单%s：%s" % ("加入" if on else "移除", name))
+    return (name in lst) if on else (name not in lst)
+
+
+def host_loaded(ttl=5):
+    """宿主自报的加载结果（ok / error），用来区分「名单里有但加载失败」和「压根没登记」。"""
+    now = time.time()
+    if now - _LIVE_CACHE["t"] < ttl:
+        return _LIVE_CACHE["d"]
+    d = {}
+    try:
+        import urllib.request as _u
+        with _u.urlopen("http://127.0.0.1:%d/health" % _host_port(), timeout=1.5) as r:
+            j = json.loads(r.read().decode("utf-8", "replace"))
+        p = j.get("plugins")
+        if isinstance(p, dict):
+            d = p
+    except Exception:
+        d = {}
+    _LIVE_CACHE["t"], _LIVE_CACHE["d"] = now, d
+    return d
+
+
+def _host_port():
+    port = 6800
+    try:
+        p = os.path.join(os.environ.get("APPDATA") or "", "大肥鱼AI", "settings.json")
+        with open(p, encoding="utf-8") as f:
+            port = int((json.load(f) or {}).get("dsh_host_port") or 6800)
+    except Exception:
+        pass
+    return port
+
+
+_LIVE_CACHE = {"t": 0.0, "d": {}}
+
+
+def sync_host_manifest(enable_all=True):
+    """把 profile 里已装但没进名单的插件一次性补齐。
+
+    历史上市场装过的插件（比如 dsh-bili-scroll）都卡在这一步：
+    node_modules 里有、profile 记了账，但宿主名单没它，所以从来没被加载。
+    """
+    deps = _profile_deps()
+    have = set(host_manifest().get("plugins") or [])
+    added, missing = [], []
+    for name in deps:
+        if not name.startswith(("dsh", "@")):
+            continue
+        if not os.path.isdir(os.path.join(PROFILE_MODULES, *name.split("/"))):
+            missing.append(name)
+            continue
+        if name not in have:
+            if enable_all and host_enable(name, True):
+                added.append(name)
+    return {"ok": True, "added": added, "missing": missing,
+            "plugins": host_manifest().get("plugins") or []}
+
+
 def installed():
     """已装插件：以 profile 的 package.json 为准（DSH 也看这个）。"""
     deps = _profile_deps()
     patch = _patch_names()
+    host = set(host_manifest().get("plugins") or [])
+    live = host_loaded()
     out = {}
     for name, spec in deps.items():
         if not name.startswith(("dsh", "@")):
             continue
-        path = os.path.join(PROFILE_MODULES, name)
+        path = os.path.join(PROFILE_MODULES, *name.split("/"))
         meta = _read_json(os.path.join(path, "package.json"), {}) or {}
+        st = live.get(name) or {}
         out[name] = {
             "name": name,
             "version": meta.get("version") or "",
@@ -333,6 +434,10 @@ def installed():
             "present": os.path.isdir(path),
             "enabled": name in patch,
             "patch_id": patch.get(name, ""),
+            # 这三个字段是这次补的：装完到底有没有真被宿主加载起来
+            "host_enabled": name in host,
+            "loaded": bool(st.get("ok")),
+            "load_error": (st.get("error") or "")[:300] if st else "",
             "description": (meta.get("description") or "")[:200],
         }
     return out
@@ -624,6 +729,9 @@ def install(spec, name_hint=""):
     linked, skipped, failed = _link_into_profile(stage_modules, link_names)
     _write_profile_dep(main_name, version, spec)
     patched = _register_patch(main_name)
+    # 关键一步：写进宿主的加载名单，否则 node_modules 里有、profile 也记了账，
+    # 但 dsh_host 启动时不会加载它，等于白装。
+    host_on = host_enable(main_name, True)
 
     log("安装完成 %s v%s（挂载 %d，跳过 %d，%.1fs）"
         % (main_name, version, len(linked), len(skipped), time.time() - t0))
@@ -635,6 +743,7 @@ def install(spec, name_hint=""):
         "skipped": skipped,
         "failed": failed,
         "patch": patched,
+        "host_enabled": host_on,
         "elapsed": round(time.time() - t0, 1),
         "need_restart": True,
         "tail": tail[-400:],
@@ -685,6 +794,9 @@ def uninstall(name):
             _write_json(sp, sd)
     except Exception:
         pass
+
+    # 从宿主加载名单里摘掉，否则重启后它会继续加载一个已经被删的目录
+    host_enable(name, False)
 
     log("已卸载：%s" % name)
     return {"ok": True, "name": name, "need_restart": True}

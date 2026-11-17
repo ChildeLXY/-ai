@@ -143,11 +143,42 @@ def start(wait=25):
     return {"ok": False, "error": "启动超时，看 host-run.log"}
 
 
+def _kill_by_port(port):
+    """按监听端口找宿主进程并结束它。
+
+    之前 stop() 只按窗口标题杀，而宿主是 pythonw/Popen 起的后台进程，
+    没有窗口标题 —— 于是 stop 永远"成功"但进程还在，改完插件清单重启不生效。
+    """
+    try:
+        out = subprocess.run(["netstat", "-ano", "-p", "TCP"], capture_output=True,
+                             text=True, timeout=10, encoding="utf-8", errors="replace").stdout
+    except Exception:
+        return None
+    pid = None
+    for line in out.splitlines():
+        if (":%d " % int(port)) in line and "LISTENING" in line.upper():
+            parts = line.split()
+            if parts and parts[-1].isdigit():
+                pid = int(parts[-1])
+                break
+    if not pid or pid == os.getpid():
+        return None
+    try:
+        subprocess.run(["taskkill", "/F", "/PID", str(pid)],
+                       capture_output=True, timeout=10)
+        log("已结束宿主进程 PID=%d" % pid)
+        return pid
+    except Exception:
+        return None
+
+
 def stop():
     global _PROC
+    killed = None
     try:
         if _PROC and _PROC.poll() is None:
             _PROC.terminate()
+            killed = _PROC.pid
     except Exception:
         pass
     _PROC = None
@@ -156,7 +187,14 @@ def stop():
                        capture_output=True, timeout=5)
     except Exception:
         pass
-    return {"ok": True}
+    # 兜底：按端口杀。宿主没有窗口标题，上面那条基本匹配不到。
+    try:
+        p = _kill_by_port(int(_cfg("dsh_host_port", 6800) or 6800))
+        if p:
+            killed = p
+    except Exception:
+        pass
+    return {"ok": True, "killed": killed}
 
 
 def ensure():
@@ -364,9 +402,24 @@ def _host_manifest():
 
 
 def _save_manifest(names):
+    """只改 plugins，保留 entryOverrides 等其它字段。
+
+    老实现直接 dump {"plugins": names}，会把这个文件里
+    entryOverrides（比如 hindsight 的 dist/dsh.js）一起抹掉，
+    下次启动那个插件就找不到入口。开关一次丢一次，很难查。
+    """
     try:
+        cur = {}
+        try:
+            with open(_manifest_path(), encoding="utf-8") as f:
+                cur = json.load(f) or {}
+        except Exception:
+            cur = {}
+        if not isinstance(cur, dict):
+            cur = {}
+        cur["plugins"] = names
         with open(_manifest_path(), "w", encoding="utf-8") as f:
-            json.dump({"plugins": names}, f, ensure_ascii=False, indent=2)
+            json.dump(cur, f, ensure_ascii=False, indent=2)
         return True
     except Exception:
         return False

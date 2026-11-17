@@ -2613,8 +2613,41 @@ except Exception as _e:
         pass
 
 def plugin_list():
-    """给前端显示已装插件清单。"""
-    return PLUGIN_MANIFEST
+    """给前端显示已装插件清单。
+
+    以前这里只返回 plugins/*.py 的 Python 插件，市场装的 DSH 插件
+    （node_modules 里的 npm 包）永远进不来，用户会以为"装了没同步"。
+    现在把两边合成一份，用 kind 区分：Python 插件没有 kind，DSH 插件 kind='dsh'。
+    """
+    out = list(PLUGIN_MANIFEST)
+    try:
+        import dfy_market as _mk
+        rows = _mk.installed() or {}
+        for name, v in rows.items():
+            on = bool(v.get("host_enabled"))
+            loaded = bool(v.get("loaded"))
+            err = (v.get("load_error") or "").strip()
+            out.append({
+                "id": "dsh:" + name,
+                "pkg": name,
+                "name": name,
+                "icon": "🐋",
+                "version": v.get("version") or "",
+                "enabled": on,
+                # 没启用不算异常；启用了却加载失败才算
+                "ok": (True if (not on or loaded) else False),
+                "note": (err[:160] if (on and not loaded) else
+                         ("" if on else "未加入宿主加载名单，打开开关后重启生效")),
+                "kind": "dsh",
+                "desc": (v.get("description") or "")[:160],
+                "apis": [],
+            })
+    except Exception as e:
+        try:
+            _log_api_err(lambda: None, e)
+        except Exception:
+            pass
+    return out
 
 def plugin_set_enabled(pid, on):
     """前端开关插件：写 data/plugins.json，重启后生效。

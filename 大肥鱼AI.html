@@ -3111,9 +3111,12 @@ async function hubLoad(pid){
     return;
   }
   _HUBLIST=list;
-  const usable=list.filter(function(p){return p.ok&&p.enabled});
-  const off=list.filter(function(p){return p.ok&&!p.enabled});
-  const bad=list.filter(function(p){return !p.ok});
+  // 左侧导航只放有大肥鱼自有页面的 Python 插件；
+  // DSH 市场插件没有独立页，只在"已安装"列表里出现，否则侧栏会塞进十几个点不动的条目。
+  const pyOnly=list.filter(function(p){return p.kind!=='dsh'});
+  const usable=pyOnly.filter(function(p){return p.ok&&p.enabled});
+  const off=pyOnly.filter(function(p){return p.ok&&!p.enabled});
+  const bad=pyOnly.filter(function(p){return !p.ok});
   if(nav){
     nav.innerHTML='';
     nav.appendChild(_navBtn('installed','▦','已安装',usable.length?usable.length+' 个':''));
@@ -3187,22 +3190,28 @@ function hubShow(x){
 function _instRow(p){
   const row=document.createElement('div');
   row.className='hub-row';
+  const isDsh=p.kind==='dsh';
   const n=(p.apis||[]).length;
-  const d=_hubDesc[p.id]||p.note||(n?n+' 个接口可用':'本地插件');
+  const d=_hubDesc[p.id]||p.desc||p.note||(n?n+' 个接口可用':(isDsh?'DSH 市场插件':'本地插件'));
   row.innerHTML='<div class="hub-tile">'+(p.icon||'🧩')+'</div>'
     +'<div class="hx"><div class="hx-t">'+pgEsc(p.name||p.id)
     +(p.version?'<span class="hx-v">v'+pgEsc(p.version)+'</span>':'')
+    +(isDsh?'<span class="hx-v">市场</span>':'')
     +(p.ok?'':'<span class="hx-v" style="color:#f85149;border-color:rgba(248,81,73,.42)">异常</span>')
     +'</div><div class="hx-d">'+pgEsc(d)+'</div></div>';
   const sw=document.createElement('div');
   sw.className='hub-sw'+(p.enabled?' on':'')+(p.ok?'':' dis');
   sw.innerHTML='<i></i>';
   sw.title=p.ok?(p.enabled?'点击关闭':'点击开启'):'加载失败';
-  sw.onclick=function(e){e.stopPropagation();hubSwToggle(p.id,!p.enabled,sw)};
+  sw.onclick=function(e){e.stopPropagation();
+    if(isDsh)hubSwToggleDsh(p.pkg||p.name,!p.enabled,sw);
+    else hubSwToggle(p.id,!p.enabled,sw);
+  };
   row.appendChild(sw);
   row.onclick=function(){
     if(!p.ok){pgToast('这个插件加载失败了：'+(p.note||'原因见日志'));return}
     if(!p.enabled){pgToast('它现在是关着的，打开右侧开关并重启后就能进');return}
+    if(isDsh){pgToast('这是 DSH 市场插件，在「DSH 模式」里生效，没有独立页面');return}
     hubShow(p.id);
   };
   return row;
@@ -4602,6 +4611,24 @@ async function hubSwToggle(id,on,el){
   }
 }
 
+async function hubSwToggleDsh(pkg,on,el){
+  const r=await pgCall('qq_dsh_toggle',pkg,on?1:0);
+  if(r&&r.ok){
+    if(el){
+      if(el.classList&&el.classList.contains('hub-sw'))el.classList.toggle('on',!!on);
+      else el.checked=!!on;
+    }
+    const p=(_HUBLIST||[]).filter(function(x){return x.kind==='dsh'&&(x.pkg||x.name)===pkg})[0];
+    if(p)p.enabled=!!on;
+    // 名单变了必须重启宿主才真正加载，顺手重启，避免"点了没反应"
+    const rr=await pgCall('qq_dsh_restart');
+    pgToast((rr&&rr.ok)?('已'+(on?'启用':'停用')+'，宿主已重启'):'已保存，宿主重启后生效');
+    if(_hubTab==='installed')hubRenderInstalled();
+  }else{
+    pgToast('改不了：'+((r&&(r.error||r.__err))||''));
+  }
+}
+
 // ---- 左侧插件停靠栏（点图标直接进插件中心对应页）----
 async function renderPluginDock(){
   const row=document.getElementById('pluginDockRow');if(!row)return;
@@ -4611,7 +4638,7 @@ async function renderPluginDock(){
     return;
   }
   row.innerHTML='';
-  list.filter(function(p){return p.ok&&p.enabled}).forEach(function(p){
+  list.filter(function(p){return p.ok&&p.enabled&&p.kind!=='dsh'}).forEach(function(p){
     const b=document.createElement('div');
     b.className='pd';b.textContent=p.icon||'🧩';b.title=p.name+'（点开插件中心）';
     b.onclick=function(){openPluginHub(p.id)};
