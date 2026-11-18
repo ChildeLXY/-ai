@@ -32,7 +32,32 @@ import urllib.request
 HOST_DIR = r"D:\大肥鱼AI\dsh_host"
 CACHE_DIR = r"D:\大肥鱼缓存\dsh_market"
 STAGE_DIR = os.path.join(HOST_DIR, "pkgstage")
-DSH_HOME = os.environ.get("DSH_HOME") or r"E:\DSH-home"
+
+
+def _dsh_home_path():
+    """DSH 数据目录（可移植）。
+
+    优先级：环境变量 → 老机器 E 盘旧目录 → 数据根下的 dsh。
+    绝不写死某个人的盘符，否则别人电脑上直接崩。
+    """
+    v = (os.environ.get("DSH_HOME") or "").strip()
+    if v:
+        return v
+    legacy = r"E:\DSH-home"
+    if os.path.isdir(legacy):
+        return legacy
+    data = (os.environ.get("DFY_DATA_DIR") or "").strip()
+    if not data:
+        ldata = r"D:\本地部署大肥鱼环境\data"
+        if os.path.isdir(ldata):
+            data = ldata
+        else:
+            appdata = os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Roaming")
+            data = os.path.join(appdata, "大肥鱼AI", "data")
+    return os.path.join(data, "dsh")
+
+
+DSH_HOME = _dsh_home_path()
 PROFILE_DIR = os.path.join(DSH_HOME, "profiles", "desktop")
 PROFILE_MODULES = os.path.join(PROFILE_DIR, "node_modules")
 PROFILE_PKG = os.path.join(PROFILE_DIR, "package.json")
@@ -66,10 +91,14 @@ def _find_npm():
     found = shutil.which("npm")
     if found:
         return [found]
-    # 3) 用 DSH 自带的 node 直接跑 npm-cli.js
+    # 3) 用 node 直接跑 npm-cli.js（引擎自带 node 优先，保证可移植）
     npm_js = r"D:\nodejs\node_modules\npm\bin\npm-cli.js"
-    node_exe = r"E:\DSH-home\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe"
-    if os.path.isfile(npm_js) and os.path.isfile(node_exe):
+    node_exe = ""
+    for p in _node_candidates():
+        if os.path.isfile(p):
+            node_exe = p
+            break
+    if os.path.isfile(npm_js) and node_exe:
         return [node_exe, npm_js]
     # 4) 兜底：交给系统 PATH（可能失败，但保留原行为）
     return ["npm"]
@@ -77,14 +106,20 @@ def _find_npm():
 
 # 探测宿主用的 node（不走 npm，直接跑 host.mjs）
 HOST_ENTRY_MJS = os.path.join(HOST_DIR, "host.mjs")
-_NODE_EXE_CANDIDATES = [
-    r"E:\DSH-home\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe",
-    r"D:\nodejs\node.exe",
-]
+
+
+def _node_candidates():
+    """node 可执行文件的候选路径 —— 优先用引擎自带的那份，保证可移植。"""
+    out = []
+    eng = (os.environ.get("DFY_ENGINE_DIR") or "").strip() or r"D:\本地部署大肥鱼环境\engine"
+    out.append(os.path.join(eng, "resources", "runtime", "primary-runtime",
+                            "dependencies", "node", "bin", "node.exe"))
+    out.append(r"D:\nodejs\node.exe")
+    return out
 
 
 def _find_node():
-    for p in _NODE_EXE_CANDIDATES:
+    for p in _node_candidates():
         if os.path.isfile(p):
             return p
     return shutil.which("node") or "node"
@@ -746,12 +781,128 @@ def probe_plugin(main_name):
     return {"ok": True, "main": d.get("main") or ""}
 
 
+# ---------------------------------------------------------------- 内置引擎
+# 大肥鱼**自带**一份完整 Agent 引擎（基于 DeepSeek Harness，MIT），随产品分发，
+# 用户不需要在电脑上预先装过 DSH。插件安装因此走引擎原生命令
+# `dsh plugin --profile <p> add`，与 DSH 本体是同一条链路 ——
+# 连 UI 槽位类插件也能装、能用（不再受无头兼容宿主 15% 兼容率的限制）。
+
+_ENGINE_CACHE = {"cli": None, "root": ""}
+
+
+def _find_engine_cli():
+    """定位内置引擎的 CLI 启动器，返回 (cli 路径, 引擎根目录)；找不到返回 ("", "")。
+
+    查找顺序（都不依赖用户电脑上是否装过 DSH）：
+      1. DFY_ENGINE_DIR 环境变量（由 dfy_paths 导出）
+      2. 程序目录下的 engine（安装包形态：engine 与主程序同级）
+      3. DSH_HOME 的兄弟目录 engine（源码形态：两者并列在同一部署根下）
+    """
+    if _ENGINE_CACHE["cli"] is not None:
+        return _ENGINE_CACHE["cli"], _ENGINE_CACHE["root"]
+    cands = []
+    env = (os.environ.get("DFY_ENGINE_DIR") or "").strip()
+    if env:
+        cands.append(env)
+    here = os.path.dirname(os.path.abspath(__file__))
+    cands.append(os.path.join(here, "engine"))
+    # 源码形态：DSH_HOME=<root>\dsh，则引擎在 <root>\engine
+    try:
+        cands.append(os.path.join(os.path.dirname(os.path.abspath(DSH_HOME)), "engine"))
+    except Exception:
+        pass
+
+    for root in cands:
+        cli = os.path.join(root, "resources", "runtime", "cli", "bin", "dsh.cmd")
+        if os.path.isfile(cli):
+            _ENGINE_CACHE["cli"], _ENGINE_CACHE["root"] = cli, root
+            return cli, root
+    _ENGINE_CACHE["cli"], _ENGINE_CACHE["root"] = "", ""
+    return "", ""
+
+
+def engine_available():
+    cli, root = _find_engine_cli()
+    return {"available": bool(cli), "cli": cli, "root": root, "dsh_home": DSH_HOME}
+
+
+def _noise_strip(text):
+    """Electron 以 node 身份运行时会把 crashpad 噪音刷到输出里，过滤掉。"""
+    return "\n".join(
+        l for l in (text or "").splitlines()
+        if "crashpad" not in l and "registration_protocol_win" not in l
+    ).strip()
+
+
+def _install_via_engine(cli, spec, name_hint=""):
+    """用内置引擎原生安装插件。落点、依赖解析、patch 全部交给引擎自己。"""
+    env = dict(os.environ)
+    env["DSH_HOME"] = DSH_HOME
+    # .cmd 必须经 cmd.exe 解释；参数以列表传给 subprocess，不做字符串拼接
+    cmd = ["cmd", "/c", cli, "plugin", "--profile", "desktop", "add", spec]
+    log("引擎安装：%s" % spec)
+    t0 = time.time()
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=1200,
+                           env=env, encoding="utf-8", errors="replace")
+    except Exception as e:
+        return {"ok": False, "error": "执行内置引擎失败：%s" % e}
+    out = _noise_strip((r.stdout or "") + "\n" + (r.stderr or ""))
+    if r.returncode != 0:
+        log("引擎安装失败 %s：%s" % (spec, out[-300:]), "ERROR")
+        return {"ok": False, "error": (out[-800:] or "引擎返回非零"), "tail": out[-400:]}
+
+    # pnpm 成功时会打印 "+ pkg@版本" 或 "+ pkg version"
+    name, version = "", ""
+    for line in out.splitlines():
+        s = line.strip()
+        m = re.match(r"^\+\s+(@?[^\s@]+(?:/[^\s@]+)?)\s+(\S+)$", s)
+        if m:
+            name, version = m.group(1), m.group(2)
+            break
+    if not name:
+        # 退一步：用 profile 的 dependencies 里新增项
+        deps = (_read_json(PROFILE_PKG, {}) or {}).get("dependencies") or {}
+        bare = spec.split("@")[0] if not spec.startswith("@") else "@" + spec[1:].split("@")[0]
+        if bare in deps:
+            name = bare
+        elif name_hint:
+            name = name_hint
+    if not name:
+        return {"ok": False, "error": "引擎装完了但没解析出包名", "tail": out[-400:]}
+
+    if not version:
+        meta = _read_json(os.path.join(PROFILE_MODULES, *name.split("/"), "package.json"), {}) or {}
+        version = meta.get("version") or ""
+
+    log("引擎安装完成 %s v%s（%.1fs）" % (name, version, time.time() - t0))
+    return {"ok": True, "name": name, "version": version,
+            "via": "engine", "elapsed": round(time.time() - t0, 1),
+            "tail": out[-400:]}
+
+
 def install(spec, name_hint=""):
-    """装一个插件，落点与 DSH 相同。联网下载，不允许离线。"""
+    """装一个插件。优先走内置引擎原生链路，失败才回退暂存+自测链路。"""
     spec = _guarded_spec(spec)
     if not spec:
         return {"ok": False, "error": "安装目标不合法：%s" % (spec or "(空)")}
 
+    # ---------- 首选：内置引擎原生安装（100% 兼容，含 UI 槽位类插件）----------
+    cli, _root = _find_engine_cli()
+    if cli:
+        r = _install_via_engine(cli, spec, name_hint)
+        if r.get("ok"):
+            name, version = r["name"], r["version"]
+            patched = _register_patch(name)
+            # 兼容宿主（轻量常驻层）也要记账，否则重启后不加载
+            host_on = host_enable(name, True)
+            r["patch"] = patched
+            r["host_enabled"] = host_on
+            r["need_restart"] = True
+            return r
+        log("引擎安装未成功，回退暂存+自测链路：%s" % str(r.get("error"))[:200], "WARN")
+
+    # ---------- 回退：npm 暂存 + 临时宿主自测（引擎缺失或损坏时）----------
     _stage_pkgjson()
     before = _list_modules(os.path.join(STAGE_DIR, "node_modules"))
 

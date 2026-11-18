@@ -26,13 +26,34 @@ import urllib.request
 HOST_DIR = r"D:\大肥鱼AI\dsh_host"
 HOST_ENTRY = os.path.join(HOST_DIR, "host.mjs")
 HOST_LOG = os.path.join(HOST_DIR, "host-run.log")
-# 插件源码所在的 DSH profile（只读引用，不往里写东西）
-PROFILE_DIR = r"E:\DSH-home\profiles\desktop"
+
+
+def _dsh_home_path():
+    """DSH 数据目录（可移植，不写死盘符）。"""
+    v = (os.environ.get("DSH_HOME") or "").strip()
+    if v:
+        return v
+    legacy = r"E:\DSH-home"
+    if os.path.isdir(legacy):
+        return legacy
+    data = (os.environ.get("DFY_DATA_DIR") or "").strip()
+    if not data:
+        ldata = r"D:\本地部署大肥鱼环境\data"
+        if os.path.isdir(ldata):
+            data = ldata
+        else:
+            appdata = os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Roaming")
+            data = os.path.join(appdata, "大肥鱼AI", "data")
+    return os.path.join(data, "dsh")
+
+
+DSH_HOME = _dsh_home_path()
+# 插件源码所在的 profile（只读引用，不往里写东西）
+PROFILE_DIR = os.path.join(DSH_HOME, "profiles", "desktop")
 PLUGIN_ROOT = os.path.join(PROFILE_DIR, "node_modules")
 # 转接口自己的插件目录：市场装的新插件都落这里，不碰 DSH 的 pnpm 结构
 OWN_PLUGIN_DIR = os.path.join(HOST_DIR, "plugins")
 OWN_PLUGIN_ROOT = os.path.join(OWN_PLUGIN_DIR, "node_modules")
-DSH_HOME = os.environ.get("DSH_HOME") or r"E:\DSH-home"
 CACHE_DIR = r"D:\大肥鱼缓存"
 
 _SETTINGS = r"D:\大肥鱼AI\ds图片\settings.json"

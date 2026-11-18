@@ -44,6 +44,18 @@ def _pick(env_name, legacy, fallback):
 DATA = _pick("DFY_DATA_DIR", _LEGACY_DATA, os.path.join(_APPDATA, "大肥鱼AI", "data"))
 CACHE = _pick("DFY_CACHE_DIR", _LEGACY_CACHE, os.path.join(_LOCALAPPDATA, "大肥鱼AI", "cache"))
 
+# 内置 Agent 引擎（基于 DeepSeek Harness，MIT）：随产品一起分发，用户无需另装 DSH。
+# 优先级：环境变量 → 老机器 D 盘引擎 → 程序目录下的 engine（安装包形态）
+_LEGACY_ENGINE = os.path.join(_LEGACY_ROOT, "engine")
+_ENGINE_IN_BUNDLE = os.path.join(APP_DIR, "engine")
+ENGINE = _pick(
+    "DFY_ENGINE_DIR",
+    _LEGACY_ENGINE if os.path.isdir(_LEGACY_ENGINE) else None,
+    _ENGINE_IN_BUNDLE,
+)
+# 引擎的 CLI 启动器（用于插件安装、版本查询等原生能力）
+ENGINE_CLI = os.path.join(ENGINE, "resources", "runtime", "cli", "bin", "dsh.cmd")
+
 # 派生目录
 KB_DIR = os.environ.get("DFY_KB_DIR") or os.path.join(DATA, "知识库")
 HOST_DIR = os.path.join(DATA, "dsh_host")
@@ -67,6 +79,7 @@ def export_env():
     os.environ["DFY_CACHE_DIR"] = CACHE
     os.environ["DFY_KB_DIR"] = KB_DIR
     os.environ["DSH_HOME"] = DSH_HOME
+    os.environ["DFY_ENGINE_DIR"] = ENGINE
     os.environ["DFY_WV2_PROFILE"] = WV2_PROFILE
 
 
