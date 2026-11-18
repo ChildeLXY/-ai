@@ -275,6 +275,25 @@ button.emj-btn:hover{opacity:1;transform:scale(1.08)}
 .plugin-dock .pd{width:32px;height:32px;border-radius:9px;border:1px solid var(--border);background:var(--card);
   display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;transition:.18s}
 .plugin-dock .pd:hover{background:var(--accent-light);border-color:var(--accent);transform:translateY(-1px)}
+/* ===== 引擎准备条（首次启动下载插件引擎时显示，不打扰） ===== */
+.engbar{display:flex;align-items:center;gap:10px;padding:7px 16px;margin:0;font-size:12px;
+  background:rgba(76,154,255,.06);border-bottom:1px solid var(--border);
+  color:var(--text2);backdrop-filter:blur(8px)}
+.engdot{flex:0 0 7px;width:7px;height:7px;border-radius:50%;background:#4c9aff;
+  box-shadow:0 0 0 0 rgba(76,154,255,.55);animation:engpulse 1.8s ease-out infinite}
+.engdot.ok{background:#38c98a;animation:none;box-shadow:none}
+.engdot.err{background:#e5645e;animation:none;box-shadow:none}
+@keyframes engpulse{0%{box-shadow:0 0 0 0 rgba(76,154,255,.5)}
+  70%{box-shadow:0 0 0 7px rgba(76,154,255,0)}100%{box-shadow:0 0 0 0 rgba(76,154,255,0)}}
+.engtxt{flex:0 1 auto;max-width:52%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.engtrack{flex:1 1 140px;min-width:70px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+.engfill{height:100%;width:0%;background:linear-gradient(90deg,#4c9aff,#7db8ff);border-radius:2px;
+  transition:width .35s ease}
+.engpct{flex:0 0 auto;font-variant-numeric:tabular-nums;color:var(--text2);min-width:38px;text-align:right}
+.engbtn{flex:0 0 auto;border:1px solid var(--border);background:transparent;color:var(--text2);
+  border-radius:6px;padding:3px 9px;font-size:11.5px;cursor:pointer;font-family:inherit}
+.engbtn:hover{color:var(--text);border-color:rgba(76,154,255,.45);background:rgba(76,154,255,.08)}
+
 /* ===== 插件中心（对齐 DeepSeek Harness 的深色样式） ===== */
 #pluginHub{z-index:320}
 /* 把整块区域的配色变量换成深色，插件内的 .pg-card / .pg-note 等自动跟着变深 */
@@ -709,7 +728,16 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
     <button class="icon-btn" onclick="exportChat()" title="导出">📄</button>
     <button class="icon-btn" onclick="openPluginHub()" title="插件中心">🧩</button><button class="icon-btn" onclick="hubMarketOpen(true)" title="插件市场（内容与 DSH 一致，联网安装）">🛒</button><button class="icon-btn" onclick="openSettings()" title="设置">⚙️</button>
   </div>
-  <div class="mlbar" id="mlbar"></div><div class="mlbar-text" id="mlbarText">正在加载模型...</div><div id="msgs">
+  <div class="mlbar" id="mlbar"></div>
+  <div class="engbar" id="engBar" style="display:none">
+    <span class="engdot" id="engDot"></span>
+    <span class="engtxt" id="engTxt">正在准备插件引擎…</span>
+    <div class="engtrack"><div class="engfill" id="engFill"></div></div>
+    <span class="engpct" id="engPct">0%</span>
+    <button class="engbtn" id="engRetry" style="display:none" onclick="engineRetry()">重试</button>
+    <button class="engbtn" id="engHide" style="display:none" onclick="engineHideBar()">收起</button>
+  </div>
+  <div class="mlbar-text" id="mlbarText">正在加载模型...</div><div id="msgs">
     <div class="empty" id="emptyState">
       <img class="logo" id="emptyLogo" src="ds图片/avatar.jpg" style="cursor:pointer" title="点击切换大肥鱼头像" onclick="toggleAiAvatar()">
       <h2>有什么可以帮你？</h2>
@@ -4270,6 +4298,140 @@ async function hubDshStart(){
   try{ const r=await pywebview.api.qq_dsh_start(); if(!r.ok)alert('启动失败：'+(r.error||'')); }catch(e){}
   await hubDshLoad();
 }
+// ================= 引擎准备条：首次启动下载插件引擎 =================
+// 引擎不随安装包分发，第一次用时才从分发源拉（分卷 + 断点续传 + SHA256 校验）。
+// 这里只负责把进度显示出来，不打断用户；下完自动刷新插件列表。
+let _engPollTimer = null;
+let _engHadShown = false;
+let _engDoneHideTimer = null;
+
+function _engBar() { return document.getElementById('engBar'); }
+function _engSet(cls) {
+  const d = document.getElementById('engDot');
+  if (d) d.className = 'engdot' + (cls ? ' ' + cls : '');
+}
+
+function _engFmt(n) {
+  if (!n || n < 1024) return (n || 0) + ' B';
+  const u = ['KB', 'MB', 'GB'];
+  let i = -1;
+  do { n /= 1024; i++; } while (n >= 1024 && i < 2);
+  return n.toFixed(1) + ' ' + u[i];
+}
+
+function engineShowBar(text, pct, mode) {
+  const bar = _engBar(); if (!bar) return;
+  bar.style.display = 'flex';
+  _engHadShown = true;
+  if (_engDoneHideTimer) { clearTimeout(_engDoneHideTimer); _engDoneHideTimer = null; }
+  const t = document.getElementById('engTxt');
+  const f = document.getElementById('engFill');
+  const p = document.getElementById('engPct');
+  const retry = document.getElementById('engRetry');
+  const hide = document.getElementById('engHide');
+  if (t) t.textContent = text;
+  if (f) f.style.width = Math.max(0, Math.min(100, pct)) + '%';
+  if (p) p.textContent = Math.round(pct) + '%';
+  if (retry) retry.style.display = mode === 'err' ? 'inline-block' : 'none';
+  if (hide) hide.style.display = mode === 'done' ? 'inline-block' : 'none';
+  const track = bar.querySelector('.engtrack');
+  if (track) track.style.display = mode === 'done' || mode === 'err' ? 'none' : '';
+  if (p) p.style.display = mode === 'done' || mode === 'err' ? 'none' : '';
+  _engSet(mode === 'done' ? 'ok' : (mode === 'err' ? 'err' : ''));
+}
+
+function engineHideBar() {
+  const bar = _engBar(); if (bar) bar.style.display = 'none';
+}
+
+function _engApplyStatus(st) {
+  if (!st || !st.ok) return;
+  if (st.installed) {
+    if (_engPollTimer) { clearInterval(_engPollTimer); _engPollTimer = null; }
+    if (_engHadShown) {
+      engineShowBar('插件引擎已就绪' + (st.version ? ' · ' + st.version : ''), 100, 'done');
+      _engDoneHideTimer = setTimeout(engineHideBar, 4000);
+      _engHadShown = false;
+      // 引擎刚到时刷新一次插件列表，让市场装的插件显示出来
+      try { _engRefreshPlugins(); } catch (e) {}
+    }
+    return;
+  }
+  if (st.state === 'running') {
+    const pct = Number(st.percent || 0);
+    let txt = '正在准备插件引擎';
+    if (st.phase === 'downloading') txt = '正在下载插件引擎 · ' + _engFmt(st.bytes_done) + ' / ' + _engFmt(st.bytes_total);
+    else if (st.phase === 'extracting') txt = '正在解压插件引擎';
+    else if (st.phase === 'hashing') txt = '正在校验插件引擎';
+    else if (st.phase === 'verifying') txt = '正在检查插件引擎';
+    engineShowBar(txt, pct, 'run');
+    if (!_engPollTimer) _engPollTimer = setInterval(enginePoll, 1200);
+  } else if (st.state === 'error') {
+    engineShowBar('插件引擎准备失败：' + (st.error || '未知原因'), 0, 'err');
+    if (_engPollTimer) { clearInterval(_engPollTimer); _engPollTimer = null; }
+  } else {
+    // idle：还没开始。有下载源就等一下自动流程，没源就提示一次。
+    if (!st.manifest_url) {
+      if (!_engHadShown) {
+        engineShowBar('未配置插件引擎下载源，插件市场暂不可用', 0, 'err');
+        const r = document.getElementById('engRetry');
+        if (r) r.style.display = 'none';
+        const h = document.getElementById('engHide');
+        if (h) h.style.display = 'inline-block';
+      }
+    }
+  }
+}
+
+async function enginePoll() {
+  try {
+    const st = await pywebview.api.engine_status();
+    _engApplyStatus(st);
+  } catch (e) {}
+}
+
+async function engineRetry() {
+  engineShowBar('正在重新准备插件引擎…', 0, 'run');
+  try {
+    const r = await pywebview.api.engine_install();
+    if (!r || !r.ok) engineShowBar('启动失败：' + ((r && r.error) || '未知'), 0, 'err');
+    if (!_engPollTimer) _engPollTimer = setInterval(enginePoll, 1200);
+  } catch (e) {
+    engineShowBar('启动失败：' + e.message, 0, 'err');
+  }
+}
+
+// 后端主动推的事件（开始/完成/失败）
+window.__dfyEngineEvent = function (payload) {
+  try {
+    const p = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    if (!p) return;
+    if (p.kind === 'start') {
+      engineShowBar('正在准备插件引擎…', 0, 'run');
+      if (!_engPollTimer) _engPollTimer = setInterval(enginePoll, 1200);
+    } else if (p.kind === 'done') {
+      _engHadShown = true;
+      engineShowBar('插件引擎已就绪' + (p.detail ? ' · ' + p.detail : ''), 100, 'done');
+      _engDoneHideTimer = setTimeout(engineHideBar, 4000);
+      try { _engRefreshPlugins(); } catch (e) {}
+    } else if (p.kind === 'error') {
+      engineShowBar('插件引擎准备失败：' + (p.detail || '未知原因'), 0, 'err');
+    } else if (p.kind === 'no_source') {
+      // 没配下载源：静默，不打扰
+    }
+  } catch (e) {}
+};
+
+// 引擎到位后刷新一次插件视图，让市场装的插件立刻出现在列表里
+function _engRefreshPlugins() {
+  try { window._dfList = []; } catch (e) {}
+  try { if (typeof _dfLoadInstalled === 'function') _dfLoadInstalled(); } catch (e) {}
+  try { if (typeof renderPluginDock === 'function') renderPluginDock(); } catch (e) {}
+}
+
+// 启动即查一次；在跑就开轮询
+setTimeout(enginePoll, 800);
+
 async function hubMarketOpen(){
   const el=document.getElementById('qqMarketStat');
   try{

@@ -52,17 +52,29 @@ CACHE = (os.environ.get("DFY_CACHE_DIR") or "").strip() or (
 )
 
 
-def engine_root():
-    """引擎根目录。优先环境变量，其次程序目录下的 engine，最后老机器 D 盘。"""
+def engine_candidates():
+    """引擎可能所在的位置，按优先级排列。
+
+    这套顺序必须和 dfy_engine_bootstrap 保持一致，否则会出现
+    「下载器装到 A、程序去 B 找」的分裂。最后一项是可写的数据目录，
+    给没有管理员权限、装不进 Program Files 的普通用户用。
+    """
+    out = []
     env = (os.environ.get("DFY_ENGINE_DIR") or "").strip()
-    if env and os.path.isdir(env):
-        return env
-    in_bundle = os.path.join(_THIS_DIR, "engine")
-    if os.path.isdir(in_bundle):
-        return in_bundle
-    if os.path.isdir(_LEGACY_ENGINE):
-        return _LEGACY_ENGINE
-    return in_bundle
+    if env:
+        out.append(env)
+    out.append(os.path.join(_THIS_DIR, "engine"))        # 安装包形态（随包分发时）
+    out.append(_LEGACY_ENGINE)                           # 老机器 D 盘
+    out.append(os.path.join(DATA, "engine"))             # 首次启动下载装到这里
+    return out
+
+
+def engine_root():
+    """引擎根目录：先找已装的，都没有则返回预期的安装位置（不要求存在）。"""
+    for c in engine_candidates():
+        if os.path.isdir(c):
+            return c
+    return os.path.join(DATA, "engine")
 
 
 ENGINE = engine_root()

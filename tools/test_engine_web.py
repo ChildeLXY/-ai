@@ -149,6 +149,26 @@ def main():
                       "dependencies", "python")
     check("引擎自带 python 目录", os.path.isdir(py), py)
 
+    print("\n== 8. 下载器与引擎模块必须找到同一个引擎 ==")
+    import dfy_engine_bootstrap as boot
+    inst = boot.EngineBootstrap(e.DATA)
+    found = inst.find_installed()
+    print("  dfy_engine  ->", e.engine_root())
+    print("  bootstrap   ->", found or "(未找到)")
+    check("bootstrap 能识别已装引擎", bool(found), found)
+    check("两者指向同一目录",
+          os.path.normcase(os.path.abspath(e.engine_root()))
+          == os.path.normcase(os.path.abspath(found or "")),
+          (e.engine_root(), found))
+    check("bootstrap 版本与引擎一致", inst.installed_version() == v.get("version"),
+          (inst.installed_version(), v.get("version")))
+    # 候选列表必须两边都包含对方的关键位置
+    ec = [os.path.normcase(os.path.abspath(c)) for c in e.engine_candidates()]
+    bc = [os.path.normcase(os.path.abspath(c)) for c in inst.candidates()]
+    check("候选列表包含数据目录下的 engine",
+          os.path.normcase(os.path.abspath(os.path.join(e.DATA, "engine"))) in ec
+          and os.path.normcase(os.path.abspath(os.path.join(e.DATA, "engine"))) in bc)
+
     print("\n" + "=" * 56)
     print("通过 %d 项，失败 %d 项，跳过 %d 项" % (len(PASS), len(FAIL), len(SKIP)))
     for f in FAIL:

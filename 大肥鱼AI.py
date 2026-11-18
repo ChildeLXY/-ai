@@ -1540,6 +1540,136 @@ def market_uninstall(name=""):
         return {"ok": False, "error": str(e)}
 
 
+# ---------------- 内置引擎：首次启动下载 ----------------
+# 引擎不跟安装包一起走（381.7 MB / 1076.8 MB 解压后），第一次用时才下。
+# 状态放进程级字典，前端轮询 engine_status() 拿进度，不阻塞主线程。
+_ENGINE_BOOT = {
+    "state": "idle",        # idle / running / done / error
+    "phase": "",
+    "percent": 0.0,
+    "bytes_done": 0,
+    "bytes_total": 0,
+    "error": "",
+    "version": "",
+}
+
+
+def _engine_boot_mod():
+    import dfy_engine_bootstrap as eb
+    return eb
+
+
+def engine_status():
+    """引擎是否就绪 + 下载进度。前端每 1–2 秒轮询一次即可。"""
+    try:
+        eb = _engine_boot_mod()
+        installed = eb.is_engine_installed()
+        out = {"ok": True, "installed": installed}
+        out.update({k: _ENGINE_BOOT.get(k) for k in
+                    ("state", "phase", "percent", "bytes_done", "bytes_total", "error")})
+        if installed:
+            try:
+                out["version"] = eb.EngineBootstrap(eb.default_data_root()).installed_version()
+            except Exception:
+                out["version"] = ""
+        else:
+            try:
+                out["manifest_url"] = (eb.EngineBootstrap(
+                    eb.default_data_root()).manifest_url or "")[:300]
+            except Exception:
+                out["manifest_url"] = ""
+        return out
+    except Exception as e:
+        return {"ok": False, "error": str(e), "installed": False}
+
+
+def engine_install():
+    """手动/自动触发下载。重复调用是安全的，已经在跑就直接返回。"""
+    try:
+        eb = _engine_boot_mod()
+        if eb.is_engine_installed():
+            return {"ok": True, "already": True}
+        if _ENGINE_BOOT.get("state") == "running":
+            return {"ok": True, "running": True}
+
+        def _prog(phase, **kw):
+            _ENGINE_BOOT["phase"] = phase
+            if kw.get("percent") is not None:
+                _ENGINE_BOOT["percent"] = round(float(kw["percent"]), 1)
+            if kw.get("bytes_done"):
+                _ENGINE_BOOT["bytes_done"] = int(kw["bytes_done"])
+            if kw.get("bytes_total"):
+                _ENGINE_BOOT["bytes_total"] = int(kw["bytes_total"])
+            if phase == "error":
+                _ENGINE_BOOT["error"] = str(kw.get("error") or "")
+                _ENGINE_BOOT["state"] = "error"
+            elif phase == "done":
+                _ENGINE_BOOT["state"] = "done"
+                _ENGINE_BOOT["percent"] = 100.0
+
+        def _done(ok, r):
+            r = r or {}
+            if ok:
+                _ENGINE_BOOT["state"] = "done"
+                _ENGINE_BOOT["percent"] = 100.0
+                _ENGINE_BOOT["version"] = str(r.get("version") or "")
+                _push_engine_event("done", _ENGINE_BOOT["version"])
+            else:
+                _ENGINE_BOOT["state"] = "error"
+                _ENGINE_BOOT["error"] = str(r.get("error") or "未知错误")
+                _push_engine_event("error", _ENGINE_BOOT["error"])
+
+        _ENGINE_BOOT["state"] = "running"
+        _ENGINE_BOOT["phase"] = "checking"
+        _ENGINE_BOOT["percent"] = 0.0
+        _ENGINE_BOOT["error"] = ""
+        bp = eb.EngineBootstrap(eb.default_data_root(), progress=_prog)
+        bp.ensure_async(on_done=_done)
+        _push_engine_event("start", "")
+        return {"ok": True, "started": True}
+    except Exception as e:
+        _ENGINE_BOOT["state"] = "error"
+        _ENGINE_BOOT["error"] = str(e)
+        return {"ok": False, "error": str(e)}
+
+
+def _push_engine_event(kind, detail=""):
+    """把引擎状态变化推给前端；前端没挂回调也不影响。"""
+    try:
+        payload = json.dumps({"kind": kind, "detail": str(detail)[:200]},
+                             ensure_ascii=False)
+        window.evaluate_js(
+            "(function(p){try{if(window.__dfyEngineEvent)window.__dfyEngineEvent(p);}catch(e){}})(%s)"
+            % payload)
+    except Exception:
+        pass
+
+
+def _auto_engine_bootstrap():
+    """启动后自动补引擎。
+
+    只在「没装 + 配了下载源」时自动跑，避免没配源时每台机器都弹错误。
+    延迟 3 秒，让主界面先起来。
+    """
+    def worker():
+        time.sleep(3)
+        try:
+            eb = _engine_boot_mod()
+            if eb.is_engine_installed():
+                return
+            bp = eb.EngineBootstrap(eb.default_data_root())
+            if not bp.manifest_url:
+                _push_engine_event("no_source", "")
+                return
+            engine_install()
+        except Exception as e:
+            _push_engine_event("error", str(e))
+
+    t = threading.Thread(target=worker, name="dfy-engine-auto", daemon=True)
+    t.start()
+    return t
+
+
 def qq_zone_status():
     """空间面板状态：登录态、今日计数、下次自动时间、历史。"""
     try:
@@ -2555,6 +2685,13 @@ try:
 except Exception:
     pass
 
+# 首次启动时引擎没装就后台自动拉取；界面先起来，进度走 engine_status 轮询。
+# 没配置下载源时只推一个 no_source 事件，不弹错误。
+try:
+    _auto_engine_bootstrap()
+except Exception:
+    pass
+
 # 必须在 webview.start() 之前打补丁：它要改 BrowserForm 的 __init__ / on_close
 _install_net_guards()
 
@@ -2939,6 +3076,7 @@ window.expose(*([_safe_api(_f) for _f in (
               qq_market_open, qq_market_status, qq_market_close,
               market_status, market_categories, market_search, market_detail,
               market_install, market_uninstall,
+              engine_status, engine_install,
               qq_buddy_status, qq_buddy_launch, qq_buddy_tools,
               qq_zone_status, qq_zone_cfg, qq_zone_set_cfg, qq_zone_preview,
               qq_zone_publish, qq_zone_delete,
