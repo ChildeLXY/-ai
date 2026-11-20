@@ -785,8 +785,10 @@ class Brain:
             "直接在回复最后单独写一行 [发空间:你想发的说说内容|配图:表情包名字]，"
             "系统会替你真发出去，发完你会知道结果。内容要像你平时说话的样子，别写公告腔。"
             "想配图就写「|配图:表情包清单里的名字」；清单里找不到合适的就写「|配图:自己画」，"
-            "你会亲手画一幅简笔画配上。只有对方明确让你发空间时才写这个标记，"
-            "别自己主动天天发，也别闲聊两句就发一条。\n"
+            "你会亲手画一幅简笔画配上。\n"
+            "注意：这个标记只用于「对方明确要你发空间」这一种情况。"
+            "你回答别人的问题、查资料、闲聊、没办成事，都不能把自己说的话塞进 [发空间:...] 里发出去——"
+            "那是别人的私聊内容，发到空间所有人都看得到。没被明确要求就一个字都别写这个标记。\n"
             "对方让你「以后别理某人」「拉黑/屏蔽某人」「去跟某人说清楚再不回他」时，"
             "别只嘴上答应，也别用 [执行:...] 让助手去做（它发不了QQ消息）。"
             "在回复最后单独写一行 [忽略:对方的昵称]，系统会把通知发给那个人本人、"
@@ -1326,6 +1328,17 @@ class OneBot:
                 del self.seen[:150]
         return True
 
+    # 这句话是不是真的在要求「发空间」——
+    # 用来判断模型写的 [发空间:…] 标记该不该执行。
+    _QZONE_ASK_RE = re.compile(
+        r"(?:发|传|更新|更|换|写)(?:个|条|一下|一条|一点|一篇)?\s*"
+        r"(?:qq\s*空间|空间|说说|动态|朋友圈)"
+        r"|(?:空间|说说|动态)[里上]*(?:发|传|更新|更|来一条|来条|来一个)",
+        re.I)
+
+    def _qzone_asked(self, user_text):
+        return bool(self._QZONE_ASK_RE.search(str(user_text or "")))
+
     def _at_me_in(self, raw, self_id):
         """这条消息里有没有 @ 我。"""
         if not self_id:
@@ -1438,6 +1451,11 @@ class OneBot:
                     else:
                         lines.append("（对方发来%s，但没看清内容）" % what)
                 if lines:
+                    # 对方一个字都没打、只丢了表情包/图：明确告诉大脑"就着这个接话"，
+                    # 否则 9B 模型容易把描述当背景，自顾自换个话题（"你怎么不看我们发的表情包"就是这么来的）
+                    said_nothing = not re.sub(r"［[^］]*］", "", str(text or "")).strip()
+                    if said_nothing and media:
+                        lines.insert(0, "（对方没打字，只发来了下面这个，你就着它接一句，别岔开话题）")
                     clean = (clean + "\n" + "\n".join(lines)).strip()
             if not clean:
                 return
@@ -1676,7 +1694,8 @@ class OneBot:
                 # 插件自装：模型在回复里写 [装插件:xxx] 就真去装（它自己判断缺什么能力）
                 answer = self._do_plugin_marker(kind, target, answer)
                 # 发空间：模型写 [发空间:内容] 就真发一条说说，回复换成结果
-                answer = self._do_qzone_marker(answer)
+                # （带上用户原话：对方没真要发空间的话，这个标记会被拦下）
+                answer = self._do_qzone_marker(answer, text)
                 # 执行：模型写 [执行:任务] 就拉起 DeepBuddy 真去办，办完回话
                 answer = self._do_exec_marker(kind, target, answer)
                 # B站鱼塘：模型写 [B站:关键词] 就后台跑一轮，日报发回这个会话
@@ -1807,12 +1826,14 @@ class OneBot:
                         return it, p
         return None, ""
 
-    def _do_qzone_marker(self, answer):
+    def _do_qzone_marker(self, answer, user_text=""):
         """模型写 [发空间:内容(|配图:…)] → 真发一条说说，回复换成结果。
 
         配图：写「配图:表情包名」用图库里的图；写「配图:自己画」或找不到图时，
         让模型自己画一幅 SVG 简笔画转 PNG；都失败降级纯文字。
         防刷：冷却 600s、同内容 1h 去重、每日上限（qzone_每日上限）。
+        护栏：只有用户这一句真的在要求发空间/说说/动态时才执行，
+        否则把标记摘掉、正常回话（11-20 15:55 就把一句「查文章」的回答发成了说说）。
         """
         pat = (r"\s*[\[【]\s*(?:发空间|发说说|发QQ空间|发条空间)\s*[:：]\s*"
                r"([^\]】]+)[\]】]\s*")
@@ -1836,6 +1857,11 @@ class OneBot:
             raw = raw.strip()
         text = raw.strip() or "（咕噜咕噜……今天有点沉默）"
         answer = re.sub(pat, "", answer).strip()
+
+        # 用户没让发空间，这是模型自己起的念头 → 拦下，只把回复正常发出去
+        if not self._qzone_asked(user_text):
+            log("模型想发空间但对方没让发，已拦下：%s" % text[:30])
+            return answer
 
         # 防刷：模型有时每轮都主动想发（用户没要求）——冷却收紧到 600s，
         # 且触发前检查每日上限
