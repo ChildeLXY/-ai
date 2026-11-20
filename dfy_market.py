@@ -1113,6 +1113,11 @@ def bring_window():
 
 def open_window():
     """弹市场窗口（单实例）。返回 {ok, pid, already}。"""
+    # 安装版（frozen）：没有独立 python.exe 与松散 .py 脚本，子进程方式必然
+    # 报「找不到市场窗口脚本」。改走主窗口内嵌市场（同一套 market_* 接口），
+    # 前端收到 embedded 后直接切到应用内市场视图。
+    if getattr(sys, "frozen", False):
+        return {"ok": True, "embedded": True}
     pid = window_pid()
     if pid:
         bring_window()

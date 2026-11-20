@@ -3460,6 +3460,43 @@ _HUBTEST_JS = r"""
 """
 
 
+_MARKETTEST_JS = r"""
+(() => {
+  window.__mkttest = {done:false};
+  (async () => {
+    const st = window.__mkttest;
+    try{
+      const api = window.pywebview.api;
+      // 1. frozen 安装版：qq_market_open 必须返回 embedded，绝不能报「找不到脚本」
+      const op = await api.qq_market_open();
+      st.open = op;
+      st.openEmbedded = !!(op && op.ok && op.embedded);
+      // 2. 市场状态：结构必须是带 ok 的对象
+      const status = await api.market_status();
+      st.statusOk = !!(status && status.ok);
+      st.statusTotal = status ? status.total : null;
+      st.statusFetching = status ? status.fetching : null;
+      // 3. 搜索：目录可能仍在后台下载，但必须返回带 rows 数组的对象，不能抛错
+      const search = await api.market_search('', 'all', 0, 8, 'stars');
+      st.searchReturned = !!search;
+      st.searchRowsIsArray = Array.isArray(search && search.rows);
+      st.searchTotal = search ? search.total : null;
+      // 4. 走真实前端入口 hubMarketOpen：确认插件中心被打开并切到 market 页
+      await hubMarketOpen();
+      const hub = document.getElementById('pluginHub');
+      st.hubOpened = !!(hub && hub.classList.contains('show'));
+      st.hubTab = (typeof _hubTab !== 'undefined') ? _hubTab : null;
+      st.done = true;
+    }catch(e){
+      st.err = String((e && (e.stack || e.message)) || e);
+      st.done = true;
+    }
+  })();
+  return 'started';
+})()
+"""
+
+
 def _win_hwnd():
     """拿到主窗口句柄。pywebview 的 Window 没暴露 hwnd，从 .native（WinForms Form）取。"""
     try:
@@ -3574,6 +3611,25 @@ def _run_selftest():
             except Exception as _e:
                 data["hubtest_error"] = _tb.format_exc()
 
+        # 安装版插件市场链路（仅 DFY_MARKETTEST=1）：验证 embedded 入口 + 内嵌市场可用
+        if os.environ.get("DFY_MARKETTEST") == "1":
+            try:
+                window.evaluate_js(_MARKETTEST_JS)
+                got = None
+                for _i in range(60):
+                    time.sleep(1)
+                    try:
+                        got = window.evaluate_js("JSON.stringify(window.__mkttest||{})")
+                    except Exception:
+                        pass
+                    if got and '"done":true' in got:
+                        data["markettest"] = got
+                        break
+                else:
+                    data["markettest"] = got or "超时"
+            except Exception as _e:
+                data["markettest_error"] = _tb.format_exc()
+
         # 用户发表情包：打开面板截图；DFY_EMJCLICK=1 时再点一张发出去
         if os.environ.get("DFY_EMJTEST") == "1":
             try:
@@ -3649,7 +3705,7 @@ def _run_selftest():
     threading.Thread(target=_worker, daemon=True).start()
 
 
-if os.environ.get("DFY_SELFTEST") == "1":
+if os.environ.get("DFY_SELFTEST") == "1" or os.environ.get("DFY_MARKETTEST") == "1":
     _run_selftest()
 
 # 云端模式在开机自启时，代理窗口可能根本没被拉起（以前只在"保存配置"那一刻启动），

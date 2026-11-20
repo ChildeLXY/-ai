@@ -4709,6 +4709,13 @@ async function hubMarketOpen(){
   const el=document.getElementById('qqMarketStat');
   try{
     const r=await pywebview.api.qq_market_open();
+    if(r&&r.embedded){
+      // 安装版没有独立市场窗口：在应用内打开插件中心并切到市场页
+      if(el) el.textContent='已在应用内打开插件市场';
+      openPluginHub();
+      hubShow('market');
+      return;
+    }
     if(r.ok){
       if(el) el.textContent = r.already ? '窗口已开着（已切到前面）' : '窗口已打开';
       if(!r.already) setTimeout(hubMarketStatus, 2500);
