@@ -716,7 +716,7 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
     <button id="searchBtn" class="hbtn" onclick="toggleSearch()">离线</button>
     <button id="kbBtn" class="hbtn" onclick="toggleKb()">知识库</button>
     <button id="wbBtn" class="hbtn" onclick="toggleWb()">工作模式</button>
-    <button id="dshBtn" class="dsh-btn" onclick="toggleDshMode()" title="切换到 DeepSeek Harness 同款外观">DSH 模式</button>
+    <button id="dshBtn" class="dsh-btn" onclick="dshUiOpen()" title="进入大肥鱼内置修改版 DSH（插件市场与插件管理）">DSH 模式</button>
     <button id="updBtn" class="hbtn" onclick="checkUpdate(true)" title="检查 Gitee 上有没有新版本">⟳</button>
     <button id="dtBtn" class="hbtn" onclick="toggleDeepThink()" title="开：认真拆问题、逐条核对；关：人格优先、不啰嗦分析">深度思考</button>
     <div class="spacer"></div>
@@ -833,6 +833,15 @@ select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--
     </div>
     <div class="set-row"><div class="set-label">回复语言</div><div class="opt-group" id="langGroup"><button class="opt" data-lang="zh-CN" onclick="setLang('zh-CN')">简体中文</button><button class="opt" data-lang="zh-TW" onclick="setLang('zh-TW')">繁體中文</button><button class="opt" data-lang="en" onclick="setLang('en')">English</button><button class="opt" data-lang="ja" onclick="setLang('ja')">日本語</button></div></div>
     <div class="set-row"><div class="set-label">主题模式</div><div class="opt-group" id="themeGroup"><button class="opt" data-theme-mode="light" onclick="setThemeMode('light')">浅色</button><button class="opt" data-theme-mode="dark" onclick="setThemeMode('dark')">深色</button><button class="opt" data-theme-mode="auto" onclick="setThemeMode('auto')">跟随系统</button></div></div>
+  <div class="set-row">
+  <div class="set-label">朗读音色 <span style="color:var(--text2);font-weight:400">—— 点消息旁的「朗读」时，用谁的声音念</span></div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+  <div class="opt-group" id="voiceEngineGroup"><button class="opt" data-voice="edge" onclick="setVoiceEngine('edge')">晓伊（在线）</button><button class="opt" data-voice="kurena" onclick="setVoiceEngine('kurena')">Kurena（自训 RVC）</button></div>
+  <button class="opt" onclick="voicePreview()">试听</button>
+  <button class="opt" onclick="voiceUnload()">释放显存</button>
+  </div>
+  <div class="pg-note" id="voiceEngineNote" style="margin-top:6px">晓伊：微软在线音色，免费、不占显卡，秒出。</div>
+  </div>
     <div class="set-row">
       <div class="set-label">用户头像</div>
       <div style="display:flex;align-items:center;gap:12px">
@@ -1003,9 +1012,9 @@ let API=LOCAL_API_URL;
 // （以前是先写 MODELS 再 slice 出 LOCAL_MODELS，一旦某次加载时 MODELS 已被
 //   换成云端那一项，快照就跟着被污染，退不回本地时下拉一直是"云端"。）
 // ctx = 该模型推荐的上下文窗口上限（tokens），用于拨杆档位收敛和面板分母。
-const LOCAL_PRESET=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐：说话自然、会挑表情包）',ctx:32768},{id:'qwen3-vl:4b-instruct',short:'轻快',full:'Qwen3-VL - 4B Instruct（省 1.5G 显存、更快，挑图同样准）',ctx:32768},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（爱推理，看不了图）',ctx:32768},{id:'qwen3.6:35b',short:'深度ProMax',full:'Qwen3.6 - 35B-A3B（最强，能看图，思考链可开关）',ctx:65536}];
+const LOCAL_PRESET=[{id:'qwen2.5vl:7b',short:'灵动',full:'Qwen2.5-VL - 7B（推荐：说话自然、会挑表情包）',ctx:32768},{id:'qwen3-vl:4b-instruct',short:'轻快',full:'Qwen3-VL - 4B Instruct（省 1.5G 显存、更快，挑图同样准）',ctx:32768},{id:'deepseek-r1:8b',short:'思考',full:'DeepSeek R1 - 8B（爱推理，看不了图）',ctx:32768},{id:'qwen3.6:35b',short:'深度ProMax',full:'Qwen3.6 - 35B-A3B（最强，能看图，思考链可开关）',ctx:65536},{id:'deepseek-v4pro-qwen35-9b:latest',short:'蒸馏9B',full:'Qwen3.5 蒸馏 - 9B（DeepSeek-V4Pro 蒸到 Qwen3.5，7.6G，能看图，8G 显存也稳）',ctx:8192},{id:'ds-v4pro-q35-9b-vision:latest',short:'蒸馏9B视',full:'Qwen3.5 蒸馏 9B · 多模态小号（6.7G，能看图，显存更宽裕）',ctx:8192},{id:'ds-v4pro-q35-9b-text:latest',short:'蒸馏9B文',full:'Qwen3.5 蒸馏 9B · 纯文本小号（5.8G，最省显存，看不了图）',ctx:8192}];
 const MODELS=LOCAL_PRESET.slice();
-let MODEL='qwen2.5vl:7b',displayMode='balanced',replyLang='zh-CN';
+let MODEL='ds-v4pro-q35-9b-vision:latest',displayMode='balanced',replyLang='zh-CN';
 let cloudEnabled=false;             // 云端模式当前是否真的开着（以后端配置为准）
 let msgs=[],busy=false,abortCtrl=null,chats=[],currentId=null,webSearchOn=false,searchEngine='duckduckgo',pendingFiles=[],kbOn=false,chatsLoaded=false,wbOn=false,wbStop=false;
 // ===== 上下文用量统计 =====
@@ -1095,6 +1104,36 @@ function buildHistMsgs(){                   // 送进模型的历史：每条前
 }
 const LANG_PROMPT={'zh-CN':'请始终使用简体中文回答。','zh-TW':'請始終使用繁體中文回答。','en':'Please always respond in English.','ja':'常に日本語で回答してください。'};
 function refreshModelSel(){const sel=document.getElementById('modelSel');sel.innerHTML='';MODELS.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=displayMode==='pro'?m.full:m.short;if(m.id===MODEL)o.selected=true;sel.appendChild(o)});sel.value=MODEL}
+// 下拉里的模型以前是写死的四五个：自己新装的（比如蒸馏版）永远看不到，
+// 选到早就删掉的旧项又会直接 HTTP 404。启动时按 Ollama /api/tags 校准一次：
+// 装了的才留在清单里，清单里没有的自动补进去；Ollama 没开就保持原样、绝不清空。
+async function syncInstalledModels(){
+  if(cloudEnabled)return;            // 云端模式下清单来自云端渠道，不掺本地
+  try{
+    const r=await fetch(API+'/api/tags');
+    if(!r.ok)return;
+    const names=(((await r.json()).models)||[]).map(m=>m.name).filter(Boolean);
+    if(!names.length)return;         // 一个都没有多半是连不上，不当作"全都删了"
+    const set=new Set(names);
+    for(let i=LOCAL_PRESET.length-1;i>=0;i--){if(!set.has(LOCAL_PRESET[i].id))LOCAL_PRESET.splice(i,1)}
+    names.forEach(n=>{if(!LOCAL_PRESET.some(m=>m.id===n))LOCAL_PRESET.push({id:n,short:_shortOf(n),full:n+'（Ollama 已装）',ctx:32768})});
+    MODELS.splice(0,MODELS.length,...LOCAL_PRESET.map(m=>({...m})));
+    if(!MODELS.some(m=>m.id===MODEL)&&MODELS.length)MODEL=MODELS[0].id;
+    refreshModelSel();
+  }catch(e){}
+}
+// 给自动补进来的模型起个短名，别让下拉里全是一长串 tag
+function _shortOf(n){
+  const low=String(n||'').toLowerCase();
+  if(low.includes('qwen35')||low.includes('q35')){
+    if(low.includes('vision'))return '蒸馏9B视';
+    if(low.includes('text'))return '蒸馏9B文';
+    return '蒸馏9B';
+  }
+  if(low.includes('qwen3.6')&&low.includes('35b'))return '深度ProMax';
+  const b=String(n).split(':')[0];
+  return b.length>12?b.slice(0,12)+'…':b;
+}
 // 大模型（MoE 几十 GB）驻留时会把内存吃到见底：实测 35B 占 16GB 内存，
 // 导致切回灵动后每次加载都慢到选图调用超时（表现就是"突然不发表情包了"）。
 // 所以大模型只保活 15 分钟，并且切走时立刻卸载。
@@ -1145,6 +1184,8 @@ async function openSettings(){
     const au=await window.pywebview.api.load_setting('autoUpdate');
     const e1=document.getElementById('autoCheck');if(e1)e1.checked=(ac==='1');
     const e2=document.getElementById('autoUpdate');if(e2)e2.checked=(au==='1');
+    const ve=await window.pywebview.api.load_setting('voice_engine');
+    markVoiceEngine(ve==='kurena'?'kurena':'edge');
   }catch(e){}
   document.getElementById('settingsModal').classList.add('show')
 }
@@ -1517,6 +1558,7 @@ async function applyCloudConfig(){
       if(!MODELS.some(m=>m.id===MODEL))MODEL=MODELS[0].id;
     }
     refreshModelSel();
+    try{await syncInstalledModels()}catch(e){}
     const f=document.getElementById('sideFoot');
     if(f)f.textContent=c.enabled?'☁ 云端模型已开启 · 对话会离开本机':'本地部署 - 数据不出本机';
     Object.keys(_capsCache).forEach(k=>delete _capsCache[k]);
@@ -2263,7 +2305,32 @@ function md(t){
 }
 async function runCode(id){const code=document.getElementById(id).textContent;const out=document.getElementById('out-'+id);out.style.display='block';out.textContent='运行中...';try{const r=await window.pywebview.api.run_python(code);out.textContent=r}catch(e){out.textContent='[失败: '+e+']'}}
 async function checkConn(){const dot=document.getElementById('dot');try{const r=await fetch(API+'/api/tags');dot.className='dot '+(r.ok?'ok':'err')}catch(e){dot.className='dot err'}}
-async function speakText(b64){try{const text=decodeURIComponent(escape(atob(b64)));const path=await window.pywebview.api.tts_speak(text);if(path&&!path.startsWith('['))new Audio('file:///'+path.replace(/\\/g,'/')).play();else alert(path||'朗读失败')}catch(e){alert('朗读失败: '+e)}}
+async function speakText(b64){try{const text=decodeURIComponent(escape(atob(b64)));let eng='edge';try{eng=await window.pywebview.api.load_setting('voice_engine')}catch(e){}if(eng==='kurena')pgToast('正在用 Kurena 的声音念…');const path=await window.pywebview.api.tts_speak(text);if(path&&!path.startsWith('['))new Audio('file:///'+path.replace(/\\/g,'/')).play();else alert(path||'朗读失败')}catch(e){alert('朗读失败: '+e)}}
+// ---- 朗读音色（晓伊 / 自训 Kurena RVC） ----
+function markVoiceEngine(v){document.querySelectorAll('#voiceEngineGroup .opt').forEach(function(b){b.classList.toggle('on',b.dataset.voice===v)});}
+async function setVoiceEngine(v){
+  markVoiceEngine(v);
+  try{await window.pywebview.api.save_setting('voice_engine',v)}catch(e){}
+  const note=document.getElementById('voiceEngineNote');
+  if(!note)return;
+  if(v==='kurena'){
+    note.textContent='Kurena 走本机 RVC（Kiriziki Kurena 2.0）：第一句要等模型载入（约 20 秒），之后每句 2~3 秒；同样一句会走缓存。空闲 5 分钟自动把显存还回去，也可以点「释放显存」。';
+    try{const st=await window.pywebview.api.voice_status();if(st&&st.available===false)note.textContent='没找到 Applio 环境或 Kurena 模型，会退回晓伊。'}catch(e){}
+  }else{
+    note.textContent='晓伊：微软在线音色，免费、不占显卡，秒出。';
+  }
+}
+async function voicePreview(){
+  try{
+    pgToast('正在合成试听…');
+    const p=await window.pywebview.api.tts_speak('这句话是用你选的声音念的，听听喜不喜欢。');
+    if(p&&!p.startsWith('['))new Audio('file:///'+p.replace(/\\/g,'/')).play();
+    else alert(p||'试听失败');
+  }catch(e){alert('试听失败: '+e)}
+}
+async function voiceUnload(){
+  try{await window.pywebview.api.voice_stop();pgToast('已释放显存')}catch(e){pgToast('释放失败: '+e)}
+}
 async function doScreenshot(){try{const path=await window.pywebview.api.take_screenshot();if(path&&!path.startsWith('[')){pendingFiles.push(path);const chip=document.createElement('span');chip.className='attach-chip';chip.textContent='📷 截图';document.querySelector('.hint').appendChild(chip);document.getElementById('input').value='这张截图里有什么？请描述一下。';document.getElementById('input').focus()}else alert(path)}catch(e){alert(e)}}
 async function doClipboard(){try{const text=await window.pywebview.api.read_clipboard();if(text){document.getElementById('input').value='请帮我总结以下内容：\n'+text.slice(0,1000);document.getElementById('input').focus()}else alert('剪贴板为空')}catch(e){alert(e)}}
 async function doUrl(){const url=prompt('粘贴网页链接：');if(!url)return;try{const r=await window.pywebview.api.extract_url(url);if(r&&r.text&&!r.text.startsWith('[')){document.getElementById('input').value='请总结这篇文章（'+r.title+'）：\n\n'+r.text.slice(0,2000);document.getElementById('input').focus()}else alert('抓取失败')}catch(e){alert(e)}}
@@ -2870,6 +2937,7 @@ function toggleQQPanel(force){
   else if(QQ_TIMER){clearInterval(QQ_TIMER);QQ_TIMER=null}
 }
 async function qqRefresh(){
+  if(document.hidden)return;
   let st=null,ls=null;
   try{st=await window.pywebview.api.qq_status()}catch(e){}
   try{ls=await window.pywebview.api.qq_launch_state()}catch(e){}
@@ -3037,6 +3105,7 @@ async function qqReload(){
     }).catch(function(){p.innerHTML='<div>心情插件没装</div>';p.style.display='block'});
   };
   window.updateMoodWidget=function(){
+    if(!(window.pywebview&&window.pywebview.api))return;   // 界面还没连上主程序时别炸
     window.pywebview.api.mood_get().then(function(m){
       if(!m||!m.ok){w.style.display='none';return}
       w.style.display='flex';w.title='心情 '+m.label+'（'+m.mood+'/100）';
@@ -3114,6 +3183,120 @@ function closePluginHub(){
   const m=document.getElementById('pluginHub');
   if(m)m.classList.remove('show');
   _hubOpen=false;
+  try{hubQQScanReset()}catch(e){}
+  try{dshUiClose()}catch(e){}
+}
+
+/* ===== DSH 原生界面：真的把 DSH 自己的 Web 前端开在大肥鱼里 =====
+   不是仿的壳。DSH 前端 boot 的是 dfyweb profile，与宿主共用同一个 DSH home
+   和同一份 node_modules，所以在里面装/卸的插件，宿主重启后看到的是同一批。
+   性能上按需启动、关闭即释放，绝不留常驻 node 进程。 */
+let _dshUiBusy=false;
+let _dshUiUrl='';
+let _dshUiBooted=false;
+let _dshUiFail=0;
+
+/* 入口偏好：默认开机就进官方 DSH 前端（1:1 原生）；关掉过一次就记住 */
+function dshUiWantAuto(){
+  try{ return localStorage.getItem('dfy_dsh_entry')!=='0'; }catch(e){ return true; }
+}
+function dshUiSetAuto(on){
+  try{ localStorage.setItem('dfy_dsh_entry', on?'1':'0'); }catch(e){}
+}
+
+function _dshUiSkin(){
+  if(document.getElementById('dshUiSkin'))return;
+  const st=document.createElement('style');st.id='dshUiSkin';
+  st.textContent='@keyframes dshSpin{to{transform:rotate(360deg)}}'+
+    '#dshUiFloat button{height:32px;padding:0 14px;border-radius:9px;border:1px solid #262b36;'+
+    'background:rgba(18,21,29,.86);color:#cdd3e0;font-size:13px;line-height:1;cursor:pointer;'+
+    'backdrop-filter:blur(6px);transition:background .18s,color .18s}'+
+    '#dshUiFloat button:hover{background:#20252f;color:#fff}';
+  document.head.appendChild(st);
+}
+
+function _dshUiBuild(){
+  let ov=document.getElementById('dshUiOverlay');
+  if(ov)return ov;
+  _dshUiSkin();
+  ov=document.createElement('div');
+  ov.id='dshUiOverlay';
+  ov.style.cssText='position:fixed;inset:0;z-index:99999;background:#0b0d12;display:none';
+  ov.innerHTML=
+    '<div id="dshUiBoot" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#0b0d12;color:#e8eaed;z-index:2">'+
+      '<div style="width:26px;height:26px;border-radius:50%;border:2px solid #232734;border-top-color:#7aa2ff;animation:dshSpin .9s linear infinite"></div>'+
+      '<div id="dshUiBootMsg" style="color:#9aa3b6;font-size:13px">正在启动大肥鱼内置 DSH…</div>'+
+    '</div>'+
+    '<iframe id="dshUiFrame" style="position:absolute;inset:0;width:100%;height:100%;border:0;background:#0b0d12"></iframe>'+
+    '<div id="dshUiFloat" style="position:fixed;right:16px;top:12px;z-index:3">'+
+      '<button id="dshUiX" title="回到大肥鱼">← 回到大肥鱼</button>'+
+    '</div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#dshUiX').onclick=function(){ dshUiClose(true) };
+  const f=ov.querySelector('#dshUiFrame');
+  // 首帧到达就撤掉骨架，避免一直顶着转圈
+  f.addEventListener('load',function(){ _dshUiBootDone(); });
+  return ov;
+}
+function _dshUiBootMsg(t){
+  const m=document.getElementById('dshUiBootMsg');
+  if(m)m.textContent=t;
+}
+function _dshUiBootDone(){
+  const b=document.getElementById('dshUiBoot');
+  if(b)b.style.display='none';
+}
+
+async function dshUiOpen(){
+  if(_dshUiBusy)return;
+  _dshUiBusy=true;
+  try{
+    const ov=_dshUiBuild();
+    ov.style.display='block';
+    const boot=document.getElementById('dshUiBoot');
+    if(boot)boot.style.display='flex';
+    _dshUiBootMsg('正在启动大肥鱼内置 DSH…');
+    const r=await pgCall('dsh_ui_open');
+    if(!r||!r.ok||!r.url){
+      _dshUiFail++;
+      _dshUiBootMsg('启动失败：'+((r&&(r.error||r.__err))||'未知原因')+'　（3 秒后回大肥鱼）');
+      setTimeout(function(){ dshUiClose(false) }, 3000);
+      return;
+    }
+    _dshUiFail=0;
+    _dshUiUrl=r.url;
+    const f=document.getElementById('dshUiFrame');
+    if(f)f.src=r.url;
+    // 兜底：8 秒还没 load 事件也撤骨架（iframe 内部 404 不会触发 load 的极端情况）
+    setTimeout(function(){ _dshUiBootDone() }, 8000);
+  }catch(e){
+    _dshUiBootMsg('打开失败：'+e);
+    setTimeout(function(){ dshUiClose(false) }, 3000);
+  }finally{
+    _dshUiBusy=false;
+  }
+}
+
+/* 已取消开机直进：打开大肥鱼保留主界面，只有用户点「DSH 模式」才进入内置修改版。
+   保留空函数避免任何外部引用报错。 */
+function dshUiBoot(){ /* no-op：不再自动进入 */ }
+
+function dshUiExternal(){
+  // 有些签名/下载在 iframe 里会被拦，留一个「独立窗口」按钮走系统默认浏览器
+  try{ window.pywebview.api.open_external_url ? window.pywebview.api.open_external_url(_dshUiUrl) : window.open(_dshUiUrl,'_blank'); }
+  catch(e){ try{window.open(_dshUiUrl,'_blank');}catch(_){} }
+}
+function dshUiClose(remember){
+  const ov=document.getElementById('dshUiOverlay');
+  if(ov){
+    const f=ov.querySelector('#dshUiFrame');
+    if(f)f.src='about:blank';
+    ov.style.display='none';
+  }
+  _dshUiUrl='';
+  // 用户主动关掉 = 不想每次开机都进原生界面，记下来；启动失败自动关的不记
+  if(remember===true)dshUiSetAuto(false);
+  try{pgCall('dsh_ui_close')}catch(e){}
 }
 function _navBtn(id,ic,nm,extra){
   const b=document.createElement('button');
@@ -3128,7 +3311,8 @@ function _navPlugin(p,extra){
   b.className='hub-item'+(p.ok?'':' off');b.dataset.pid=p.id;
   b.innerHTML='<span class="ic">'+(p.icon||'🧩')+'</span><span class="nm">'+pgEsc(p.name||p.id)+'</span>'
     +(extra?'<span class="st">'+pgEsc(extra)+'</span>':'');
-  if(p.ok)b.onclick=function(){hubShow(p.id)};
+  // 市场插件也有统一的详情页，异常也要能点进去看原因
+  if(p.ok||p.kind==='dsh')b.onclick=function(){hubShow(p.id)};
   return b;
 }
 async function hubLoad(pid){
@@ -3139,12 +3323,13 @@ async function hubLoad(pid){
     return;
   }
   _HUBLIST=list;
-  // 左侧导航只放有大肥鱼自有页面的 Python 插件；
-  // DSH 市场插件没有独立页，只在"已安装"列表里出现，否则侧栏会塞进十几个点不动的条目。
+  // 左侧导航：Python 插件有自己的页面；市场装的 DSH 插件现在也有统一详情页。
+  // 以前把它们整段过滤掉，结果"装了十来个市场插件，这里一个都看不到"，这才是真正让人以为没同步的原因。
   const pyOnly=list.filter(function(p){return p.kind!=='dsh'});
   const usable=pyOnly.filter(function(p){return p.ok&&p.enabled});
   const off=pyOnly.filter(function(p){return p.ok&&!p.enabled});
   const bad=pyOnly.filter(function(p){return !p.ok});
+  const mkt=list.filter(function(p){return p.kind==='dsh'});
   if(nav){
     nav.innerHTML='';
     nav.appendChild(_navBtn('installed','▦','已安装',usable.length?usable.length+' 个':''));
@@ -3156,14 +3341,23 @@ async function hubLoad(pid){
     usable.forEach(function(p){nav.appendChild(_navPlugin(p,''))});
     off.forEach(function(p){nav.appendChild(_navPlugin(p,'已关'))});
     bad.forEach(function(p){nav.appendChild(_navPlugin(p,'异常'))});
-    if(!usable.length&&!off.length&&!bad.length)nav.innerHTML='<div class="hub-empty">没有可用插件</div>';
+    if(mkt.length){
+      const t2=document.createElement('div');t2.className='hub-sec';t2.textContent='市场插件（'+mkt.length+'）';
+      nav.appendChild(t2);
+      mkt.forEach(function(p){
+        const tag=(p.present===false)?'缺目录':(p.ok?(p.enabled?'已开':'已关'):'异常');
+        nav.appendChild(_navPlugin(p,tag));
+      });
+    }
+    if(!usable.length&&!off.length&&!bad.length&&!mkt.length)nav.innerHTML='<div class="hub-empty">没有可用插件</div>';
   }
   const foot=document.getElementById('hubFoot');
-  if(foot)foot.textContent=usable.length+' 个插件在跑 · 数据都在本机';
+  if(foot)foot.textContent=(usable.length+mkt.length)+' 个插件在册 · 数据都在本机';
   hubShow(pid||'installed');
 }
 function hubShow(x){
   if(!x)return;
+  if(x!=='qq_chat')hubQQScanReset();   // 离开 QQ 页就把扫码轮询停掉，不然会一直截窗口
   document.querySelectorAll('#hubNav .hub-item').forEach(function(b){
     b.classList.toggle('on',b.dataset.pid===x);
   });
@@ -3194,11 +3388,31 @@ function hubShow(x){
   }
   // ---- 插件详情页 ----
   _hubPid=x;
+  _hubTab='detail';   // 关键：不置位的话 hubRefresh() 会按旧的 'installed' 把页面弹回列表
   if(listHead)listHead.style.display='none';
   if(detHead)detHead.style.display='';
   if(tabs)tabs.style.display='none';
   const v=_hubViews[x];
   if(!v){
+    if(String(x).indexOf('dsh:')===0){
+      const p=(_HUBLIST||[]).filter(function(q){return q.id===x})[0]||{};
+      document.getElementById('hubIco').textContent=p.icon||'🐋';
+      document.getElementById('hubName').textContent=(p.pkg||x.slice(4));
+      document.getElementById('hubSub').textContent='市场插件 · v'+(p.version||'?');
+      if(body){
+        body.innerHTML=_hubMktPage(p);
+        const rp=document.getElementById('mktRepairBtn');
+        if(rp)rp.onclick=function(){hubMktRepair(p.pkg||p.name)};
+        const od=document.getElementById('mktOpenBtn');
+        if(od)od.onclick=function(){try{closePluginHub()}catch(e){};dshEnter(false)};
+        const sw=document.getElementById('mktSwBtn');
+        if(sw)sw.onclick=function(){
+          hubSwToggleDsh(p.pkg||p.name,!p.enabled,null);
+          setTimeout(function(){hubLoad(x)},600);
+        };
+      }
+      return;
+    }
     document.getElementById('hubIco').textContent='🧩';
     document.getElementById('hubName').textContent=x;
     document.getElementById('hubSub').textContent='这个插件还没做专属页面';
@@ -3208,11 +3422,48 @@ function hubShow(x){
   document.getElementById('hubIco').textContent=v.icon||'🧩';
   document.getElementById('hubName').textContent=v.name||x;
   document.getElementById('hubSub').textContent=v.sub||'';
-  v.mount(body);
+  try{v.mount(body)}catch(e){
+    // 单个插件的页面出错不能把整个插件中心搞成空白，留个说明让人能退回去
+    if(body)body.innerHTML='<div class="pg-card"><div class="pg-note">这个插件的页面加载出错：'+pgEsc(String((e&&e.message)||e))+'</div></div>';
+    pgToast('这个插件的页面加载出错');
+    return;
+  }
   if(x==='bili_pond'){
     try{hubBView('report',document.querySelector('#hubBody .pg-tab'))}catch(e){}
   }
   hubRefresh();
+}
+// ---- 市场插件（DSH 包）的统一详情页 ----
+function _hubMktPage(p){
+  const present=(p.present!==false), on=!!p.enabled, ok=!!p.ok;
+  const green='color:#3fb950;border-color:rgba(63,185,80,.42)';
+  const red='color:#f85149;border-color:rgba(248,81,73,.42)';
+  function chip(t,c){return '<span class="hx-v"'+(c?' style="'+c+'"':'')+'>'+pgEsc(t)+'</span>'}
+  let h='<div class="pg-card"><div class="pg-h"><span>状态</span>'
+    +chip(on?'已启用':'未启用', on?green:'')
+    +(!present?chip('包目录缺失',red):chip(ok?'已加载':'未加载', ok?green:red))
+    +'</div><div class="pg-row" style="flex-direction:column;align-items:flex-start;gap:7px;margin-top:8px">';
+  h+='<div class="pg-note">包名 <b>'+pgEsc(p.pkg||p.name||'')+'</b> · 版本 v'+pgEsc(p.version||'?')+'</div>';
+  if(p.desc)h+='<div class="pg-note">'+pgEsc(p.desc)+'</div>';
+  if(p.note)h+='<div class="pg-note"'+(ok?'':' style="color:#f85149"')+'>'+pgEsc(p.note)+'</div>';
+  h+='</div><div class="pg-row" style="gap:8px;margin-top:12px;flex-wrap:wrap">';
+  h+='<button class="opt" id="mktSwBtn" style="padding:4px 12px">'+(on?'停用':'启用')+'</button>';
+  h+='<button class="opt" id="mktRepairBtn" style="padding:4px 12px">重新安装</button>';
+  h+='<button class="opt" id="mktOpenBtn" style="padding:4px 12px">在 DSH 模式里看</button>';
+  h+='</div></div>';
+  h+='<div class="pg-card" style="margin-top:12px"><div class="pg-h"><span>它做什么</span></div>'
+   +'<div class="pg-note">这类插件是装进 node_modules、由 DSH 宿主统一加载的，给「DSH 模式」里的模型循环用。'
+   +'开关改完要重启宿主才真正生效，所以这里的启用按钮会顺手重启一次。</div>'
+   +'<div class="pg-note">'+(present?'包目录在，没加载起来多半是入口写错或依赖缺失，重装能覆盖。'
+       :'这条记录还在，但包目录已经没了（被清理或当初装失败）。点「重新安装」会从市场重新拉一份。')+'</div></div>';
+  return h;
+}
+async function hubMktRepair(pkg){
+  if(!pkg)return;
+  pgToast('正在重新安装 '+pkg+'，拉依赖可能要一两分钟…');
+  const r=await pgCall('market_install',pkg);
+  if(r&&r.ok){pgToast('装好了');await hubLoad('dsh:'+pkg);}
+  else pgToast('重装失败：'+((r&&(r.error||r.__err))||'去插件市场页看日志'));
 }
 // ---- 已安装列表 ----
 function _instRow(p){
@@ -3237,9 +3488,9 @@ function _instRow(p){
   };
   row.appendChild(sw);
   row.onclick=function(){
+    if(isDsh){hubShow(p.id);return}
     if(!p.ok){pgToast('这个插件加载失败了：'+(p.note||'原因见日志'));return}
     if(!p.enabled){pgToast('它现在是关着的，打开右侧开关并重启后就能进');return}
-    if(isDsh){pgToast('这是 DSH 市场插件，在「DSH 模式」里生效，没有独立页面');return}
     hubShow(p.id);
   };
   return row;
@@ -3415,11 +3666,18 @@ async function mkInstall(p,btn){
   }
 }
 function hubRefresh(){
-  if(_hubTab==='installed'){hubLoad('installed');return Promise.resolve()}
+  // 详情页优先：只要当前停在某个插件页，刷新就刷这个插件，绝不能借 _hubTab 把界面送回列表
+  if(_hubPid&&_hubViews[_hubPid]){
+    const v=_hubViews[_hubPid];
+    if(!v.refresh)return Promise.resolve();
+    hubStat('正在刷新…');
+    return Promise.resolve().then(function(){return v.refresh()})
+      .then(function(){hubStat(v.sub||'')})
+      .catch(function(e){pgToast('刷新失败：'+((e&&e.message)||e))});
+  }
   if(_hubTab==='market'){_mk.page=0;return mkLoad()}
-  const v=_hubViews[_hubPid];
-  if(!v||!v.refresh)return Promise.resolve();
-  return v.refresh().catch(function(e){pgToast('刷新失败：'+(e&&e.message||e))});
+  if(_hubTab==='installed'){return hubLoad('installed')}
+  return Promise.resolve();
 }
 function hubStat(t){const e=document.getElementById('hubSub');if(e)e.textContent=t}
 
@@ -3900,6 +4158,7 @@ async function hubLiveVoices(){
 }
 
 async function hubLiveRefresh(){
+  if(document.hidden||!_hubOpen)return;
   const s=await pgCall('live_state');
   if(!s||s.__err){pgTxt('lcBadge','读不到');return}
   pgTxt('lcBadge',s.running?'直播中':'未开播');
@@ -3959,10 +4218,23 @@ _hubViews.qq_chat={
       +'<button class="opt" onclick="hubQQBring()" title="把机器人 QQ 窗口提到最前面">看 QQ 窗口</button>'
       +'<button class="opt" id="qqHubForce" style="display:none;color:#e08080" onclick="hubQQForce()" title="会关掉机器上所有 QQ，包括你自己在用的">重启 QQ 并登录（关全部）</button></div>'
       +'<div class="pg-note" id="qqHubLaunchMsg" style="margin-top:8px">点上面按钮就行：自动关掉旧 QQ → 注入 NapCat → 拉起 QQ → 等扫码/自动登录 → 接上大肥鱼。全程不用管命令行。</div>'
+      // ---- 扫码面板：进页面就自己弹出来，不用先点按钮 ----
+      +'<div id="qqHubScan" style="display:none;margin-top:10px;padding:12px;border-radius:12px;border:1px solid rgba(96,165,250,.45);background:linear-gradient(180deg,rgba(96,165,250,.13),rgba(96,165,250,.04))">'
+      +'<div style="display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap">'
+      +'<b id="qqScanTitle" style="font-size:13px;color:#9ec9ff">需要扫码登录</b>'
+      +'<span class="pg-note" id="qqScanNote" style="margin:0;text-align:right"></span></div>'
+      +'<div id="qqScanQrBox" style="display:none;margin-top:10px;text-align:center">'
+      +'<div style="display:inline-block;padding:8px;border-radius:12px;background:#0b0f16;border:1px solid var(--border)">'
+      +'<img id="qqHubQr" alt="QQ 登录二维码" style="display:block;width:100%;max-width:300px;border-radius:8px"></div>'
+      +'<div class="pg-note" style="margin-top:8px">↑ 机器人 QQ 登录窗的实时画面 · 手机 QQ 扫里面的码</div></div>'
+      +'<div id="qqScanEmpty" class="pg-note" style="display:none;margin-top:8px"></div>'
+      +'<div class="pg-row" style="margin-top:10px;gap:8px;flex-wrap:wrap">'
+      +'<button class="opt" onclick="hubQQScan(true,true,true)">🔄 刷新二维码</button>'
+      +'<button class="opt" onclick="hubQQScanBring()">⬆ 把登录窗提到最前</button>'
+      +'<button class="opt" onclick="hubQQScan(true)">✅ 我扫完了，检测一下</button>'
+      +'<button class="opt" onclick="hubQQLaunch()">🚀 拉起 QQ 并登录</button></div></div>'
       +'<div id="qqHubSteps" style="margin-top:10px"></div>'
-      +'<div id="qqHubQrWrap" style="display:none;margin-top:10px">'
-      +'<img id="qqHubQr" alt="QQ 登录窗口" style="width:100%;max-width:340px;border:1px solid var(--border);border-radius:10px;display:block">'
-      +'<div class="pg-note" style="margin-top:6px">↑ 这是 QQ 窗口的实时画面（每 2.5 秒刷新），手机 QQ 扫里面的码即可。</div></div>'
+      +'<div id="qqHubQrWrap" style="display:none"></div>'
       +'<div id="qqHubLog" style="margin-top:8px;font-size:11px;line-height:1.7;color:var(--text2);max-height:110px;overflow:auto"></div></div>'
 
       // ---- 连接状态 ----
@@ -4059,7 +4331,7 @@ _hubViews.qq_chat={
       +'<div class="pg-row" style="margin-top:6px"><input id="qqHubText" placeholder="发一句话…" style="flex:1;'+inp+'">'
       +'<button class="opt" onclick="hubQQSend()">发送</button></div></div>';
   },
-  refresh:async function(){await hubQQLoadCfg();await hubQQRefresh();hubDshLoad();hubBuddyLoad();hubMarketStatus()}
+  refresh:async function(){await hubQQLoadCfg();await hubQQRefresh();hubQQScanStart();hubDshLoad();hubBuddyLoad();hubMarketStatus()}
 };
 
 // ===== QQ 空间（说说）：让大肥鱼自己发空间 =====
@@ -4384,6 +4656,7 @@ function _engApplyStatus(st) {
 }
 
 async function enginePoll() {
+  if(document.hidden||!window.pywebview)return;
   try {
     const st = await pywebview.api.engine_status();
     _engApplyStatus(st);
@@ -4604,20 +4877,60 @@ function _qqStepsHtml(st){
   });
   return h;
 }
-async function hubQQShot(force){
-  if(QQ_SHOT_BUSY)return;
-  const now=Date.now();
-  if(!force&&now-QQ_SHOT_AT<2500)return;
-  QQ_SHOT_AT=now;QQ_SHOT_BUSY=true;
-  try{
-    const r=await window.pywebview.api.qq_login_shot();
-    const wrap=document.getElementById('qqHubQrWrap'),img=document.getElementById('qqHubQr');
-    if(r&&r.ok&&img){img.src=r.data;if(wrap)wrap.style.display=''}
-    else if(wrap){wrap.style.display='none'}
-  }catch(e){}
-  QQ_SHOT_BUSY=false;
+// ---- 扫码面板：进页面就自动弹，过了 2.5 秒自己再刷一遍 ----
+var QQ_SCAN_T=null,QQ_SCAN_BUSY=false,QQ_SCAN_REVEALED=false;
+function hubQQScanStop(){if(QQ_SCAN_T){clearInterval(QQ_SCAN_T);QQ_SCAN_T=null}}
+function hubQQScanReset(){hubQQScanStop();QQ_SCAN_REVEALED=false}
+function hubQQScanStart(){
+  hubQQScan(true,true);
+  if(QQ_SCAN_T)return;
+  QQ_SCAN_T=setInterval(function(){
+    // 人已经翻到别的插件/关了插件中心，就别再截窗口了
+    if(_hubPid!=='qq_chat'||!_hubOpen||!document.getElementById('qqHubScan')){hubQQScanStop();return}
+    hubQQScan();
+  },2500);
 }
+async function hubQQScanBring(){
+  var r=null;
+  try{r=await window.pywebview.api.qq_bring()}catch(e){}
+  if(!(r&&r.ok))pgToast('机器人 QQ 登录窗还没出来，先点「拉起 QQ 并登录」');
+  hubQQScan(true,true,true);
+}
+async function hubQQScan(force,reveal,forceReveal){
+  if(QQ_SCAN_BUSY)return;
+  var box=document.getElementById('qqHubScan');if(!box)return;
+  QQ_SCAN_BUSY=true;
+  // 只在第一次进页面（或手动点刷新）时把登录窗拽到前台，别每 2.5 秒抢焦点
+  var doReveal=!!forceReveal||(!!reveal&&!QQ_SCAN_REVEALED);
+  var r=null;
+  try{r=await window.pywebview.api.qq_scan_view(!!doReveal)}catch(e){}
+  if(doReveal)QQ_SCAN_REVEALED=true;
+  var img=document.getElementById('qqHubQr'),qrBox=document.getElementById('qqScanQrBox'),
+      empty=document.getElementById('qqScanEmpty'),note=document.getElementById('qqScanNote'),
+      title=document.getElementById('qqScanTitle');
+  // 已经登上去了：面板收起来，轮询停掉
+  if(r&&r.ok&&r.logged_in){box.style.display='none';QQ_SCAN_BUSY=false;hubQQScanStop();return}
+  box.style.display='';
+  if(r&&r.qr&&img&&qrBox){
+    qrBox.style.display='';if(empty)empty.style.display='none';
+    img.src=r.qr;
+    if(title)title.textContent='手机 QQ 扫码登录机器人';
+    if(note)note.textContent=(r.note||'')+(r.running?'（正在拉起）':'');
+  }else{
+    if(qrBox)qrBox.style.display='none';
+    if(empty){empty.style.display='';
+      empty.textContent=((r&&(r.note||r.error))||'机器人 QQ 的登录窗还没出来')
+        +'　如果一直不出来，点「🚀 拉起 QQ 并登录」，还不行就用「重启 QQ 并登录（关全部）」';}
+    if(title)title.textContent='需要登录机器人 QQ';
+    if(note)note.textContent=r&&r.running?'正在拉起 QQ…':'';
+    // 机器上一个 QQ 都没有：顺手把机器人 QQ 拉起来，省一次点击
+    if(doReveal&&r&&r.ok&&r.need_start&&!r.qq_running){try{hubQQLaunch()}catch(e){}}
+  }
+  QQ_SCAN_BUSY=false;
+}
+async function hubQQShot(force){return hubQQScan(force)}
 async function hubQQTick(force){
+  if(document.hidden)return;
   let st=null;
   try{st=await window.pywebview.api.qq_launch_state()}catch(e){}
   if(st){
@@ -4634,7 +4947,7 @@ async function hubQQTick(force){
       go.disabled=!!st.running;
       go.textContent=st.running?'启动中…':(st.logged_in?'🔁 重新登录机器人':'🚀 启动 QQ 并登录');
     }
-    if(forceBtn)forceBtn.style.display=(st.account_wrong||st.force_hint)?'':'none';
+    if(forceBtn)forceBtn.style.display='';   // 兜底手段常驻：窗口一直不出来时还能「重启 QQ 并登录（关全部）」
     const sbox=document.getElementById('qqHubSteps');
     if(sbox)sbox.innerHTML=(st.running||st.finished||st.logged_in)?_qqStepsHtml(st):'';
     const lbox=document.getElementById('qqHubLog');
@@ -4645,14 +4958,14 @@ async function hubQQTick(force){
       }).join('');
     }
     // 只有确认了「这是我们拉起来的机器人实例」才截图——绝不截你自己在用的 QQ
-    const wrap=document.getElementById('qqHubQrWrap');
     const botKnown=!!(st.bot_pids&&st.bot_pids.length)||!!st.need_qr;
-    if(botKnown&&!st.logged_in)hubQQShot(force);
-    else if(wrap)wrap.style.display='none';
+    if(botKnown&&!st.logged_in)hubQQScan();
+    else if(st.logged_in)hubQQScanStop();
   }
   hubQQRefresh();
 }
 async function hubQQRefresh(){
+  if(document.hidden)return;
   let st=null;try{st=await window.pywebview.api.qq_status()}catch(e){}
   const sd=document.getElementById('qqHubStatus');if(!sd)return;
   if(!st||!st.ok){sd.textContent='状态读取失败';return}
@@ -4668,15 +4981,23 @@ async function hubQQRefresh(){
   const vs=document.getElementById('qqVoiceStat');
   if(vs)vs.textContent=st.voice_enabled?('已说 '+(st.voice_said||0)+' 句'):'未开启';
   // 上报链路自检：在线但从来没收到过 NapCat 的上报 = 消息会「发过去没人回」
+  // 桥接每次重启 post_count 都会归零，启动瞬间必然是 0，
+  // 所以必须「本次桥接已运行 ≥60 秒」才允许判定，否则重启后必误报。
   const rp=document.getElementById('qqHubReport');
   if(rp){
-    const noPost=(typeof st.post_count==='number')&&st.post_count===0&&st.onebot_api;
+    const upSec=(typeof st.running_since==='number'&&st.running_since>0)
+      ?(Math.floor(Date.now()/1000)-st.running_since):-1;
+    const graceOk=(upSec<0)||(upSec>=60);   // 老版本没有 running_since 字段
+    const noPost=(typeof st.post_count==='number')&&st.post_count===0
+      &&st.onebot_api&&graceOk&&st.online;
     QQ_NOPOST=noPost?(QQ_NOPOST+1):0;
     if(QQ_NOPOST>=3){
       rp.style.display='block';
       const m=document.getElementById('qqHubReportMsg');
-      if(m)m.textContent='机器人已经登录（OneBot 也通），但 NapCat 一次都没把消息推过来。'
-        +'常见原因：上报配置没生效（之前被带 BOM 的 JSON 坑过）。点「修复上报配置」，再点「重启 QQ 并登录」。';
+      if(m)m.textContent='机器人已登录、OneBot 也通，但本次桥接启动后（已跑 '
+        +Math.floor((upSec<0?0:upSec)/60)+' 分钟）一直没收到 NapCat 的事件上报。'
+        +'先直接在 QQ 里发一条消息试试：能收到并回复就是这个自检在误报（桥接重启后计数会归零，属正常）。'
+        +'真收不到再点「修复上报配置」→「重启 QQ 并登录」。';
     }else{
       rp.style.display='none';
     }
@@ -4835,7 +5156,9 @@ async function boot(){
     const nn=await window.pywebview.api.load_setting('ai_name');const nnEl=document.getElementById('aiNameInput');if(nnEl)nnEl.value=nn||'';
     // 恢复上次选的模型。注意只在"这个 id 还在当前清单里"时才认——
     // 云端模式换过渠道后清单会变，认一个不在清单里的旧 id 会让下拉框空白。
+    try{await syncInstalledModels()}catch(e){}   // 按 Ollama 实装清单校准下拉，新装的模型自动出现
     const md=await window.pywebview.api.load_setting('model');
+    if(md&&!MODELS.some(m=>m.id===md)){MODELS.push({id:md,short:_shortOf(md),full:md+'（上次使用）',ctx:32768})}
     if(md&&MODELS.some(m=>m.id===md)){MODEL=md;refreshModelSel()}
     try{await initCtxLimit()}catch(e){}   // 恢复模型后按该模型重算上下文窗口
     try{const ds=await window.pywebview.api.deep_think_state();if(ds&&ds.ok){deepThink=!!ds.on;paintDeepThink()}}catch(e){}

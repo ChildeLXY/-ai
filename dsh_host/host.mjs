@@ -372,15 +372,56 @@ provide('sessionTitle', tolerant('sessionTitle'))
 provide('workspaceRegistry', tolerant('workspaceRegistry', { list: () => ['D:/大肥鱼AI'] }))
 
 // ---------------------------------------------------------------- 插件加载
-/** 插件名单：host-plugins.json 里的 enabled 列表；没有就用默认几个。 */
+ /**
+ * 插件名单 = 手工基础名单 ∪ 两个 profile 的 dependencies ∪ bundles，再减掉显式禁用的。
+ *
+ * 为什么不再只看 host-plugins.json：官方 DSH 前端（6811）装/卸/启停插件时，
+ * 写的是 profiles 下各 profile 的 package.json 的 dependencies 与 dsh.profile.bundles，
+ * 根本不会碰 host-plugins.json。结果就是「界面上装了、宿主里没跑」——
+ * 历史上那些"装了十来个却只生效几个"全是这个原因。
+ * 现在宿主启动时自己把两边对齐，单一真源就是 profile 的 package.json。
+ */
+function readProfileBundles() {
+  // 官方前端真正用来决定「这个插件启不启用」的就是 package.json 的 dsh.profile.bundles：
+  // 安装往里加一条，禁用把那条删掉，卸载连 dependencies 一起删。所以只跟 bundles 对齐，
+  // 不去读 dependencies —— 否则"已装但被禁用"的插件会被宿主照旧加载，和界面说的不一致。
+  const out = []
+  // UNIFY_SINGLE_SOURCE: 只读 dfyweb —— 它同时是内置 DSH 的 profile，
+  // 这样「内置 DSH 里启用什么」与「大肥鱼宿主加载什么」永远是同一份。
+  for (const prof of ['dfyweb']) {
+    try {
+      const pkg = JSON.parse(readFileSync(join(DSH_HOME, 'profiles', prof, 'package.json'), 'utf8'))
+      const bundles = pkg.dsh?.profile?.bundles
+      if (Array.isArray(bundles)) out.push(...bundles)
+    } catch {}
+  }
+  return out
+}
+
+/** 只看插件形态的包名：dsh 自研 / dshmarket / 作用域包；@deepseek-ai/* 是官方 UI 包，不进宿主。 */
+function isPluginPackage(name) {
+  if (!name) return false
+  if (name.startsWith('@deepseek-ai/')) return false
+  return name === 'dshmarket' || name.startsWith('dsh-') || name.startsWith('@')
+}
+
 function loadManifest() {
   const path = join(HOST_DIR, 'host-plugins.json')
+  let base = { plugins: [], entryOverrides: {}, disabled: [] }
   if (!existsSync(path)) {
-    const seed = { plugins: ['dsh-feiyu-mood', 'dsh-soul-md', 'dsh-nekowhale-stickers'] }
-    try { writeFileSync(path, JSON.stringify(seed, null, 2)) } catch {}
-    return seed
+    base = { plugins: ['dsh-feiyu-mood', 'dsh-soul-md', 'dsh-nekowhale-stickers'], entryOverrides: {}, disabled: [] }
+  } else {
+    try { base = { ...base, ...JSON.parse(readFileSync(path, 'utf8')) } } catch {}
   }
-  try { return JSON.parse(readFileSync(path, 'utf8')) } catch { return { plugins: [] } }
+
+  const listed = (base.plugins || []).filter(isPluginPackage)
+  const fromBundles = readProfileBundles().filter(isPluginPackage)
+  const disabled = new Set(base.disabled || [])
+
+  const plugins = [...new Set([...listed, ...fromBundles])]
+    .filter((n) => !disabled.has(n))
+    .filter((n) => Boolean(findPluginRoot(n)))   // 装了但没落盘的直接跳过
+  return { ...base, plugins }
 }
 
 const loaded = new Map() // name → { ok, error, at }

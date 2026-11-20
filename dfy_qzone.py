@@ -115,12 +115,12 @@ def _api_base():
 _NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
-def _napcat(action, params=None):
+def _napcat(action, params=None, timeout=15):
     req = urllib.request.Request(
         _api_base() + "/" + action,
         data=json.dumps(params or {}).encode("utf-8"),
         headers={"Content-Type": "application/json"})
-    with _NO_PROXY.open(req, timeout=15) as r:
+    with _NO_PROXY.open(req, timeout=timeout) as r:
         return json.loads(r.read().decode("utf-8"))
 
 
@@ -136,19 +136,39 @@ def _login_info():
 
 
 def _cookies():
-    """拿 qzone 域名的 cookie 串。NapCat 的 get_cookies 直接给现成的。"""
-    try:
-        r = _napcat("get_cookies", {"domain": "user.qzone.qq.com"})
-        ck = str((r.get("data") or {}).get("cookies") or "")
-        if ck:
-            return ck
-    except Exception as e:
-        log("get_cookies 失败：%r" % e, "WARN")
-    try:
-        r = _napcat("get_cookies", {})
-        return str((r.get("data") or {}).get("cookies") or "")
-    except Exception:
-        return ""
+    """拿 qzone 域名的 cookie 串。NapCat 的 get_cookies 直接给现成的。
+
+    实测不同版本 NapCat 对 domain 的响应不一样：
+      · "user.qzone.qq.com" → 有时直接超时
+      · {}                  → retcode 400，data 是 null
+      · "qzone.qq.com"      → 正常返回 {cookies, bkn}
+    所以按可用性逐个试，拿到哪个用哪个（三个都带 skey/uin，够算 g_tk 和发布）。
+    """
+    for dom in ("qzone.qq.com", "user.qzone.qq.com", ""):
+        # 客户端取 cookie 偶尔要 19.5 秒（NapCat 日志里成片的 ETIMEDOUT），
+        # 15 秒就太紧：超时一次整条发布链就断了，所以放宽到 28 秒并重试一次
+        r = None
+        for attempt in (1, 2):
+            try:
+                r = _napcat("get_cookies", {"domain": dom} if dom else {}, timeout=28)
+                break
+            except Exception as e:
+                log("get_cookies(%s) 第%d次失败：%r" % (dom or "{}", attempt, e), "WARN")
+        if r is None:
+            continue
+        d = r.get("data")
+        if isinstance(d, str) and d.strip():
+            return d
+        if isinstance(d, list):
+            ck = "; ".join("%s=%s" % (c.get("name"), c.get("value"))
+                           for c in d if isinstance(c, dict) and c.get("name"))
+            if ck:
+                return ck
+        if isinstance(d, dict):
+            ck = str(d.get("cookies") or "")
+            if ck:
+                return ck
+    return ""
 
 
 def _skey(cookie):
@@ -177,12 +197,52 @@ def _http(req, timeout=25):
             return he.code, ""
 
 
+def _publish_via_napcat(text, images, ugc_right):
+    """走 NapCat 的 send_qzone_msg 发说说（带图优先走这条）。
+
+    为什么：Web 图床 cgi_upload_image 要求 albumid 指向真实相册，
+    而大肥鱼这个号空间里一个相册都没有（list_album 返回空），
+    写死 0 就永远是 ret=-207「相册不存在」→ 配图只能降级成纯文字。
+    NapCat 是 QQ 客户端本体，图片由客户端上传，不吃相册这一套。
+
+    成功返回 {ok, tid, images}；失败返回 None，交给 Web 协议兜底。
+    """
+    imgs = [str(p) for p in (images or []) if p]
+    try:
+        r = _napcat("send_qzone_msg", {
+            "content": text,
+            "images": imgs,
+            "ugc_right": int(ugc_right or 1),
+            "target_uins": [],
+        })
+    except Exception as e:
+        log("NapCat 发说说失败，转 Web 协议：%r" % e, "WARN")
+        return None
+    try:
+        okay = (str(r.get("status")) == "ok") or (int(r.get("retcode", -1)) == 0)
+    except Exception:
+        okay = False
+    if not okay:
+        log("NapCat 发说说被拒：%s" % str(r.get("message") or r.get("wording") or r)[:120], "WARN")
+        return None
+    d = r.get("data")
+    tid = str((d.get("tid") if isinstance(d, dict) else d) or "")
+    log("发说说成功（NapCat 直发，图=%d）：%s" % (len(imgs), text[:30]))
+    return {"ok": True, "tid": tid, "images": bool(imgs)}
+
+
 def publish(text, ugc_right=1, images=None):
     """发一条说说。返回 {ok, tid, error}。"""
     global _last_error
     text = (text or "").strip()
     if not text:
         return {"ok": False, "error": "内容为空"}
+    # 带图优先走 NapCat 客户端直发（Web 图床要相册，这个号没有）
+    if images:
+        r = _publish_via_napcat(text, images, ugc_right)
+        if r:
+            _last_error = ""
+            return r
     ck = _cookies()
     if not ck:
         _last_error = "拿不到 QQ cookie，先确认 QQ 已登录、NapCat 在跑"
@@ -265,13 +325,57 @@ def publish(text, ugc_right=1, images=None):
     return {"ok": False, "error": _last_error, "raw": body[:300]}
 
 
-def _upload_images(paths, cookie, gtk, uin):
+_album_cache = {"at": 0.0, "id": ""}
+
+
+def _album_id(cookie, gtk, uin):
+    """取一个真实存在的相册 id。
+
+    空间图床的 cgi_upload_image 要求 albumid 指向真实相册，以前写死 "0"
+    → ret=-207「相册不存在，点击封面重选相册」→ 配图全部静默降级成纯文字。
+    这里查一次相册列表并缓存 1 小时；优先「所有人可见」的相册，
+    免得图片传上去了却只有自己能看见。
+    """
+    global _album_cache
+    if _album_cache["id"] and time.time() - _album_cache["at"] < 3600:
+        return _album_cache["id"]
+    try:
+        url = ("https://user.qzone.qq.com/proxy/domain/photo.qzone.qq.com/fcgi-bin/"
+               "fcg_list_album_v3?g_tk=%d&uin=%s&hostUin=%s&mode=0&inCharset=utf-8&"
+               "outCharset=utf-8&notice=0&appid=4&format=jsonp&source=system&plat=qzone&"
+               "qzonetoken=&callbackFun=cb" % (gtk, uin, uin))
+        req = urllib.request.Request(url, headers={
+            "Cookie": cookie, "User-Agent": UA,
+            "Referer": "https://user.qzone.qq.com/%s" % uin})
+        code, body = _http(req, timeout=20)
+        js = body[body.index("(") + 1: body.rindex(")")]
+        d = json.loads(js)
+        lst = ((d.get("data") or {}).get("albumlist") or [])
+        pick = None
+        for a in lst:
+            if str(a.get("priv")) == "1":
+                pick = a
+                break
+        pick = pick or (lst[0] if lst else None)
+        if pick and pick.get("id"):
+            _album_cache = {"at": time.time(), "id": str(pick["id"])}
+            log("图床相册：%s(id=%s)" % (pick.get("name"), pick.get("id")))
+            return _album_cache["id"]
+        log("这个号没有可用相册，配图只能退回纯文字", "WARN")
+    except Exception as e:
+        log("取相册列表失败：%r" % e, "WARN")
+    return ""
+
+
+def _upload_images(paths, cookie, gtk, uin, albumid=None):
     """把本地图片传到 Qzone，返回 pic_bo 串（失败返回空）。
 
     Qzone 的图床接口是 cgi_upload_image，需要 multipart。
     返回格式各家版本略有差异，这里尽量兼容：拿到 url 后按
     {url:1,width:..,height:..} 拼成 pic_bo。
+    albumid 不给就自动查一个真实相册（写死 0 会报 -207）。
     """
+    aid = str(albumid or "") or _album_id(cookie, gtk, uin) or "0"
     out = []
     for p in paths[:9]:
         try:
@@ -285,7 +389,7 @@ def _upload_images(paths, cookie, gtk, uin):
             parts.append(("--%s\r\nContent-Disposition: form-data; name=\"%s\"\r\n\r\n%s\r\n"
                           % (boundary, name, val)).encode("utf-8"))
         field("uploadtype", "1")
-        field("albumid", "0")
+        field("albumid", aid)
         field("uin", uin)
         parts.append(("--%s\r\nContent-Disposition: form-data; name=\"filename\"; "
                       "filename=\"%s\"\r\nContent-Type: image/gif\r\n\r\n"
@@ -460,7 +564,15 @@ def _llm(prompt, model=None, timeout=300, num_predict=300):
     with _NO_PROXY.open(req, timeout=timeout) as r:
         out = json.loads(r.read().decode("utf-8"))
     txt = ((out.get("message") or {}).get("content") or "").strip()
-    return re.sub(r"<think>[\s\S]*?</think>", "", txt).strip()
+    txt = re.sub(r"<think[^>]*>[\s\S]*?</think[^>]*>", "", txt).strip()
+    # 有的模型（9B 蒸馏）开着思考时会把「Thinking Process: 1. **Analyze ...」
+    # 整段当成正文返回，这种不能发，判空让上层跳过。
+    if re.search(r"(?i)thinking\s+process|here'?s\s+(a|my|the)\s+thinking"
+                 r"|分析(过程|请求)|思考过程|推理过程", txt[:200]):
+        return ""
+    if len(txt) > 140 and len(re.findall(r"(?m)^\s*\d+[\.、\)]\s+", txt)) >= 2:
+        return ""
+    return txt
 
 
 def ai_write(hint="", want_image=True):

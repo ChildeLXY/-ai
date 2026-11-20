@@ -1,81 +1,95 @@
 # -*- coding: utf-8 -*-
-"""实测 DeepBuddy 的云端模型接入。
+"""实测 DeepBuddy 的云端模型接入（真模块，不再 regex 抠源码拼命名空间）。
 
-不 import deepbuddy.py（那会拉起 pywebview），而是把它的源码抠出来单独跑，
-验证三个关键点：
-  1. 云端模型能出现在下拉列表里
-  2. 选云端模型能真的拿到回答
-  3. 云端模型支不支持看图，问对了
+退出码语义（改前：只 print，恒 0，云端为空/对话失败都算「成功」）：
+  0 = 真验证通过
+  1 = 环境具备但功能坏了（云端已配置/代理已起，却拿不到清单或对话空响应）
+  2 = 环境前置不满足（云端代理没运行，本次「未验证」—— 不是通过）
 """
-import io
 import json
 import os
-import re
 import sys
+import time
 import urllib.request
 
-DB = r"D:\DeepBuddy\deepbuddy.py"
-src = io.open(DB, encoding="utf-8").read()
+sys.path.insert(0, r"D:\DeepBuddy")
+_out, _err = sys.stdout, sys.stderr
+import deepbuddy as db          # noqa: E402
+sys.stdout, sys.stderr = _out, _err
 
-# 抠出需要的常量和函数（都是自包含的，不依赖 webview）
-wanted = [
-    "OLLAMA =", "LLAMA_CPP =", "CPP_SUFFIX =", "CLOUD_PROXY =", "CLOUD_SUFFIX =",
-    "DFY_DIR =", "DFY_CLOUD_CONFIG =", "MAX_IMAGE_PX =", "MAX_TEXT_CHARS =",
-]
-parts = []
-for w in wanted:
-    i = src.find(w)
-    assert i >= 0, w
-    j = src.find("\n", i)
-    parts.append(src[i:j])
+PASS, FAIL, SKIP = [], [], []
 
-# 函数体：按 def 名抓（抓到下一个顶层 def/class 为止）
-def grab(name):
-    m = re.search(r"^def %s\(" % re.escape(name), src, re.M)
-    assert m, name
-    start = m.start()
-    nxt = re.search(r"^(def |class )", src[start + 5:], re.M)
-    end = start + 5 + nxt.start() if nxt else len(src)
-    return src[start:end]
 
-for fn in ["_cloud_cfg", "_cloud_models", "cloud_models", "_cloud_vision",
-           "_cloud_chat", "_model_sees_images", "_compose_user_turn",
-           "_image_b64", "_file_kind", "_read_attach_text", "_hsize"]:
-    parts.append(grab(fn))
+def check(name, cond, detail=""):
+    (PASS if cond else FAIL).append(name)
+    print(("  PASS " if cond else "  FAIL ") + name
+          + (("  ← " + detail) if detail and not cond else ""))
 
-code = ("import os, io, json, re, sys\n"
-        "import urllib.request\n"
-        "import urllib.request as _ur\n"
-        "_LOCAL = _ur.build_opener(_ur.ProxyHandler({}))\n\n") + "\n\n".join(parts)
-code += """
-"""
-ns = {}
-exec(compile(code, "dbslice", "exec"), ns)
 
-print("=== 1. 云端模型清单 ===")
-cm = ns["cloud_models"]()
-print("下拉框里的云端模型：")
-for x in cm:
-    print("  ", x)
-if not cm:
-    print("  （空 —— 兼容代理没跑或云端没开）")
-
-print("\n=== 2. 云端模型实际对话 ===")
-if cm:
-    real = cm[0][: -len(ns["CLOUD_SUFFIX"])]
+def proxy_up():
     try:
-        r = ns["_cloud_chat"](
-            [{"role": "user", "content": "只回答三个字：收到了"}],
-            real, num_predict=200, timeout=60)
-        print("  模型:", real)
-        print("  content  :", repr(r["content"][:60]))
-        print("  thinking :", repr(r["thinking"][:60]))
-    except Exception as e:
-        print("  调用失败:", repr(e)[:200])
+        urllib.request.urlopen(db.CLOUD_PROXY + "/api/tags", timeout=4).read()
+        return True
+    except Exception:
+        return False
 
-print("\n=== 3. 云端模型看图能力 ===")
-for x in ns["_cloud_models"]():
-    mid = x["id"]
-    print("  %-18s 清单标 vision=%-5s  代理 /api/show 问出来=%s"
-          % (mid, x["vision"], ns["_cloud_vision"](mid)))
-    print("     _model_sees_images 判定 =", ns["_model_sees_images"](mid + ns["CLOUD_SUFFIX"]))
+
+print("=== 0. 环境前置 ===")
+cfg = db._cloud_cfg()
+has_cfg = bool(cfg.get("providers") or cfg.get("cloud") or cfg)
+up = proxy_up()
+print("  云端配置存在:", has_cfg, " 代理可达:", up)
+if not up:
+    print("  SKIP 云端代理 %s 未运行 —— 本次未验证（退出码 2，不算通过）" % db.CLOUD_PROXY)
+    sys.exit(2)
+check("云端配置存在", has_cfg, "cloud_config.json 为空")
+
+print()
+print("=== 1. 云端模型清单 ===")
+t0 = time.time()
+cm = db.cloud_models()
+print("  下拉框里的云端模型 %d 个（%.1fs）" % (len(cm), time.time() - t0))
+for x in cm[:12]:
+    print("   ", x)
+check("云端模型清单非空", bool(cm), "代理在跑但清单为空 —— 云端没接上")
+
+print()
+print("=== 2. 云端模型实际对话 ===")
+if cm:
+    real = cm[0][: -len(db.CLOUD_SUFFIX)]
+    try:
+        r = db._cloud_chat([{"role": "user", "content": "只回答三个字：收到了"}],
+                           real, num_predict=200, timeout=60)
+        content = (r or {}).get("content") or ""
+        print("  模型:", real)
+        print("  content :", repr(content[:60]))
+        check("云端对话返回非空内容", bool(content.strip()), "空响应")
+        check("云端对话内容符合要求", "收到" in content, "模型没按要求回答：" + repr(content[:40]))
+    except Exception as e:
+        print("  调用失败:", repr(e)[:160])
+        check("云端对话可执行", False, repr(e)[:120])
+else:
+    check("云端对话可执行", False, "无可用云端模型，未能验证")
+
+print()
+print("=== 3. 云端模型看图能力 ===")
+models = db._cloud_models()
+if models:
+    for x in models[:8]:
+        mid = x["id"]
+        v = db._cloud_vision(mid)
+        sees = db._model_sees_images(mid + db.CLOUD_SUFFIX)
+        print("  %-18s 清单 vision=%-5s  /api/show=%s  sees_images=%s" % (mid, x["vision"], v, sees))
+        check("vision 判定为布尔（%s）" % mid,
+              isinstance(v, bool) and isinstance(sees, bool),
+              "判定未返回布尔：%r/%r" % (v, sees))
+else:
+    check("看图能力可判定", False, "无云端模型可测")
+
+print()
+print("=" * 60)
+print("通过 %d / 失败 %d" % (len(PASS), len(FAIL)))
+if FAIL:
+    for f in FAIL:
+        print("  - " + f)
+    sys.exit(1)

@@ -104,13 +104,48 @@ except Exception:
     pass
 
 
+# 接口调用日志改成「内存攒一批再落盘」：原来每调用一次就 open/append/close，
+# 前端十来个定时器轮询时，这块小 IO 一直在抢磁盘。现在攒 2 秒或 200 行才写一次，
+# 崩溃排查的用途不变（异常时由 atexit 兜底 flush）。
+_TRACE_BUF = []
+_TRACE_LAST = [0.0]
+_TRACE_PATH = os.path.join(cache_dir, "_api_trace.log")
+
+
+def _trace_flush():
+    if not _TRACE_BUF:
+        return
+    try:
+        try:
+            if os.path.getsize(_TRACE_PATH) > 2 * 1024 * 1024:
+                with open(_TRACE_PATH, "w", encoding="utf-8"):
+                    pass
+        except Exception:
+            pass
+        with open(_TRACE_PATH, "a", encoding="utf-8") as f:
+            f.write("".join(_TRACE_BUF))
+        _TRACE_BUF.clear()
+    except Exception:
+        pass
+
+
 def _api_trace(name):
     """记录每次 JS→Python 接口调用，用于定位闪退前最后执行的接口。"""
     try:
-        with open(os.path.join(cache_dir, "_api_trace.log"), "a", encoding="utf-8") as f:
-            f.write("%s %s\n" % (time.strftime("%H:%M:%S"), name))
+        _TRACE_BUF.append("%s %s\n" % (time.strftime("%H:%M:%S"), name))
+        now = time.time()
+        if len(_TRACE_BUF) >= 200 or (now - _TRACE_LAST[0]) > 2:
+            _TRACE_LAST[0] = now
+            _trace_flush()
     except Exception:
         pass
+
+
+try:
+    import atexit
+    atexit.register(_trace_flush)
+except Exception:
+    pass
 
 
 def _log_api_err(fn, e):
@@ -1081,7 +1116,24 @@ def extract_url(url):
         return {"title": "抓取失败", "text": str(e)}
 
 def tts_speak(text):
-    """Use edge-tts to speak text. Returns audio path."""
+    """朗读一句话。音色按设置走：
+    - kurena：自己训的 Kiriziki Kurena 2.0（RVC 变声，走常驻进程，首句约 20 秒、之后 2~3 秒）
+    - edge  ：微软晓伊（原来那套，免费、不用显卡）
+    Kurena 出任何问题都自动退回 edge —— 念不出来比念得不像更难受。"""
+    text = (text or "")
+    try:
+        engine = (load_setting("voice_engine") or "edge").strip().lower()
+    except Exception:
+        engine = "edge"
+    if engine == "kurena":
+        try:
+            import dfy_voice
+            r = dfy_voice.say(text)
+            if r and not r.startswith("["):
+                return r
+            _voice_log("kurena 失败，退回 edge：" + str(r))
+        except Exception as e:
+            _voice_log("kurena 异常，退回 edge：" + str(e))
     try:
         import edge_tts
         out_path = os.path.join(cache_dir, "tts_" + str(int(time.time())) + ".mp3")
@@ -1094,7 +1146,49 @@ def tts_speak(text):
     except ImportError:
         return "[需要安装edge-tts: pip install edge-tts]"
     except Exception as e:
-        return "[璇煶澶辫触: " + str(e) + "]"
+        return "[语音失败: " + str(e) + "]"
+
+
+def _voice_log(msg):
+    try:
+        with open(os.path.join(cache_dir, "_voice.log"), "a", encoding="utf-8") as f:
+            f.write(time.strftime("%Y-%m-%d %H:%M:%S ") + msg + "\n")
+    except Exception:
+        pass
+
+
+def voice_status():
+    """给设置面板看的：Kurena 能不能用、现在在不在显存里。"""
+    try:
+        import dfy_voice
+        st = dfy_voice.status()
+        st["available"] = dfy_voice.available()
+        try:
+            st["engine"] = (load_setting("voice_engine") or "edge")
+        except Exception:
+            st["engine"] = "edge"
+        return st
+    except Exception as e:
+        return {"available": False, "ready": False, "error": str(e), "engine": "edge"}
+
+
+def voice_stop():
+    """立刻把她从显存里请出去（打游戏前想腾显卡就点这个）。"""
+    try:
+        import dfy_voice
+        return dfy_voice.stop()
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def voice_warm():
+    """预热：把模型先载进显存，之后第一句就是 2~3 秒（约 20 秒一次）。"""
+    try:
+        import dfy_voice
+        return {"ok": bool(dfy_voice.warm())}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
 
 def gen_title(first_msg, model="qwen3:4b"):
     """Ask Ollama to generate a short title for the conversation."""
@@ -1116,6 +1210,23 @@ def open_folder(path=None):
         if not path:
             path = base
         os.startfile(path)
+        return "ok"
+    except Exception as e:
+        return str(e)
+
+
+def open_external_url(url):
+    """前端 pywebview.api.open_external_url 的后端实现。
+
+    之前前端调它、后端没暴露：点链接会静默失败（test_api_wiring 早就红着，
+    只是没人当门禁用）。只放行 http/https，避免 file:// 或本地路径被当链接打开。
+    """
+    try:
+        u = str(url or "").strip()
+        low = u.lower()
+        if not (low.startswith("http://") or low.startswith("https://")):
+            return "[error: only http/https]"
+        webbrowser.open(u)
         return "ok"
     except Exception as e:
         return str(e)
@@ -1144,15 +1255,24 @@ def save_avatar(b64, filename):
 
 def save_setting(key, value):
     try:
+        import json
         sp = _settings_file()
         data = {}
         if os.path.exists(sp):
-            import json
             # utf-8-sig：文件被记事本/PowerShell 写过就可能带 BOM，用 utf-8 读会直接抛错
-            data = json.load(open(sp, encoding='utf-8-sig'))
+            try:
+                raw = open(sp, encoding='utf-8-sig').read()
+                data = json.JSONDecoder().raw_decode(raw.lstrip())[0]
+            except Exception:
+                data = {}      # 文件已经坏了就别在坏数据上继续写，整份重建
         data[key] = value
-        import json
-        json.dump(data, open(sp, 'w', encoding='utf-8'))
+        # 先写同目录临时文件再 os.replace：主程序/网页端/桌宠/QQ 桥接是四个独立进程，
+        # 直接往原文件 dump 会被并发写撕成"半截尾部重复"的坏 JSON（已经真实踩到过一次，
+        # 结果模型悄悄退回默认、语音开关读成空值显示"语音关"）。
+        tmp = sp + ".tmp"
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False)
+        os.replace(tmp, sp)
         return "ok"
     except Exception as e:
         return str(e)
@@ -1163,7 +1283,12 @@ def load_setting(key):
         if os.path.exists(sp):
             import json
             # 兼容带 BOM 的文件，否则 json 解析会失败、所有设置读出来都是空
-            data = json.load(open(sp, encoding='utf-8-sig'))
+            try:
+                data = json.load(open(sp, encoding='utf-8-sig'))
+            except Exception:
+                # 文件被写坏（并发写撕出重复尾巴）时，取最前面那段完整 JSON，别让所有设置一起变空
+                raw = open(sp, encoding='utf-8-sig').read()
+                data = json.JSONDecoder().raw_decode(raw.lstrip())[0]
             return data.get(key, "")
         return ""
     except:
@@ -1316,6 +1441,61 @@ def qq_login_shot():
         return qq_launcher.login_shot()
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+def qq_scan_view(reveal=False):
+    """插件页「扫码登录」用：要不要扫码、二维码长什么样，一次拿全。
+
+    和 qq_launch_state 的区别：这里只读、不改启动流程，可以每 2~3 秒刷一次。
+    reveal=True 会把藏在后台/托盘的机器人 QQ 登录窗拽到前台再截（只在进页面时给一次）。
+    """
+    try:
+        import qq_launcher
+        want = str(load_setting("qq_bot") or "1834347962")
+        st = qq_launcher.state(bot_uin=want) or {}
+        view = {
+            "ok": True,
+            "logged_in": bool(st.get("logged_in")),
+            "onebot": bool(st.get("onebot_up")),
+            "qq_running": bool(st.get("qq_running")),
+            "bot_alive": bool(st.get("bot_alive")),
+            "running": bool(st.get("running")),
+            "step": st.get("step") or "",
+            "qq": st.get("uin") or "",
+            "nick": st.get("nick") or "",
+            "qr": None,
+            "need_start": False,
+            "note": "",
+        }
+        if view["logged_in"]:
+            view["note"] = "已登录 %s %s" % (view["nick"], view["qq"])
+            return view
+        if view["running"]:
+            view["note"] = st.get("msg") or "正在拉起机器人 QQ…"
+        # NapCat 走控制台扫码：QQ 客户端是无窗口进程组，截图永远截不到码，
+        # 真正的二维码落在 <napcat_dir>\cache\qrcode.png，直接读文件最快也最准。
+        nq = qq_launcher.napcat_qr()
+        if nq.get("ok"):
+            view["qr"] = nq.get("data")
+            view["qr_src"] = "napcat"
+            view["qr_time"] = nq.get("mtime") or ""
+            url = qq_launcher.napcat_qr_url()
+            if url:
+                view["qr_url"] = url
+            view["note"] = "二维码由 NapCat 生成（%s 刷新），手机 QQ 扫码即可" % (nq.get("mtime") or "刚刚")
+            return view
+        if nq.get("stale") or nq.get("error"):
+            view["note"] = nq.get("error") or view["note"]
+        shot = qq_launcher.login_shot(reveal=bool(reveal))
+        if shot.get("ok"):
+            view["qr"] = shot.get("data")
+            view["note"] = "机器人 QQ 正在等扫码"
+        else:
+            view["need_start"] = bool(shot.get("no_bot") or shot.get("no_window"))
+            view["note"] = shot.get("error") or "机器人 QQ 窗口还没出来"
+        return view
+    except Exception as e:
+        return {"ok": False, "error": str(e), "logged_in": False, "qr": None}
 
 
 def qq_bring():
@@ -2647,9 +2827,13 @@ try:
 except Exception:
     pass
 
+# 界面必须走 http 起源，不能是 file://。
+# 官方 DSH 前端的入口栅栏会拒绝 file:// 起源（Origin: null）的 iframe 请求，
+# 直接报 "dsh web: authentication required"。改用 pywebview 自带 http 服务后，
+# 大肥鱼和 DSH 都在 127.0.0.1 上（同站），iframe 才拿得到授权。
 window = webview.create_window(
     "大肥鱼AI · By Childe",
-    f"file:///{html_path.replace(os.sep, '/')}",
+    html_path,
     width=1280,
     height=860,
     resizable=True,
@@ -2684,6 +2868,9 @@ try:
     window.events.loaded += _jump_start_tab
 except Exception:
     pass
+
+
+
 
 # 首次启动时引擎没装就后台自动拉取；界面先起来，进度走 engine_status 轮询。
 # 没配置下载源时只推一个 no_source 事件，不弹错误。
@@ -2764,6 +2951,16 @@ def plugin_list():
             on = bool(v.get("host_enabled"))
             loaded = bool(v.get("loaded"))
             err = (v.get("load_error") or "").strip()
+            present = bool(v.get("present"))
+            if not present:
+                note = ("包目录丢了（package.json 里还记着），点一下重新安装就能修好"
+                        if on else "包目录丢了，重新安装后才会生效")
+            elif on and not loaded:
+                note = err[:160] or "已启用但宿主没加载起来"
+            elif on:
+                note = ""
+            else:
+                note = "未加入宿主加载名单，打开开关后重启生效"
             out.append({
                 "id": "dsh:" + name,
                 "pkg": name,
@@ -2771,10 +2968,10 @@ def plugin_list():
                 "icon": "🐋",
                 "version": v.get("version") or "",
                 "enabled": on,
-                # 没启用不算异常；启用了却加载失败才算
-                "ok": (True if (not on or loaded) else False),
-                "note": (err[:160] if (on and not loaded) else
-                         ("" if on else "未加入宿主加载名单，打开开关后重启生效")),
+                # 目录都没了肯定算异常；没启用不算异常；启用了却加载失败才算
+                "ok": bool(present) and (loaded if on else True),
+                "present": present,
+                "note": note,
                 "kind": "dsh",
                 "desc": (v.get("description") or "")[:160],
                 "apis": [],
@@ -3060,9 +3257,42 @@ def read_mood():
     except Exception:
         return {}
 
+# ===== DSH 原生界面（插件市场 / 插件管理直接用 DSH 自己的前端）=====
+# 按需启动、关闭即释放，避免多挂一个常驻 node 进程拖慢整机。
+try:
+    import dfy_dshui as _dshui
+except Exception as _e:
+    _dshui = None
+    try:
+        sys.stderr.write("[dshui] import failed: %r\n" % (_e,))
+    except Exception:
+        pass
+
+
+def dsh_ui_open():
+    """打开 DSH 原生界面：返回 {ok, url}，url 自带一次性 token。"""
+    if _dshui is None:
+        return {"ok": False, "error": "dfy_dshui 模块没加载"}
+    return _dshui.open_ui()
+
+
+def dsh_ui_close():
+    """关掉 DSH 界面进程，把内存还回去。"""
+    if _dshui is None:
+        return {"ok": False}
+    return _dshui.close_ui()
+
+
+def dsh_ui_status():
+    if _dshui is None:
+        return {"running": False}
+    return _dshui.status()
+
+
 window.expose(*([_safe_api(_f) for _f in (
+              dsh_ui_open, dsh_ui_close, dsh_ui_status,
               load_chats, save_chats, delete_chat_disk, web_search, repo_search, read_file, read_image, run_python, kb_search, open_kb,
-              take_screenshot, read_clipboard, write_clipboard, extract_url, tts_speak, gen_title, open_folder, pick_avatar, save_avatar, save_setting, load_setting,
+              take_screenshot, read_clipboard, write_clipboard, extract_url, tts_speak, voice_status, voice_stop, voice_warm, gen_title, open_folder, open_external_url, pick_avatar, save_avatar, save_setting, load_setting,
               load_memory, save_memory, remember_fact, reflect_memory, pet_mutter, read_mood,
               gen_persona, test_persona, get_time, get_time_brief, get_env, list_dir, env_sense, model_caps,
                 check_update, do_update, update_status,
@@ -3070,6 +3300,7 @@ window.expose(*([_safe_api(_f) for _f in (
               cloud_fetch_models, set_ctx_size, get_ctx_size,
               qq_status, qq_start, qq_stop, qq_send, qq_reload, qq_set_autostart,
               qq_launch, qq_launch_state, qq_login_shot, qq_bring, qq_kill, qq_paths, qq_cfg_save,
+              qq_scan_view,
               qq_fix_report, qq_voice_say, qq_voice_list,
               qq_dsh_status, qq_dsh_start, qq_dsh_restart, qq_dsh_search,
               qq_dsh_install, qq_dsh_toggle, qq_dsh_context,
@@ -3543,4 +3774,15 @@ try:
 except Exception as _e:
     print("[托盘] 挂载失败：%r" % _e)
 
-webview.start(storage_path=os.environ.get("DFY_WV2_PROFILE") or "D:\\大肥鱼缓存\\wv2_profile")
+# http_server=True：把本地页面用 127.0.0.1 上的内置服务发出去（见上方注释）。
+# 万一端口/服务出问题，退回原来的起法，保证界面一定打得开。
+_fallback_file = "file:///" + html_path.replace(os.sep, "/")
+try:
+    webview.start(http_server=True, storage_path=os.environ.get("DFY_WV2_PROFILE") or "D:\\大肥鱼缓存\\wv2_profile")
+except Exception as _e:
+    print("[webview] http 模式启动失败，回退 file://：%r" % (_e,))
+    try:
+        window.load_url(_fallback_file)
+    except Exception:
+        pass
+    webview.start(storage_path=os.environ.get("DFY_WV2_PROFILE") or "D:\\大肥鱼缓存\\wv2_profile")

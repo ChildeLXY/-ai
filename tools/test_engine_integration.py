@@ -171,9 +171,36 @@ def main():
         with open(prof_pkg, encoding="utf-8") as fh:
             pd = json.load(fh)
         deps = pd.get("dependencies") or {}
-        bad = [k for k, v in deps.items()
-               if isinstance(v, str) and v.startswith("^0.12.5") and k == "dsh-soul-md"]
-        check("dsh-soul-md 约束已修正为 ^0.10.3", not bad, deps.get("dsh-soul-md"))
+
+        def _sat(spec, ver):
+            """caret 约束能否被已装版本满足（^0.x 只允许同 minor）。"""
+            try:
+                base = spec.lstrip("^~").split("-")[0].split("+")[0]
+                b = [int(x) for x in base.split(".")]
+                v = [int(x) for x in ver.split("-")[0].split("+")[0].split(".")]
+            except Exception:
+                return True  # 非标准写法不在这里判，交给 pnpm 自己
+            if b[0] != 0:
+                return v[0] == b[0] and v >= b
+            return v[0] == 0 and v[1] == b[1] and v[2] >= b[2]
+
+        # 真正的不变量：声明的约束必须能被「已装版本」满足，否则重启即崩。
+        # 旧断言把某个具体版本号（^0.10.3）写死，名字还和逻辑相反，
+        # 于是上游版本升级后会一直报红——这正是它当时的红。
+        bad = []
+        for k, v in deps.items():
+            if not isinstance(v, str) or not v.startswith(("^", "~")):
+                continue
+            meta_p = os.path.join(dfy_market.PROFILE_MODULES, *k.split("/"), "package.json")
+            try:
+                with open(meta_p, encoding="utf-8") as fh:
+                    inst = (json.load(fh) or {}).get("version") or ""
+            except Exception:
+                continue
+            if inst and not _sat(v, inst):
+                bad.append("%s: ^%s vs 实装 %s" % (k, v, inst))
+        check("profile 版本约束都被实装版本满足", not bad,
+              bad or "全部命中")
         # 所有依赖都必须能在 node_modules 里找到（不能有幽灵依赖）
         missing = []
         for k in deps:

@@ -27,6 +27,8 @@ CREATE_NEW_PROCESS_GROUP = 0x00000200
 # 拉起 QQ 时必须脱离父进程：否则父进程一退出（关控制台、脚本跑完）QQ 会被连带杀掉
 SPAWN_FLAGS = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+# NapCat 控制台输出重定向后的文件句柄（必须留着引用，否则句柄被回收、子进程写不进去）
+_CONSOLE_FHS = []
 
 user32 = ctypes.windll.user32
 gdi32 = ctypes.windll.gdi32
@@ -402,6 +404,72 @@ def best_window(pids=None):
     return (titled or ws)[0]
 
 
+def _all_qq_windows(pids=None):
+    """把这些进程的所有顶层窗口都列出来——包括隐藏的、没标题的。
+
+    qq_windows() 只认「看得见」的窗口；QQ 拉到托盘/隐藏的情况下就会一个都找不到，
+    登录二维码也就截不出来。这里专门用来把那种藏起来的窗口拽出来。
+    """
+    out = []
+    want = set(int(x) for x in pids) if pids else None
+
+    @_WNDPROC
+    def cb(hwnd, lp):
+        try:
+            pid = _pid_of(hwnd)
+            if want is not None and pid not in want:
+                return True
+            exe = _exe_of(pid)
+            if not exe.lower().endswith("qq.exe"):
+                return True
+            n = user32.GetWindowTextLengthW(hwnd)
+            title = ""
+            if n > 0:
+                b = ctypes.create_unicode_buffer(n + 1)
+                user32.GetWindowTextW(hwnd, b, n + 1)
+                title = b.value
+            r = _RECT()
+            user32.GetWindowRect(hwnd, ctypes.byref(r))
+            w, h = r.right - r.left, r.bottom - r.top
+            if w < 120 or h < 120:
+                return True
+            out.append({"hwnd": int(hwnd), "title": title, "pid": pid,
+                        "w": w, "h": h, "area": w * h,
+                        "visible": bool(user32.IsWindowVisible(hwnd))})
+        except Exception:
+            pass
+        return True
+
+    user32.EnumWindows(cb, 0)
+    out.sort(key=lambda x: -x["area"])
+    return out
+
+
+def reveal_window(pids=None):
+    """把机器人 QQ 的登录窗口强行显示到前台（藏托盘、隐藏都拽出来）。
+
+    只动机器人实例自己的 pid，绝不碰用户日常用的 QQ。
+    """
+    pids = set(pids or bot_pids())
+    if not pids:
+        return {"ok": False, "no_window": True,
+                "error": "机器人 QQ 还没启动（点「启动 QQ 并登录」）"}
+    ws = _all_qq_windows(pids)
+    if not ws:
+        return {"ok": False, "no_window": True, "error": "机器人 QQ 还没出登录窗口"}
+    w = ws[0]
+    try:
+        user32.ShowWindow(w["hwnd"], 9)        # SW_RESTORE：还原 + 显示
+        user32.SetForegroundWindow(w["hwnd"])
+        time.sleep(0.4)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "hwnd": w["hwnd"], "title": w.get("title") or "QQ",
+            "visible": bool(user32.IsWindowVisible(w["hwnd"]))}
+
+
+
+
 def activate_window(hwnd=None):
     """把机器人 QQ 窗口拿到最前面（需要用户直接点二维码时用）。"""
     w = None
@@ -409,6 +477,10 @@ def activate_window(hwnd=None):
         w = {"hwnd": int(hwnd)}
     else:
         w = best_window(bot_pids() or None)
+        if not w:
+            # 窗口藏在托盘/没显示出来时，先把它拽出来再取
+            reveal_window()
+            w = best_window(bot_pids() or None)
     if not w:
         return {"ok": False, "error": "机器人 QQ 窗口没找到（先启动一次登录）"}
     try:
@@ -465,14 +537,75 @@ def _capture(hwnd):
             pass
 
 
-def login_shot(max_w=440):
+def napcat_console_log():
+    """NapCat 的 stdout/stderr 落地文件（_spawn 里重定向过来）。"""
+    cache = os.environ.get("DFY_CACHE_DIR") or r"D:\大肥鱼缓存"
+    return os.path.join(cache, "napcat_console.log")
+
+
+def _read_tail(path, max_bytes=30000):
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(max(0, size - max_bytes))
+            return f.read().decode("utf-8", "ignore")
+    except Exception:
+        return ""
+
+
+def napcat_qr(cfg=None, max_age=300):
+    """直接读 NapCat 自己落盘的二维码（<napcat_dir>\\cache\\qrcode.png）。
+
+    为什么不再截窗口：NapCat 走的是控制台扫码登录，QQ 客户端是**无窗口**的
+    进程组（MainWindowHandle 全是 0），根本没有登录窗可截。二维码只会出现在
+    NapCat 的 stdout 和 cache/qrcode.png 里，这里直接读文件，每次都拿最新的。
+    """
+    c = cfg or cfg_from(lambda k: None)
+    p = os.path.join(c["napcat_dir"], "cache", "qrcode.png")
+    try:
+        st = os.stat(p)
+    except Exception:
+        return {"ok": False, "error": "NapCat 还没生成二维码", "path": p}
+    age = int(time.time() - st.st_mtime)
+    if age > max_age:
+        return {"ok": False, "stale": True, "path": p,
+                "error": "二维码已过期（%d 秒没刷新）" % age}
+    try:
+        with open(p, "rb") as f:
+            raw = f.read()
+        if not raw:
+            return {"ok": False, "error": "二维码图片是空的", "path": p}
+        return {"ok": True, "data": "data:image/png;base64," + base64.b64encode(raw).decode("ascii"),
+                "age": age, "mtime": time.strftime("%H:%M:%S", time.localtime(st.st_mtime)),
+                "path": p}
+    except Exception as e:
+        return {"ok": False, "error": "读二维码失败：%s" % e, "path": p}
+
+
+def napcat_qr_url():
+    """从 NapCat 控制台输出里捞最近一次「二维码解码URL」，控制台码扫不出时备用。"""
+    txt = _read_tail(napcat_console_log())
+    url = ""
+    for line in txt.splitlines():
+        if "二维码解码URL" in line:
+            i = line.find("http")
+            if i >= 0:
+                url = line[i:].strip()
+    return url
+
+
+def login_shot(max_w=440, reveal=False):
     """把**机器人实例**的 QQ 窗口截给界面看（二维码就在这里）。
 
     只认自己记录过的 pid——用户可能同时开着自己的 QQ，绝不能截错。
+    reveal=True 时，窗口藏在托盘/不可见会先拽到前台再截（插件页自动弹码用）。
     """
     pids = bot_pids() or set(_STATE.get("bot_pids") or [])
     if not pids:
         return {"ok": False, "error": "机器人 QQ 还没启动（点「启动 QQ 并登录」）", "no_bot": True}
+    if reveal:
+        reveal_window(pids)
     win = best_window(pids)
     if not win:
         # 窗口可能被收起在托盘：找到进程但没窗口，先尝试还原一次
@@ -480,7 +613,15 @@ def login_shot(max_w=440):
             user32.ShowWindow(w["hwnd"], 9)
         win = best_window(pids)
     if not win:
-        return {"ok": False, "error": "机器人 QQ 窗口还没显示出来"}
+        if reveal:
+            rv = reveal_window(pids)
+            win = best_window(pids)
+            if not win:
+                return {"ok": False, "no_window": True,
+                        "error": rv.get("error") or "机器人 QQ 窗口还没显示出来"}
+        if not win:
+            return {"ok": False, "no_window": True,
+                    "error": "机器人 QQ 窗口还没显示出来"}
     img = _capture(win["hwnd"])
     if img is None:
         return {"ok": False, "error": "窗口截图失败"}
@@ -602,8 +743,18 @@ def _spawn(cfg):
     uin = str(cfg.get("qq_bot") or "").strip()
     if uin:
         args += ["-q", uin]
+    # NapCat 的二维码只打在控制台上（同时也写一份 cache/qrcode.png），
+    # 以前把 stdout 丢进 DEVNULL，出问题就完全看不到原因，二维码 URL 也拿不到。
+    # 现在落到 D:\大肥鱼缓存\napcat_console.log，既能排错，也能解析解码 URL。
+    out = err = subprocess.DEVNULL
+    try:
+        fh = open(napcat_console_log(), "ab", buffering=0)
+        out = err = fh
+        _CONSOLE_FHS.append(fh)
+    except Exception:
+        pass
     subprocess.Popen(args, cwd=d, env=env, close_fds=True, creationflags=SPAWN_FLAGS,
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                     stdin=subprocess.DEVNULL, stdout=out, stderr=err)
     return args
 
 

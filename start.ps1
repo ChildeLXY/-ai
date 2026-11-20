@@ -42,6 +42,47 @@ $pythonw = Find-Pythonw
 # 大肥鱼AI 主界面改用 Python 3.12 独立环境（3.14 + pythonnet 会因后台子进程崩窗口）
 $pythonw_ai = "D:\本地部署大肥鱼环境\venv312\Scripts\pythonw.exe"
 if (-not (Test-Path $pythonw_ai)) { $pythonw_ai = $pythonw }
+
+# ===== DSH 插件链路自愈预检（不阻断启动：修不动的只记日志，照常拉起主程序）=====
+# 为什么放在启动前：pnpm 垫片 / allowBuilds / virtualStoreDir 任何一项被手动改坏，
+# 插件市场就只会表现成"装不上、更新失败"，用户看到的是界面报错而不是根因。
+# 这里静默跑一次六项体检，能修的直接修，修不动的写进 logs\dsh-doctor.log 便于回溯。
+$doctor = Join-Path $dir "dfy_dsh_doctor.py"
+$doctorLog = Join-Path $dir "logs\dsh-doctor.log"
+if (Test-Path $doctor) {
+    $pyExe = $pythonw_ai -replace 'pythonw\.exe$', 'python.exe'
+    if (-not (Test-Path $pyExe)) {
+        $cmdPy = Get-Command python.exe -ErrorAction SilentlyContinue
+        if ($cmdPy) { $pyExe = $cmdPy.Source }
+    }
+    if ($pyExe -and (Test-Path $pyExe)) {
+        New-Item -ItemType Directory -Force -Path (Split-Path $doctorLog -Parent) | Out-Null
+        $stamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+        $out = & $pyExe $doctor check --safe 2>&1 | Out-String
+        $rc = $LASTEXITCODE
+        if ($rc -ne 0) {
+            $fixOut = & $pyExe $doctor fix --safe 2>&1 | Out-String
+            $out2 = & $pyExe $doctor check --safe 2>&1 | Out-String
+            $rc2 = $LASTEXITCODE
+            Add-Content -LiteralPath $doctorLog -Encoding UTF8 -Value ("[$stamp] check=FAIL rc=$rc`n$out`n--- fix ---`n$fixOut`n--- recheck rc=$rc2 ---`n$out2`n")
+        } else {
+            Add-Content -LiteralPath $doctorLog -Encoding UTF8 -Value ("[$stamp] check=OK`n$out`n")
+        }
+        # 日志只留最近 512KB，避免长年累月把盘塞满
+        if ((Get-Item -LiteralPath $doctorLog).Length -gt 524288) {
+            $lines = Get-Content -LiteralPath $doctorLog -Encoding UTF8
+            $lines[-2000..-1] | Set-Content -LiteralPath $doctorLog -Encoding UTF8
+        }
+        $script:doctorRc = if ($rc -ne 0) { $rc2 } else { $rc }
+    }
+}
+
+# 只做体检、不拉起主程序：给自动化和排障用（DFY_DOCTOR_ONLY=1）
+if ($env:DFY_DOCTOR_ONLY -eq "1") {
+    if (-not $script:doctorRc) { $script:doctorRc = 0 }
+    exit $script:doctorRc
+}
+
 Start-Process $pythonw_ai -ArgumentList (Join-Path $dir "大肥鱼AI.py") -WorkingDirectory $dir
 
 $petDir = Join-Path $dir "pet_repo\dsh-pet-indesktop-main"

@@ -294,6 +294,37 @@ def _recent_texts(n=4):
     return out
 
 
+_THINK_TAG_RE = re.compile(r"<think[^>]*>[\s\S]*?</think[^>]*>", re.I)
+_THINK_HEAD_RE = re.compile(
+    r"(?i)here'?s\s+(a|my|the)\s+thinking|thinking\s+process|analysis\s+process"
+    r"|let\s+me\s+(think|analyze)|分析(过程|请求)|思考过程|推理过程")
+_NUMBERED_RE = re.compile(r"^\s*(?:\d+[\.、\)]|[-*]\s*\*\*)")
+
+
+def _clean_post(txt):
+    """把模型输出清洗成「一条能直接发的说说」。
+
+    这个 9B 蒸馏模型开着思考时，会把整段「Thinking Process: 1. **Analyze ...
+    」当成正文吐出来（11-17 00:34 / 11-19 19:00 两条失败就是这么来的），
+    所以这里宁可判空让上层重试，也不把思考过程发进空间。
+    """
+    s = _THINK_TAG_RE.sub("", str(txt or "")).strip()
+    if not s:
+        return ""
+    if _THINK_HEAD_RE.search(s[:200]):
+        return ""
+    if len(s) > 140 and len(re.findall(r"(?m)^\s*\d+[\.、\)]\s+", s)) >= 2:
+        return ""
+    s = re.sub(r"^(回复|说说|正文|内容)[:：]\s*", "", s).strip()
+    s = s.strip("“”\"' ")
+    para = s.split("\n")[0].strip()
+    if _NUMBERED_RE.match(para) and len(s) > 140:
+        return ""
+    if len(para) > 120:
+        return ""
+    return para
+
+
 def _gen_text(hint=""):
     """让模型按大肥鱼的人格写一条说说正文。"""
     model = _ctx.get_model()
@@ -329,13 +360,17 @@ def _gen_text(hint=""):
 
     msgs = [{"role": "system", "content": "\n\n".join(sys)},
             {"role": "user", "content": user}]
-    txt = _ctx.ollama_chat(msgs, model, timeout=90, num_predict=300)
-    txt = str(txt or "").strip()
-    # 清掉模型偶尔带的包装
-    txt = re.sub(r"^(回复|说说|正文)[:：]\s*", "", txt).strip()
-    txt = txt.strip("“”\"' ")
-    txt = re.sub(r"\n{3,}", "\n\n", txt)
-    return txt[:300]
+    # think=False 必须显式传：不传的话模型默认开思考，会先吐一段
+    # 「Thinking Process」再写正文，而模型返回的是纯 content 字符串，
+    # 那段思考就会被当成说说正文发出去。
+    txt = ""
+    for _ in range(2):
+        raw = _ctx.ollama_chat(msgs, model, timeout=90, num_predict=300, think=False)
+        txt = _clean_post(raw)
+        if txt:
+            return txt[:300]
+    _log("模型只吐了思考过程，没拿到正文，本轮跳过")
+    return ""
 
 
 # ------------------------------------------------------------------ 发布

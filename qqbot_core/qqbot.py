@@ -184,12 +184,38 @@ class StickerPicker:
         except Exception:
             return None
 
-    def list_hints(self, limit=12):
-        """给模型看的候选表情包清单（名字·情绪）。"""
+    def list_hints(self, limit=12, query=""):
+        """给模型看的候选表情包清单（名字·情绪）。
+
+        query 是对方原话：只给前 N 张的话，模型会在一堆不相关的图里瞎挑
+        （5:47 那次「舔」排在第 47 位根本没进清单，它就抓了第 2 张「搓搓金猪」
+        硬说成「超级舔屏」）。所以按原话把命中名字/标签的也补进清单。
+        """
+        picked = list(self.items[:max(0, int(limit))])
+        for it in self.match_items(query, 6):
+            if it not in picked:
+                picked.append(it)
         out = []
-        for it in self.items[:max(0, int(limit))]:
+        for it in picked:
             out.append("%s（%s）" % (it.get("name"), it.get("emotion")))
         return "、".join(out)
+
+    def match_items(self, query, limit=6):
+        """拿对方原话去撞名字/标签/情绪，返回最贴的几张（命中得越长越靠前）。"""
+        q = str(query or "")
+        if not q:
+            return []
+        scored = []
+        for it in self.items:
+            best = 0
+            for c in [it.get("name"), it.get("emotion")] + list(it.get("tags") or []):
+                s = str(c or "").strip()
+                if len(s) >= 2 and s in q and len(s) > best:
+                    best = len(s)
+            if best:
+                scored.append((best, it))
+        scored.sort(key=lambda x: -x[0])
+        return [it for _, it in scored[:max(1, int(limit))]]
 
 
 # ---------------------------------------------------------------- 语音合成
@@ -371,6 +397,8 @@ class Brain:
         self._fail_streak = 0
         self.last_model = None
         self.stickers = StickerPicker() if self.b.get("use_stickers", True) else None
+        # 会话 -> 最近发过的表情包（喂进提示词，避免连着发同一张）
+        self._recent_stickers = {}
         # desktop 模式：人格/记忆/表情包数据与桌面大肥鱼AI 共用（同一批文件），
         # 并在 system prompt 里补上桌面版的身份/时间/称呼等元素。
         self.desktop_mode = str(cfg.get("brain_mode", "standalone")).lower() == "desktop"
@@ -726,7 +754,7 @@ class Brain:
             pass
         return "你是大肥鱼AI，一个在本地电脑上运行的贴心搭档，说话自然、有性格，不喜欢官话套话。"
 
-    def system_prompt(self, scene, query="", who=""):
+    def system_prompt(self, scene, query="", who="", recent_stickers=None):
         parts = [self._persona()]
         # ① 能力自知：不说清楚就会出现"我发不了语音"这种自我否认
         parts.append(
@@ -817,13 +845,24 @@ class Brain:
                 pass
         sticker_rule = ""
         if self.stickers:
-            hint = self.stickers.list_hints(int(self.b.get("sticker_hint_count", 16)))
+            hint = self.stickers.list_hints(int(self.b.get("sticker_hint_count", 16)),
+                                            query=query or "")
             sticker_rule = (
                 "\n\n【表情包】你手上有这些表情包可以配：" + hint +
-                "。如果这句回复配一张表情包会更生动，就在「回复：」那行之后另起一行，"
+                "（名字后面的括号是这张的情绪）。必须挑跟对方要求对得上的一张，"
+                "对不上就别配，别硬凑；"
+                "如果这句回复配一张表情包会更生动，就在「回复：」那行之后另起一行，"
                 "只写 [表情包名字]（方括号括住、只写名字，必须是上面清单里的名字）；"
                 "不想配就不写，别自己编名字，也别勉强。"
+                "\n【硬性要求】对方明确开口要表情包时（比如「发个表情包」「来个舔屏的」「你发啊」「发图」），"
+                "你必须真的在最后一行写出 [表情包名字]——光说「这就发」「马上发」而方括号里没名字，"
+                "系统就发不出图，等于放空炮，绝对不允许。"
             )
+            if recent_stickers:
+                sticker_rule += ("\n最近这几张已经发过了：" + "、".join(recent_stickers) +
+                                 "。除非对方点名就要这一张，否则别再连着发同一张，换张别的更自然。")
+            sticker_rule += ("\n配图时正文要有实际内容，别只写「这就发」「马上发」这种空话——"
+                             "说一句跟这张图相配的话再发。")
         tail = ("最多再写一行 [表情包名字]，不要有其他内容。" if sticker_rule
                 else "不要再写任何内容。")
         base = ("场景：" + str(scene) + "。回复控制在 %d 字以内。\n"
@@ -1035,7 +1074,9 @@ class Brain:
         model = self.pick_model(user_text, forced_model)
         think = self.ollama.get("think_for_deep", True) if model == self.ollama.get("deep_model") \
             else self.ollama.get("think_for_fast", False)
-        msgs = [{"role": "system", "content": self.system_prompt(scene, query=user_text, who=who)}]
+        msgs = [{"role": "system", "content": self.system_prompt(
+            scene, query=user_text, who=who,
+            recent_stickers=(self._recent_stickers.get(session_key) or [])[-3:] or None)}]
         msgs += self.sessions.get(session_key)
         # 群里把说话人带上，否则张三问完李四接着问会串台
         if name and "群" in str(scene):
@@ -1126,6 +1167,8 @@ class OneBot:
         self.api_ok = None      # OneBot API 最近是否可达（None=未探测）
         # 发空间防刷：最近一次发布时间与内容（冷却期内不再发）
         self._qzone_last = (0.0, "")
+        # 会话 -> 上次发出去的表情包名（对方追问「你发啊」时重发那张）
+        self._last_sticker = {}
         self._last_api_check = 0
         # brain 模式：standalone=自己直连Ollama；desktop=转给桌面大肥鱼AI主程序
         self.brain_mode = self.cfg.get("brain_mode", "standalone")
@@ -1599,6 +1642,18 @@ class OneBot:
                 answer = self._do_bili_marker(kind, target, answer)
                 # 模型自动配图：按它写出的 [表情包名字] 找图
                 segs = []
+                # 兜底：对方要表情包，模型却只嘴上答应（没写 [名字]）→ 自己挑一张补上。
+                # 5:18 那次连着三句「咕噜这就发，搓搓金猪～」一张图都没发，就是缺这层。
+                if not sticker_hint and self.brain.stickers and self._wants_sticker(text):
+                    tn = self._tail_sticker_name(answer)
+                    if tn:
+                        sticker_hint = tn
+                        log("句尾写了表情包名字但没加括号，认作：%s" % tn)
+                    else:
+                        it2, p2 = self._auto_sticker(text, sess)
+                        if p2:
+                            sticker_hint = str((it2 or {}).get("name") or "")
+                            log("对方要表情包，模型没给标记，自动补一张：%s" % sticker_hint)
                 if sticker_hint and self.brain.stickers:
                     it, path = self.brain.stickers.pick(sticker_hint)
                     seg = self.brain.stickers.image_segment(path) if path else None
@@ -1612,10 +1667,20 @@ class OneBot:
                 if vpath:
                     vseg = Voice.segment(vpath)
                     if self.voice.also_text and answer:
-                        self.send(kind, target, answer, at_user=at, segments=[vseg] + segs)
+                        self.send(kind, target, answer, at_user=at, segments=[vseg])
                     else:
                         # 只发语音：文字不落屏（真发语音那样）
-                        self.send(kind, target, "", at_user=at, segments=[vseg] + segs)
+                        self.send(kind, target, "", at_user=at, segments=[vseg])
+                    # 语音和图片塞进同一条消息时，QQ 客户端只显示语音、把图吞掉
+                    # （5:50 实测：NapCat 记录是 [语音][图片]，手机上只有语音），
+                    # 所以图片单独再发一条。
+                    if segs:
+                        log("语音和表情包分开两条发")
+                        time.sleep(1.0)
+                        try:
+                            self.send(kind, target, "", at_user=None, segments=segs)
+                        except Exception as e:
+                            log("单独发表情包失败：%r" % e, "WARN")
                     log("发了语音条（%.1fKB，音色 %s）" % (
                         os.path.getsize(vpath) / 1024.0, self.voice.voice))
                 else:
@@ -1626,12 +1691,81 @@ class OneBot:
                 if segs and sticker_hint and self.brain.stickers:
                     it, _ = self.brain.stickers.pick(sticker_hint)
                     used_sticker = (it or {}).get("name") or sticker_hint
+                if used_sticker:
+                    self._last_sticker[sess] = used_sticker
+                    if getattr(self.brain, "_recent_stickers", None) is not None:
+                        rl = self.brain._recent_stickers.setdefault(sess, [])
+                        self.brain._recent_stickers[sess] = (rl + [used_sticker])[-5:]
                 self._record("out", ("［语音］" + answer) if vpath else answer,
                              "%s:%s" % (kind, target), used_sticker)
             except Exception:
                 log("工作线程异常:\n" + traceback.format_exc(), "ERROR")
 
     # ---- 插件/执行：模型自发写的标记 ----
+    # 用户明说要表情包、模型却只答应不写标记时，兜底替他挑一张。
+    _PIC_ASK = re.compile(r"(表情包|发表情|贴纸|动图|gif|GIF|发个图|来张|来一张|舔屏"
+                          r"|发啊|还没发|怎么不发|发了没|你发)")
+    _PIC_NO = re.compile(r"(别发|不要发|别发表情|不要表情|别再发|停止发)")
+    # 光秃秃的催图：「你发啊」「你发」「还没发」——必须带“发”字，不能是“啊”“好”这种
+    _BARE_NUDGE = re.compile(r"^(?:你)?(?:到底|怎么|还|还没)?(?:发|发表情包?)"
+                             r"(?:了|没)?(?:啊|呀|呢|吧)?[\s。！？!?～~]*$")
+
+    def _wants_sticker(self, text):
+        text = str(text or "")
+        if self._PIC_NO.search(text):
+            return False
+        if len(text) <= 8 and self._BARE_NUDGE.match(text.strip()):
+            return True
+        return bool(self._PIC_ASK.search(text))
+
+    def _tail_sticker_name(self, answer):
+        """模型把表情包名字直接写在句尾、忘了加方括号时（「…搓搓金猪～」）认出来。"""
+        sp = getattr(self.brain, "stickers", None)
+        if not sp or not sp.items:
+            return ""
+        tail = str(answer or "").strip()[-10:]
+        best, ln = "", 0
+        for it in sp.items:
+            n = str(it.get("name") or "").strip()
+            if len(n) >= 2 and n in tail and len(n) > ln:
+                if os.path.exists(os.path.join(sp.GIF_DIR, str(it.get("hash") or "") + ".gif")):
+                    best, ln = n, len(n)
+        return best
+
+    def _auto_sticker(self, text, session_key=""):
+        """按用户原话挑一张表情包。返回 (条目, gif 路径)；挑不到返回 (None, '')。"""
+        sp = getattr(self.brain, "stickers", None)
+        if not sp or not sp.items:
+            return None, ""
+        # 0) 单纯催图就重发上次那张
+        if session_key and len(str(text or "").strip()) <= 8:
+            last = self._last_sticker.get(session_key) or ""
+            if last:
+                it, p = sp.pick(last)
+                if p and it:
+                    return it, p
+        # 1) 拿用户原话去撞图库的名字/标签/情绪，取「命中得最长」的那张
+        #    （"舔屏类型" 会撞到标签「舔屏」→ 那张名字就叫「舔」）
+        blob = str(text or "")
+        best, best_len = None, 1
+        for it in sp.items:
+            cands = [it.get("name"), it.get("emotion")] + list(it.get("tags") or [])
+            for c in cands:
+                s = str(c or "").strip()
+                if len(s) >= 2 and s in blob and len(s) > best_len:
+                    if os.path.exists(os.path.join(sp.GIF_DIR, str(it.get("hash") or "") + ".gif")):
+                        best, best_len = it, len(s)
+        if best:
+            return best, os.path.join(sp.GIF_DIR, str(best.get("hash") or "") + ".gif")
+        # 2) 情绪兜底
+        for emo in ("开心", "兴奋", "卖萌"):
+            for it in sp.items:
+                if str(it.get("emotion") or "") == emo:
+                    p = os.path.join(sp.GIF_DIR, str(it.get("hash") or "") + ".gif")
+                    if os.path.exists(p):
+                        return it, p
+        return None, ""
+
     def _do_qzone_marker(self, answer):
         """模型写 [发空间:内容(|配图:…)] → 真发一条说说，回复换成结果。
 
@@ -1646,11 +1780,19 @@ class OneBot:
             return answer
         raw = m.group(1).strip()
         # 内容|配图：xxx
+        # 模型经常写全角「｜」和「配图：」，只认半角 | 的话会把
+        # 「配图:猫猫搓手」整段留在正文里、配图变成 0 张（16:57 那次就是这么翻车的）
         pic_name = ""
-        if "|" in raw:
-            raw, _, tail = raw.partition("|")
-            mm = re.search(r"配图\s*[:：]\s*(.+)", tail)
-            pic_name = mm.group(1).strip() if mm else tail.strip()
+        mm = re.search(r"[|｜]\s*配图\s*[:：]\s*(.+)$", raw)
+        if mm:
+            pic_name = mm.group(1).strip()
+            raw = raw[:mm.start()].strip()
+        elif "|" in raw or "｜" in raw:
+            sep = "|" if "|" in raw else "｜"
+            raw, _, tail = raw.partition(sep)
+            m2 = re.search(r"配图\s*[:：]\s*(.+)", tail)
+            pic_name = (m2.group(1).strip() if m2 else tail.strip())
+            raw = raw.strip()
         text = raw.strip() or "（咕噜咕噜……今天有点沉默）"
         answer = re.sub(pat, "", answer).strip()
 

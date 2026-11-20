@@ -1,16 +1,1 @@
-# 插件引擎下载清单地址（首次启动时从这里拉引擎）
-#
-# 填法：这一行只写一个完整的 URL，指向 release 里的 manifest.json，例如
-# https://gitee.com/liu-xingyuec/dafeiyu-ai-local/releases/download/engine-v0.2.2-rc.2/manifest.json
-#
-# 留空或只保留注释 = 不配置下载源：程序照常启动，只是插件市场那一块不可用，
-# 界面上会提示一次「未配置插件引擎下载源」。
-#
-# 也可以用环境变量 DFY_ENGINE_MANIFEST_URL 覆盖这里的值（调试时更方便）。
-#
-# 生成这个地址的最省事方式：
-#   1. python tools/pack_engine.py --engine "<引擎目录>" --out "<输出目录>" --part-mb 95
-#   2. set GITEE_TOKEN=<你的私人令牌>
-#      python tools/publish_engine.py --dist "<输出目录>" ^
-#          --owner liu-xingyuec --repo dafeiyu-ai-local --tag engine-v0.2.2-rc.2
-#   脚本会自动把地址写回本文件。
+https://gitee.com/liu-xingyuec/dafeiyu-ai-local/releases/download/engine-v0.2.2-rc.2/manifest.json

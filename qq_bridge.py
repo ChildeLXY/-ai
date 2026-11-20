@@ -67,6 +67,9 @@ class Bridge:
         self.post_count = 0
         self.last_post_at = 0.0
         self.last_post_type = ""
+        # 本次桥接的启动时间：post_count 每次重启都会归零，
+        # 前端判定「消息进不来」必须等运行够久，否则重启后必误报
+        self.started_at = 0.0
         # 保活探针：OneBot 通不通、是不是该重登 QQ 了
         self.link_ok = None
         self.need_relogin = False
@@ -338,6 +341,7 @@ class Bridge:
 
             from http.server import ThreadingHTTPServer
             self.server = ThreadingHTTPServer((host, port), H)
+            self.started_at = time.time()
             self.running = True
             self.thread = threading.Thread(target=self._serve, daemon=True, name="qq-bridge")
             self.thread.start()
@@ -570,6 +574,7 @@ class Bridge:
             "pending": self.onebot.queue.qsize() if self.onebot else 0,
             "recent": recent,
             "post_count": self.post_count,
+            "running_since": int(self.started_at or 0),
             "last_post_age": (int(time.time() - self.last_post_at) if self.last_post_at else -1),
             "last_post_type": self.last_post_type,
             "last_post_raw": getattr(self, "last_post_raw", "")[:200],

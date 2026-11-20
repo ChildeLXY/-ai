@@ -224,6 +224,36 @@ def _score(c):
 _WORTH_MIN = 40
 
 
+def _as_items(r, keys=("items", "comments", "list")):
+    """把桥接返回值统一成「字典列表」。
+
+    坑：桥接偶尔回的是纯文本（报错串/空串），旧代码直接 (r or {}).get(...)，
+    于是每轮都抛 'str' object has no attribute 'get'，整个轮询白跑。
+    这里把 str（能解析成 JSON 就解析）、dict、list 都收口成字典列表。
+    """
+    if r is None:
+        return []
+    if isinstance(r, str):
+        s = r.strip()
+        if not s:
+            return []
+        try:
+            r = json.loads(s)
+        except Exception:
+            return []
+    if isinstance(r, dict):
+        for k in keys:
+            v = r.get(k)
+            if isinstance(v, list):
+                return [x for x in v if isinstance(x, dict)]
+        if any(k in r for k in ("bvid", "rpid", "content", "uid")):
+            return [r]
+        return []
+    if isinstance(r, list):
+        return [x for x in r if isinstance(x, dict)]
+    return []
+
+
 # ------------------------------------------------------------------ 私信遥控
 def _handle_cmd(text, from_uid):
     """主人在私信里发「# xxx」遥控。返回要回给主人的话。"""
@@ -313,7 +343,7 @@ def _poll_once(manual=False):
             guard.spend_read()
             ok, r = b.call("bili_dm_inbox", {"limit": 10}, timeout=150)
             if ok:
-                items = r if isinstance(r, list) else ((r or {}).get("items") if isinstance(r, dict) else [])
+                items = _as_items(r, ("items", "list"))
                 for it in items or []:
                     text = str(it.get("content") or it.get("text") or "")
                     uid = it.get("uid") or it.get("user_id") or it.get("mid")
@@ -345,8 +375,7 @@ def _poll_once(manual=False):
             guard.spend_read()
             ok, r = b.call("bili_guard_scan", {"max_pages": 3}, timeout=180)
             if ok:
-                items = r if isinstance(r, list) else ((r or {}).get("comments")
-                                                       or (r or {}).get("items") or [])
+                items = _as_items(r, ("comments", "items", "list"))
                 scored = []
                 for c in items or []:
                     s, why = _score(c)
@@ -487,8 +516,8 @@ def whale_dm(limit=10):
     ok, r = C.bridge().call("bili_dm_inbox", {"limit": int(limit or 10)}, timeout=150)
     if not ok:
         return {"ok": False, "error": str(r)[:200]}
-    items = r if isinstance(r, list) else ((r or {}).get("items") if isinstance(r, dict) else [])
-    return {"ok": True, "items": items or []}
+    items = _as_items(r, ("items", "list"))
+    return {"ok": True, "items": items}
 
 
 def whale_send_dm(uid, text):
@@ -515,8 +544,7 @@ def whale_scan():
     ok, r = C.bridge().call("bili_guard_scan", {"max_pages": 3}, timeout=180)
     if not ok:
         return {"ok": False, "error": str(r)[:200]}
-    items = r if isinstance(r, list) else ((r or {}).get("comments")
-                                           or (r or {}).get("items") or [])
+    items = _as_items(r, ("comments", "items", "list"))
     out = []
     for c in items or []:
         s, why = _score(c)

@@ -80,3 +80,8 @@ downloads/petpack/
 /dsh_host/*.log
 /dsh_host/*.out
 /dsh_host/*.bak
+
+# ---------- 9. 所有 node_modules 与 DSH 运行时凭证（含 dsh_web，绝不入库）----------
+node_modules/
+.credentials.yaml
+**/.credentials.yaml

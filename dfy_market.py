@@ -442,26 +442,53 @@ def _host_port():
 _LIVE_CACHE = {"t": 0.0, "d": {}}
 
 
-def sync_host_manifest(enable_all=True):
-    """把 profile 里已装但没进名单的插件一次性补齐。
+def _profile_bundles():
+    """profile 的 dsh.profile.bundles —— S3 之后这是宿主加载名单的唯一真源。"""
+    d = _read_json(PROFILE_PKG, {}) or {}
+    prof = ((d.get("dsh") or {}).get("profile") or {})
+    b = prof.get("bundles")
+    if not isinstance(b, list):
+        return []
+    return [x for x in b if isinstance(x, str) and x.strip()]
 
-    历史上市场装过的插件（比如 dsh-bili-scroll）都卡在这一步：
-    node_modules 里有、profile 记了账，但宿主名单没它，所以从来没被加载。
+
+def sync_host_manifest(enable_all=True):
+    """只做一致性校验，**不再写宿主名单**。
+
+    历史上它会往 host-plugins.json 里补插件，那时名单是唯一真源，没问题。
+    S3 之后 host.mjs 的 loadManifest 以 profile 的 dsh.profile.bundles 为准，
+    界面上的"禁用"只是把名字从 bundles 里删掉。如果这里还往 JSON 里塞，
+    就会出现「界面显示已禁用、宿主照旧加载」——显示与行为相反，比不加载更糟。
+
+    所以这里退回只读校验，返回值字段保持不变以兼容调用方：
+    - loaded        ：bundles 里、在盘上、没被 disabled 的（宿主真的会加载）
+    - disabledInUi  ：bundles 里但同时进了 disabled（矛盾态，宿主不加载，界面却还显示启用）
+    - missing       ：bundles 里但 node_modules 里没有（装完目录被删/搬进 .ignored）
+    - added         ：恒为空（不再写）
     """
-    deps = _profile_deps()
-    have = set(host_manifest().get("plugins") or [])
-    added, missing = [], []
-    for name in deps:
+    bundles = _profile_bundles()
+    manifest = host_manifest()
+    disabled = set(manifest.get("disabled") or []) if isinstance(manifest.get("disabled"), list) else set()
+
+    loaded, off_in_ui, missing = [], [], []
+    for name in bundles:
         if not name.startswith(("dsh", "@")):
+            continue
+        # @deepseek-ai/* 是框架自带 bundle（base / web-app / 实验特性），
+        # 不落在 profile 的 node_modules 里，也不算"业务插件"，不参与校验。
+        if name.startswith("@deepseek-ai/"):
             continue
         if not os.path.isdir(os.path.join(PROFILE_MODULES, *name.split("/"))):
             missing.append(name)
             continue
-        if name not in have:
-            if enable_all and host_enable(name, True):
-                added.append(name)
-    return {"ok": True, "added": added, "missing": missing,
-            "plugins": host_manifest().get("plugins") or []}
+        if name in disabled:
+            off_in_ui.append(name)
+            continue
+        loaded.append(name)
+
+    return {"ok": True, "added": [], "loaded": loaded, "disabledInUi": off_in_ui,
+            "missing": missing, "bundles": bundles,
+            "plugins": manifest.get("plugins") or []}
 
 
 def installed():
@@ -876,6 +903,16 @@ def _install_via_engine(cli, spec, name_hint=""):
         version = meta.get("version") or ""
 
     log("引擎安装完成 %s v%s（%.1fs）" % (name, version, time.time() - t0))
+    # pnpm 只认 package.json 的 dependencies：宿主内置 bundle（dsh-base / dsh-web-app /
+    # dsh-qrcode 等）每次装插件都会被当成「野包」挪进 node_modules\.ignored，
+    # 宿主下次启动就缺件。这里在最底层兜一次，任何调用方都受益。
+    try:
+        import dfy_dsh_doctor as _doc
+        _ok, _msg = _doc.fix_modules()
+        if _msg and "无需修改" not in _msg:
+            log("引擎安装后回收内置包：%s" % _msg)
+    except Exception as _e:
+        log("回收内置包失败（不致命）：%r" % _e, "WARN")
     return {"ok": True, "name": name, "version": version,
             "via": "engine", "elapsed": round(time.time() - t0, 1),
             "tail": out[-400:]}
@@ -893,6 +930,18 @@ def install(spec, name_hint=""):
         r = _install_via_engine(cli, spec, name_hint)
         if r.get("ok"):
             name, version = r["name"], r["version"]
+            # pnpm 只认 package.json 的 dependencies：宿主内置的 bundle 包
+            # （@deepseek-ai/dsh-base / dsh-web-app / dsh-qrcode 等）每次装插件
+            # 都会被它当成「野包」挪进 node_modules\.ignored，宿主下次启动就缺件。
+            # 所以装完立刻让 doctor 把它们收回来。
+            try:
+                import dfy_dsh_doctor
+                _ok, _msg = dfy_dsh_doctor.fix_modules()
+                if _msg and "无需修改" not in _msg:
+                    log("装后回收内置包：%s" % _msg)
+                    r["bundles_restored"] = _msg
+            except Exception as _e:
+                log("装后回收内置包失败（不致命）：%r" % _e, "WARN")
             patched = _register_patch(name)
             # 兼容宿主（轻量常驻层）也要记账，否则重启后不加载
             host_on = host_enable(name, True)
