@@ -375,7 +375,7 @@ footer{padding:54px clamp(20px,6vw,90px) 100px;border-top:1px solid var(--line);
 
   <div class="ver-tag">
     <b>版本 v1.0.0</b><br>
-    安装包约 24 MB · 模型需另下<br>
+    安装包约 28 MB · 模型需另下<br>
     Windows 10/11 64 位
   </div>
 
@@ -453,19 +453,23 @@ footer{padding:54px clamp(20px,6vw,90px) 100px;border-top:1px solid var(--line);
     <div class="reveal">
       <div class="eyebrow">Download</div>
       <h2>下载 <em>大肥鱼AI</em></h2>
-      <p class="sub">绿色免安装，解压即用。模型需要单独下载，首次启动会引导你。</p>
+      <p class="sub">安装向导一键装好，免管理员权限、不碰系统目录。模型需要单独下载，首次启动会引导你。</p>
     </div>
 
     <div class="dl-wrap">
       <div class="dl-main reveal">
         <div class="os"><b>Windows</b><span>10 / 11 · 64 位</span></div>
         <h3>大肥鱼AI 桌面版</h3>
-        <div class="ver">版本 v1.0.0 · 约 24 MB · 更新于 2026-11</div>
+        <div class="ver">版本 v1.0.0 · 安装包约 28 MB · 更新于 2026-11</div>
         <a class="btn b-main" href="https://gitee.com/liu-xingyuec/dafeiyu-ai-local/releases" target="_blank" rel="noopener">↓ 下载安装包</a>
         <a class="btn b-ghost" href="https://gitee.com/liu-xingyuec/dafeiyu-ai-local" target="_blank" rel="noopener">从源码运行</a>
         <p class="dl-note" style="margin-top:12px">
-          下载后解压，运行 <code>start.ps1</code> 即可。想自己编译就克隆仓库，按 README 装依赖。<br>
+          运行安装包按提示装好即可，会创建桌面快捷方式；卸载默认保留聊天记录。想自己编译就克隆仓库，按 README 装依赖。<br>
           模型文件（4~22 GB）不在安装包里，首次启动会引导下载。
+        </p>
+        <p class="dl-note" style="margin-top:10px">
+          <b>本次更新：</b>新增语义命令安全门（危险命令拦截 + 凭证路径保护）、doctor 八项自愈体检、
+          测试退出码门禁与故障注入回归，全量测试 0 失败。
         </p>
       </div>
       <div class="side reveal">

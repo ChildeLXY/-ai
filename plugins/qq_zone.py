@@ -320,8 +320,10 @@ def _clean_post(txt):
     para = s.split("\n")[0].strip()
     if _NUMBERED_RE.match(para) and len(s) > 140:
         return ""
-    if len(para) > 120:
-        return ""
+    if len(para) > 140:
+        # 写太长也别整条丢掉，截到 120 字以内的最后一个句读
+        cut = max(para.rfind(ch, 0, 120) for ch in "。！？…")
+        para = para[:cut + 1] if cut > 10 else para[:120]
     return para
 
 
@@ -364,7 +366,7 @@ def _gen_text(hint=""):
     # 「Thinking Process」再写正文，而模型返回的是纯 content 字符串，
     # 那段思考就会被当成说说正文发出去。
     txt = ""
-    for _ in range(2):
+    for _ in range(3):
         raw = _ctx.ollama_chat(msgs, model, timeout=90, num_predict=300, think=False)
         txt = _clean_post(raw)
         if txt:

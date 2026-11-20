@@ -548,7 +548,8 @@ class Brain:
                 what = "表情包" if is_sticker else "图片"
                 parts.append("［发来一张%s%s］" % (what, ("（%s）" % sm) if sm else ""))
                 media.append({"kind": "image", "url": d.get("url") or "",
-                              "file": d.get("file") or "", "summary": sm})
+                              "file": d.get("file") or "", "summary": sm,
+                              "sticker": bool(is_sticker)})
             elif ty == "record":
                 parts.append("［发来一条语音］")
                 media.append({"kind": "record", "url": d.get("url") or "",
@@ -1169,6 +1170,10 @@ class OneBot:
         self._qzone_last = (0.0, "")
         # 会话 -> 上次发出去的表情包名（对方追问「你发啊」时重发那张）
         self._last_sticker = {}
+        # 有人「只 @ 我、下一条才发内容」时（@ 和表情包/图片在 QQ 里常常拆成两条消息），
+        # 记住这个 @ 15 秒，让紧随其后的那条也算「在叫我」，否则第一条空内容被丢弃、
+        # 第二条没 @ 又被群聊规则挡掉，就变成完全不理人。
+        self._pending_at = {}
         self._last_api_check = 0
         # brain 模式：standalone=自己直连Ollama；desktop=转给桌面大肥鱼AI主程序
         self.brain_mode = self.cfg.get("brain_mode", "standalone")
@@ -1321,6 +1326,29 @@ class OneBot:
                 del self.seen[:150]
         return True
 
+    def _at_me_in(self, raw, self_id):
+        """这条消息里有没有 @ 我。"""
+        if not self_id:
+            return False
+        raw = str(raw or "")
+        return ("[CQ:at,qq=%s]" % self_id) in raw or ("[CQ:at,qq=%s," % self_id) in raw
+
+    def _mark_pending_at(self, gid, uid):
+        """记下「这个人在群里单独 @ 了我」，等下一条内容跟上来。"""
+        now = time.time()
+        # 顺手清掉过期的，别让字典一直涨
+        for k, t in list(self._pending_at.items()):
+            if now - t > 60:
+                self._pending_at.pop(k, None)
+        self._pending_at[(str(gid), str(uid))] = now
+
+    def _consume_pending_at(self, gid, uid, ttl=15):
+        """这条内容是不是紧跟在那个裸 @ 后面（15 秒内、同一个人）。"""
+        t = self._pending_at.pop((str(gid), str(uid)), 0)
+        if not t:
+            return False
+        return (time.time() - t) <= ttl
+
     def on_event(self, ev):
         try:
             if ev.get("post_type") != "message":
@@ -1331,8 +1359,6 @@ class OneBot:
             # 文字 + 小黄脸 + 表情包/图片 全都要，别再把纯表情消息整条丢掉
             text, media = self.brain.parse_message(ev)
             text = re.sub(r"\[CQ:[^\]]+\]", "", text).strip()
-            if not text and not media:
-                return
             uid = str(ev.get("user_id") or "")
             if uid in self.blacklist:
                 return
@@ -1340,6 +1366,20 @@ class OneBot:
             uname = str(sn.get("card") or sn.get("nickname") or "").strip()[:24]
             msg_type = ev.get("message_type")
             self_id = str(ev.get("self_id") or "")
+            raw_msg = str(ev.get("raw_message") or "")
+            at_me = self._at_me_in(raw_msg, self_id)
+
+            # 群里的「裸 @」：只有 at 段、没有任何正文/媒体。先记下这个 @，
+            # 15 秒内同一个人接着发的表情包/图片/文字都算在叫我（QQ 常把 @ 和内容拆两条）。
+            if msg_type == "group" and at_me and not text and not media:
+                gid0 = str(ev.get("group_id") or "")
+                wl0 = self.cfg.get("group_whitelist") or []
+                if not (wl0 and gid0 not in [str(x) for x in wl0]):
+                    self._mark_pending_at(gid0, uid)
+                    log("收到裸 @（%s），等他接下一条内容" % uname)
+                return
+            if not text and not media:
+                return
 
             if msg_type == "private":
                 if not self.cfg.get("reply_private", True):
@@ -1352,8 +1392,8 @@ class OneBot:
                 wl = self.cfg.get("group_whitelist") or []
                 if wl and gid not in [str(x) for x in wl]:
                     return
-                at_me = ("[CQ:at,qq=%s" % self_id) in str(ev.get("raw_message") or "") or \
-                        ("[CQ:at,qq=%s]" % self_id) in str(ev.get("raw_message") or "")
+                # 上一条是这个人单独的 @（内容还没跟上）→ 把这一条当被 @ 处理
+                at_me = at_me or self._consume_pending_at(gid, uid)
                 prefixes = self.cfg.get("reply_group_prefix") or []
                 has_prefix = any(str(p) and text.startswith(str(p)) for p in prefixes)
                 if self.cfg.get("reply_group_at", True) and at_me:
@@ -1388,7 +1428,8 @@ class OneBot:
                 lines = []
                 for i, (desc, kind) in enumerate(seen):
                     sm = str((media[i] or {}).get("summary") or "").strip() if i < len(media) else ""
-                    what = "一个表情包" if kind == "mface" else "一张图"
+                    is_stk = (media[i] or {}).get("sticker") if i < len(media) else False
+                    what = "一个表情包" if (kind == "mface" or is_stk) else "一张图"
                     if desc:
                         lines.append("（对方发来%s，画面是：%s）" % (what, desc))
                     elif sm:

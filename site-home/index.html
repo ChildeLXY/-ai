@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>大肥鱼AI · 一个域名，三个入口</title>
+<title>超级大白饭</title>
 <meta name="description" content="大肥鱼AI 的门户：本地运行、数据不出本机的 AI 桌面助手，独立游戏，以及还在生长的实验场。">
 <meta property="og:type" content="website">
-<meta property="og:title" content="大肥鱼AI · 一个域名，三个入口">
+<meta property="og:title" content="超级大白饭">
 <meta property="og:description" content="跑在你自己显卡上的 AI 助手、独立游戏，还有一个正在长的实验场。">
 <meta property="og:url" content="https://dabaifan.cn/">
 <meta property="og:image" content="https://dabaifan.cn/assets/og.jpg">
@@ -369,9 +369,282 @@ footer{padding:clamp(30px,4vw,44px) clamp(20px,4vw,56px);max-width:1280px;margin
   .cta .btn{flex:1;min-width:140px}
   .sec-head{align-items:flex-start}
 }
+
+/* ================= 开屏 · 深空流体 ================= */
+.splash{position:fixed;inset:0;z-index:9999;overflow:hidden;
+  background:#04060e;cursor:pointer;outline:none;
+  user-select:none;-webkit-tap-highlight-color:transparent;
+  --mx:0;--my:0;
+  clip-path:circle(148% at 50% 50%);
+  transition:clip-path 1.25s cubic-bezier(.7,0,.25,1),visibility 1.3s;
+  will-change:clip-path}
+.splash.sp-hide{visibility:hidden;pointer-events:none}
+.splash.sp-open{clip-path:circle(0% at 50% 50%)}
+html.splash-lock,html.splash-lock body{overflow:hidden}
+html.splash-lock .nav,html.splash-lock main{opacity:0}
+.nav{transition:border-color .25s ease,background .25s ease,opacity 1.05s cubic-bezier(.4,0,.2,1) .15s}
+main{transition:opacity 1.05s cubic-bezier(.4,0,.2,1) .15s}
+
+/* —— 底层：深空渐变 + 冷蓝辉光 —— */
+.sp-sky{position:absolute;inset:-8%;background:
+  radial-gradient(70% 58% at 50% 44%,#12213f 0%,#0a1226 44%,#05080f 78%,#03050b 100%);
+  transform:translate3d(calc(var(--mx) * -7px),calc(var(--my) * -7px),0);
+  transition:transform .55s cubic-bezier(.16,1,.3,1)}
+.sp-sky::after{content:'';position:absolute;inset:0;
+  background:radial-gradient(40% 34% at 50% 46%,rgba(47,92,255,.20) 0%,transparent 70%)}
+
+/* —— 后景：柔光游移（流动感的主来源） —— */
+.sp-aurora{position:absolute;inset:-14%;pointer-events:none;
+  transform:translate3d(calc(var(--mx) * 11px),calc(var(--my) * 11px),0) scale(1);
+  transition:transform .6s cubic-bezier(.16,1,.3,1),opacity 1s ease,scale 1.1s}
+.sp-aurora i{position:absolute;display:block;border-radius:50%;filter:blur(64px);mix-blend-mode:screen;will-change:transform,opacity}
+.sp-aurora i:nth-child(1){left:6%;top:8%;width:52vmin;height:44vmin;
+  background:radial-gradient(circle,rgba(58,112,255,.55) 0%,rgba(40,80,220,.18) 46%,transparent 72%);
+  animation:sp-drift-a 21s ease-in-out infinite alternate}
+.sp-aurora i:nth-child(2){right:6%;bottom:6%;width:58vmin;height:50vmin;
+  background:radial-gradient(circle,rgba(56,196,255,.38) 0%,rgba(30,120,200,.14) 50%,transparent 74%);
+  animation:sp-drift-b 27s ease-in-out infinite alternate}
+.sp-aurora i:nth-child(3){left:52%;top:58%;width:40vmin;height:36vmin;
+  background:radial-gradient(circle,rgba(120,116,255,.28) 0%,rgba(70,60,180,.10) 52%,transparent 76%);
+  animation:sp-drift-c 17s ease-in-out infinite alternate}
+@keyframes sp-drift-a{from{transform:translate3d(-3%,2%,0) scale(1)}to{transform:translate3d(9%,-7%,0) scale(1.16)}}
+@keyframes sp-drift-b{from{transform:translate3d(4%,-3%,0) scale(1.1)}to{transform:translate3d(-8%,6%,0) scale(.94)}}
+@keyframes sp-drift-c{from{transform:translate3d(0,4%,0) scale(.92)}to{transform:translate3d(6%,-6%,0) scale(1.12)}}
+
+/* —— 网格：从中心向外淡出，缓慢呼吸 —— */
+.sp-grid{position:absolute;inset:-4%;
+  background-image:
+    linear-gradient(rgba(130,170,255,.10) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(130,170,255,.10) 1px,transparent 1px);
+  background-size:76px 76px;
+  -webkit-mask-image:radial-gradient(circle at 50% 50%,#000 0%,rgba(0,0,0,.6) 44%,transparent 82%);
+  mask-image:radial-gradient(circle at 50% 50%,#000 0%,rgba(0,0,0,.6) 44%,transparent 82%);
+  transform:translate3d(calc(var(--mx) * 17px),calc(var(--my) * 17px),0);
+  transition:transform .5s cubic-bezier(.16,1,.3,1),opacity .9s ease;
+  animation:sp-gridBreath 9s ease-in-out infinite}
+@keyframes sp-gridBreath{0%,100%{opacity:.62}50%{opacity:1}}
+
+/* —— 光束扫过 —— */
+.sp-beam{position:absolute;top:-14%;left:-12%;width:44%;height:130%;pointer-events:none;
+  background:linear-gradient(100deg,transparent 0%,rgba(90,150,255,.05) 40%,
+    rgba(206,230,255,.30) 50%,rgba(90,150,255,.05) 60%,transparent 100%);
+  filter:blur(7px);transform:translateX(-140%) skewX(-15deg);
+  animation:sp-beamSweep 9s cubic-bezier(.5,0,.5,1) infinite}
+@keyframes sp-beamSweep{
+  0%{transform:translateX(-150%) skewX(-15deg);opacity:0}
+  14%{opacity:1}
+  72%{opacity:1}
+  88%,100%{transform:translateX(300%) skewX(-15deg);opacity:0}}
+
+/* —— 微尘 —— */
+.sp-dust{position:absolute;inset:0;pointer-events:none}
+.sp-dust i{position:absolute;display:block;border-radius:50%;background:#c8dcff;
+  box-shadow:0 0 7px 1px rgba(150,190,255,.75);
+  animation-name:sp-dustFloat;animation-timing-function:linear;animation-iteration-count:infinite}
+@keyframes sp-dustFloat{
+  0%{transform:translate3d(0,0,0);opacity:0}
+  14%{opacity:.9}
+  84%{opacity:.5}
+  100%{transform:translate3d(16px,-150px,0);opacity:0}}
+
+/* —— 中心舞台 —— */
+.sp-stage{position:absolute;left:50%;top:50%;width:min(84vmin,860px);aspect-ratio:1/1;
+  transform:translate3d(-50%,-50%,0);
+  display:flex;align-items:center;justify-content:center;pointer-events:none;
+  will-change:transform}
+.sp-stage-in{position:relative;width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform 1.15s cubic-bezier(.6,0,.2,1),opacity .85s ease,filter 1s ease}
+
+/* 光环组：主环成为文字的容器，外侧一圈精密刻度 */
+.sp-rings{position:absolute;left:50%;top:50%;width:74%;aspect-ratio:1/1;
+  transform:translate(-50%,-50%);pointer-events:none;
+  animation:sp-ringsIn 2s cubic-bezier(.16,1,.3,1) .05s both}
+@keyframes sp-ringsIn{
+  from{opacity:0;transform:translate(-50%,-50%) scale(.84)}
+  to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.sp-ring{position:absolute;border-radius:50%}
+.sp-ring.sp-r1{inset:0;border:1px solid rgba(155,195,255,.46);
+  box-shadow:inset 0 0 80px rgba(60,110,255,.18),0 0 80px rgba(40,90,220,.16)}
+.sp-ring.sp-r1::after{content:'';position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 50% 38%,rgba(130,175,255,.12) 0%,rgba(70,110,215,.05) 48%,transparent 74%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.sp-ring.sp-r2{inset:-5.5%;border:1px dashed rgba(150,190,255,.22)}
+.sp-ring.sp-r3{inset:13%;border:1px solid rgba(150,190,255,.12)}
+/* 仪表盘：120 条刻度 + 点阵环 + 断续弧，全部 SVG 精确绘制 */
+.sp-dial{position:absolute;left:50%;top:50%;width:126%;height:126%;
+  transform:translate(-50%,-50%);pointer-events:none;overflow:visible}
+.sp-dial .sp-tk{stroke:rgba(150,190,255,.30);stroke-width:.9}
+.sp-dial .sp-tk.long{stroke:rgba(180,212,255,.66);stroke-width:1.5}
+.sp-dial-dots{fill:none;stroke:rgba(140,180,255,.42);stroke-width:2.2;stroke-linecap:round;
+  stroke-dasharray:0 13.2;animation:sp-spin 90s linear infinite;transform-origin:200px 200px}
+.sp-dial-arc{fill:none;stroke:rgba(150,195,255,.5);stroke-width:1.1;
+  stroke-dasharray:74 168;animation:sp-spin 46s linear infinite reverse;transform-origin:200px 200px}
+/* 统一旋转关键帧：流光 / 点阵 / 断续弧都靠它"运转" */
+@keyframes sp-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.sp-ring-flow{position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 0deg,transparent 0deg,rgba(120,180,255,0) 14deg,
+    rgba(175,218,255,.95) 32deg,rgba(90,150,255,.28) 60deg,transparent 98deg);
+  -webkit-mask-image:radial-gradient(farthest-side,transparent calc(100% - 2.6px),#000 calc(100% - 1.8px));
+  mask-image:radial-gradient(farthest-side,transparent calc(100% - 2.6px),#000 calc(100% - 1.8px));
+  animation:sp-spin 13s linear infinite;filter:drop-shadow(0 0 6px rgba(130,185,255,.7))}
+.sp-ring-flow.b{inset:-5.5%;
+  background:conic-gradient(from 180deg,transparent 0deg,rgba(120,180,255,0) 28deg,
+    rgba(130,190,255,.8) 46deg,transparent 94deg);
+  -webkit-mask-image:radial-gradient(farthest-side,transparent calc(100% - 2.2px),#000 calc(100% - 1.6px));
+  mask-image:radial-gradient(farthest-side,transparent calc(100% - 2.2px),#000 calc(100% - 1.6px));
+  animation-duration:24s;animation-direction:reverse;opacity:.6}
+
+/* 文字组 */
+.sp-copy{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;
+  text-align:center;padding:0 6%}
+.sp-kicker{font-size:clamp(9px,1.05vmin,13px);font-weight:600;letter-spacing:.62em;text-indent:.62em;
+  color:rgba(178,200,245,.62);animation:sp-bloomIn 1.25s cubic-bezier(.16,1,.3,1) .22s both}
+
+.sp-title{display:flex;align-items:baseline;justify-content:center;gap:.005em;
+  margin:clamp(14px,2.6vmin,34px) 0 clamp(6px,1.2vmin,14px);
+  font-family:"PingFang SC","HarmonyOS Sans SC","Source Han Sans SC","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:clamp(44px,9.2vmin,150px);font-weight:900;line-height:1.06;letter-spacing:-.01em;
+  filter:drop-shadow(0 0 52px rgba(60,120,255,.40)) drop-shadow(0 0 14px rgba(160,200,255,.30))}
+.sp-title span{display:inline-block;
+  background-image:linear-gradient(178deg,#ffffff 12%,#f6f9ff 46%,#dae7ff 72%,#b9cdff 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:sp-charIn 1.3s cubic-bezier(.16,1,.3,1) both;
+  will-change:transform,opacity,filter}
+.sp-title span:nth-child(1){animation-delay:.36s}
+.sp-title span:nth-child(2){animation-delay:.45s}
+.sp-title span:nth-child(3){animation-delay:.54s}
+.sp-title span:nth-child(4){animation-delay:.63s}
+@keyframes sp-charIn{from{opacity:0;transform:translateY(34px);filter:blur(14px)}
+  to{opacity:1;transform:translateY(0);filter:blur(0)}}
+@keyframes sp-bloomIn{from{opacity:0;transform:translateY(16px);filter:blur(8px)}
+  to{opacity:1;transform:translateY(0);filter:blur(0)}}
+
+.sp-sub{display:flex;align-items:center;gap:1.5vmin;
+  font-size:clamp(8px,1.02vmin,12.5px);font-weight:600;letter-spacing:.62em;text-indent:.62em;
+  color:rgba(168,193,242,.86);animation:sp-bloomIn 1.25s cubic-bezier(.16,1,.3,1) 1s both}
+.sp-sub .sp-ln{width:clamp(30px,5.4vmin,76px);height:1px;
+  background:linear-gradient(90deg,transparent,rgba(140,180,255,.55),transparent)}
+
+/* 标题上的扫描光带 */
+.sp-sweep{position:absolute;left:16%;right:16%;top:0;height:100%;overflow:hidden;pointer-events:none}
+.sp-sweep::before{content:'';position:absolute;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,rgba(205,228,255,.55),transparent);
+  animation:sp-sweepDown 4.6s cubic-bezier(.5,0,.5,1) infinite}
+@keyframes sp-sweepDown{0%{top:-4%;opacity:0}12%{opacity:.9}78%{opacity:.9}92%,100%{top:104%;opacity:0}}
+
+/* —— 暗角 / 颗粒 / 扫描线 —— */
+.sp-vignette{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(115% 100% at 50% 48%,transparent 38%,rgba(2,4,10,.55) 78%,rgba(1,2,6,.9) 100%)}
+.sp-grain{position:absolute;inset:-50%;pointer-events:none;opacity:.055;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:sp-grainShift 1.6s steps(4) infinite}
+@keyframes sp-grainShift{0%{transform:translate(0,0)}25%{transform:translate(-3%,2%)}
+  50%{transform:translate(2%,-3%)}75%{transform:translate(-2%,-2%)}100%{transform:translate(0,0)}}
+.sp-scan{position:absolute;inset:0;pointer-events:none;opacity:.16;
+  background:repeating-linear-gradient(180deg,rgba(255,255,255,.035) 0 1px,transparent 1px 3px)}
+
+/* —— 四角框：门户式结构感 —— */
+.sp-corner{position:absolute;width:clamp(20px,3.2vmin,42px);height:clamp(20px,3.2vmin,42px);
+  border:1px solid rgba(140,180,255,.26);pointer-events:none;
+  animation:sp-bloomIn 1.7s cubic-bezier(.16,1,.3,1) 1s both}
+.sp-corner.sp-tl{left:clamp(14px,3vw,42px);top:clamp(14px,3vw,42px);border-right:0;border-bottom:0}
+.sp-corner.sp-tr{right:clamp(14px,3vw,42px);top:clamp(14px,3vw,42px);border-left:0;border-bottom:0}
+.sp-corner.sp-bl{left:clamp(14px,3vw,42px);bottom:clamp(14px,3vw,42px);border-right:0;border-top:0}
+.sp-corner.sp-br{right:clamp(14px,3vw,42px);bottom:clamp(14px,3vw,42px);border-left:0;border-top:0}
+.splash.sp-open .sp-corner{opacity:0;transition:opacity .4s ease}
+
+/* —— 底部提示 —— */
+.sp-hint{position:absolute;left:50%;bottom:clamp(26px,6vh,64px);transform:translateX(-50%);
+  display:flex;align-items:center;gap:12px;white-space:nowrap;
+  font-size:12.5px;font-weight:500;letter-spacing:.34em;text-indent:.34em;
+  color:rgba(172,196,240,.72);
+  animation:sp-hintIn 1.3s cubic-bezier(.16,1,.3,1) 1.15s both;
+  transition:opacity .5s ease,transform .5s ease}
+@keyframes sp-hintIn{
+  from{opacity:0;transform:translateX(-50%) translateY(14px)}
+  to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.sp-hint i{width:5px;height:5px;border-radius:50%;background:#7fa8ff;text-indent:0;
+  box-shadow:0 0 12px 2px rgba(110,160,255,.85);animation:sp-pulseDot 2.2s ease-in-out infinite}
+@keyframes sp-pulseDot{0%,100%{opacity:.35;transform:scale(.7)}50%{opacity:1;transform:scale(1)}}
+
+/* —— 退场 —— */
+.sp-flash{position:absolute;inset:0;pointer-events:none;opacity:0;
+  background:radial-gradient(circle at 50% 50%,rgba(190,220,255,.85) 0%,
+    rgba(80,140,255,.30) 26%,transparent 58%)}
+.splash.sp-open .sp-flash{opacity:1;transition:opacity .16s ease-out}
+.splash.sp-open .sp-stage-in{transform:scale(1.6);opacity:0;filter:blur(12px)}
+.splash.sp-open .sp-aurora{opacity:0;transform:translate3d(calc(var(--mx) * 11px),calc(var(--my) * 11px),0) scale(1.7)}
+.splash.sp-open .sp-grid{opacity:0}
+.splash.sp-open .sp-hint{opacity:0;transform:translateX(-50%) translateY(10px)}
+
+@media (max-width:560px){
+  .sp-stage{width:min(96vmin,560px)}
+  .sp-title{font-size:clamp(36px,12.2vmin,78px)}
+  .sp-kicker{letter-spacing:.48em;text-indent:.48em}
+  .sp-sub{letter-spacing:.5em;text-indent:.5em}
+  .sp-hint{font-size:11.5px;letter-spacing:.26em;text-indent:.26em}
+  .sp-aurora i{filter:blur(46px)}
+}
+@media (prefers-reduced-motion:reduce){
+  .splash *{animation-duration:.01s!important;animation-delay:0s!important;animation-iteration-count:1!important}
+  .splash{transition-duration:.4s}
+}
+
+/* ================= 品牌印记：一碗大白饭 + 摆尾鲸鱼 ================= */
+.df-logo{position:absolute;left:-6%;top:-15%;width:clamp(154px,16vw,220px);z-index:3;
+  pointer-events:none;filter:drop-shadow(0 16px 30px rgba(47,92,255,.10));
+  animation:dfFloat 7s ease-in-out infinite}
+.df-logo svg{width:100%;height:auto;display:block;overflow:visible}
+@keyframes dfFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+.df-tail{transform-box:view-box;transform-origin:150px 158px;animation:dfSway 2.7s ease-in-out infinite}
+@keyframes dfSway{0%,100%{transform:rotate(-7.5deg)}50%{transform:rotate(7.5deg)}}
+.df-bub{transform-box:fill-box;transform-origin:center;animation:dfBub 3.4s ease-in-out infinite}
+.df-bub.b2{animation-delay:1.1s}
+.df-bub.b3{animation-delay:2.1s}
+@keyframes dfBub{0%{opacity:0;transform:translateY(4px)}26%{opacity:.95}
+  76%{opacity:.45;transform:translateY(-8px)}100%{opacity:0;transform:translateY(-14px)}}
+@media (max-width:960px){
+  .df-logo{left:auto;right:-4%;top:0;width:clamp(104px,22vw,140px)}
+}
+@media (prefers-reduced-motion:reduce){
+  .df-logo,.df-tail,.df-bub{animation:none!important}
+}
 </style>
 </head>
 <body>
+<div class="splash" id="splash" role="button" tabindex="0" aria-label="开始探索，点击进入大肥鱼AI">
+  <div class="sp-sky"></div>
+  <div class="sp-aurora"><i></i><i></i><i></i></div>
+  <div class="sp-grid"></div>
+  <div class="sp-beam"></div>
+  <div class="sp-dust"></div>
+  <div class="sp-stage"><div class="sp-stage-in">
+    <div class="sp-rings">
+      <div class="sp-ring sp-r3"></div>
+      <div class="sp-ring sp-r2"></div>
+      <div class="sp-ring sp-r1"></div>
+      <div class="sp-ring-flow"></div>
+      <div class="sp-ring-flow b"></div>
+      <svg class="sp-dial" viewBox="0 0 400 400" aria-hidden="true"><g><line class="sp-tk long" x1="376.0" y1="200.0" x2="397.0" y2="200.0"/><line class="sp-tk" x1="386.7" y1="209.8" x2="396.7" y2="210.3"/><line class="sp-tk" x1="386.0" y1="219.5" x2="395.9" y2="220.6"/><line class="sp-tk" x1="384.7" y1="229.3" x2="394.6" y2="230.8"/><line class="sp-tk" x1="382.9" y1="238.9" x2="392.7" y2="241.0"/><line class="sp-tk" x1="380.6" y1="248.4" x2="390.3" y2="251.0"/><line class="sp-tk" x1="377.8" y1="257.8" x2="387.4" y2="260.9"/><line class="sp-tk" x1="374.6" y1="267.0" x2="383.9" y2="270.6"/><line class="sp-tk" x1="370.8" y1="276.1" x2="380.0" y2="280.1"/><line class="sp-tk" x1="366.6" y1="284.9" x2="375.5" y2="289.4"/><line class="sp-tk long" x1="352.4" y1="288.0" x2="370.6" y2="298.5"/><line class="sp-tk" x1="356.8" y1="301.8" x2="365.2" y2="307.3"/><line class="sp-tk" x1="351.3" y1="309.9" x2="359.4" y2="315.8"/><line class="sp-tk" x1="345.3" y1="317.7" x2="353.1" y2="324.0"/><line class="sp-tk" x1="339.0" y1="325.1" x2="346.4" y2="331.8"/><line class="sp-tk" x1="332.2" y1="332.2" x2="339.3" y2="339.3"/><line class="sp-tk" x1="325.1" y1="339.0" x2="331.8" y2="346.4"/><line class="sp-tk" x1="317.7" y1="345.3" x2="324.0" y2="353.1"/><line class="sp-tk" x1="309.9" y1="351.3" x2="315.8" y2="359.4"/><line class="sp-tk" x1="301.8" y1="356.8" x2="307.3" y2="365.2"/><line class="sp-tk long" x1="288.0" y1="352.4" x2="298.5" y2="370.6"/><line class="sp-tk" x1="284.9" y1="366.6" x2="289.4" y2="375.5"/><line class="sp-tk" x1="276.1" y1="370.8" x2="280.1" y2="380.0"/><line class="sp-tk" x1="267.0" y1="374.6" x2="270.6" y2="383.9"/><line class="sp-tk" x1="257.8" y1="377.8" x2="260.9" y2="387.4"/><line class="sp-tk" x1="248.4" y1="380.6" x2="251.0" y2="390.3"/><line class="sp-tk" x1="238.9" y1="382.9" x2="241.0" y2="392.7"/><line class="sp-tk" x1="229.3" y1="384.7" x2="230.8" y2="394.6"/><line class="sp-tk" x1="219.5" y1="386.0" x2="220.6" y2="395.9"/><line class="sp-tk" x1="209.8" y1="386.7" x2="210.3" y2="396.7"/><line class="sp-tk long" x1="200.0" y1="376.0" x2="200.0" y2="397.0"/><line class="sp-tk" x1="190.2" y1="386.7" x2="189.7" y2="396.7"/><line class="sp-tk" x1="180.5" y1="386.0" x2="179.4" y2="395.9"/><line class="sp-tk" x1="170.7" y1="384.7" x2="169.2" y2="394.6"/><line class="sp-tk" x1="161.1" y1="382.9" x2="159.0" y2="392.7"/><line class="sp-tk" x1="151.6" y1="380.6" x2="149.0" y2="390.3"/><line class="sp-tk" x1="142.2" y1="377.8" x2="139.1" y2="387.4"/><line class="sp-tk" x1="133.0" y1="374.6" x2="129.4" y2="383.9"/><line class="sp-tk" x1="123.9" y1="370.8" x2="119.9" y2="380.0"/><line class="sp-tk" x1="115.1" y1="366.6" x2="110.6" y2="375.5"/><line class="sp-tk long" x1="112.0" y1="352.4" x2="101.5" y2="370.6"/><line class="sp-tk" x1="98.2" y1="356.8" x2="92.7" y2="365.2"/><line class="sp-tk" x1="90.1" y1="351.3" x2="84.2" y2="359.4"/><line class="sp-tk" x1="82.3" y1="345.3" x2="76.0" y2="353.1"/><line class="sp-tk" x1="74.9" y1="339.0" x2="68.2" y2="346.4"/><line class="sp-tk" x1="67.8" y1="332.2" x2="60.7" y2="339.3"/><line class="sp-tk" x1="61.0" y1="325.1" x2="53.6" y2="331.8"/><line class="sp-tk" x1="54.7" y1="317.7" x2="46.9" y2="324.0"/><line class="sp-tk" x1="48.7" y1="309.9" x2="40.6" y2="315.8"/><line class="sp-tk" x1="43.2" y1="301.8" x2="34.8" y2="307.3"/><line class="sp-tk long" x1="47.6" y1="288.0" x2="29.4" y2="298.5"/><line class="sp-tk" x1="33.4" y1="284.9" x2="24.5" y2="289.4"/><line class="sp-tk" x1="29.2" y1="276.1" x2="20.0" y2="280.1"/><line class="sp-tk" x1="25.4" y1="267.0" x2="16.1" y2="270.6"/><line class="sp-tk" x1="22.2" y1="257.8" x2="12.6" y2="260.9"/><line class="sp-tk" x1="19.4" y1="248.4" x2="9.7" y2="251.0"/><line class="sp-tk" x1="17.1" y1="238.9" x2="7.3" y2="241.0"/><line class="sp-tk" x1="15.3" y1="229.3" x2="5.4" y2="230.8"/><line class="sp-tk" x1="14.0" y1="219.5" x2="4.1" y2="220.6"/><line class="sp-tk" x1="13.3" y1="209.8" x2="3.3" y2="210.3"/><line class="sp-tk long" x1="24.0" y1="200.0" x2="3.0" y2="200.0"/><line class="sp-tk" x1="13.3" y1="190.2" x2="3.3" y2="189.7"/><line class="sp-tk" x1="14.0" y1="180.5" x2="4.1" y2="179.4"/><line class="sp-tk" x1="15.3" y1="170.7" x2="5.4" y2="169.2"/><line class="sp-tk" x1="17.1" y1="161.1" x2="7.3" y2="159.0"/><line class="sp-tk" x1="19.4" y1="151.6" x2="9.7" y2="149.0"/><line class="sp-tk" x1="22.2" y1="142.2" x2="12.6" y2="139.1"/><line class="sp-tk" x1="25.4" y1="133.0" x2="16.1" y2="129.4"/><line class="sp-tk" x1="29.2" y1="123.9" x2="20.0" y2="119.9"/><line class="sp-tk" x1="33.4" y1="115.1" x2="24.5" y2="110.6"/><line class="sp-tk long" x1="47.6" y1="112.0" x2="29.4" y2="101.5"/><line class="sp-tk" x1="43.2" y1="98.2" x2="34.8" y2="92.7"/><line class="sp-tk" x1="48.7" y1="90.1" x2="40.6" y2="84.2"/><line class="sp-tk" x1="54.7" y1="82.3" x2="46.9" y2="76.0"/><line class="sp-tk" x1="61.0" y1="74.9" x2="53.6" y2="68.2"/><line class="sp-tk" x1="67.8" y1="67.8" x2="60.7" y2="60.7"/><line class="sp-tk" x1="74.9" y1="61.0" x2="68.2" y2="53.6"/><line class="sp-tk" x1="82.3" y1="54.7" x2="76.0" y2="46.9"/><line class="sp-tk" x1="90.1" y1="48.7" x2="84.2" y2="40.6"/><line class="sp-tk" x1="98.2" y1="43.2" x2="92.7" y2="34.8"/><line class="sp-tk long" x1="112.0" y1="47.6" x2="101.5" y2="29.4"/><line class="sp-tk" x1="115.1" y1="33.4" x2="110.6" y2="24.5"/><line class="sp-tk" x1="123.9" y1="29.2" x2="119.9" y2="20.0"/><line class="sp-tk" x1="133.0" y1="25.4" x2="129.4" y2="16.1"/><line class="sp-tk" x1="142.2" y1="22.2" x2="139.1" y2="12.6"/><line class="sp-tk" x1="151.6" y1="19.4" x2="149.0" y2="9.7"/><line class="sp-tk" x1="161.1" y1="17.1" x2="159.0" y2="7.3"/><line class="sp-tk" x1="170.7" y1="15.3" x2="169.2" y2="5.4"/><line class="sp-tk" x1="180.5" y1="14.0" x2="179.4" y2="4.1"/><line class="sp-tk" x1="190.2" y1="13.3" x2="189.7" y2="3.3"/><line class="sp-tk long" x1="200.0" y1="24.0" x2="200.0" y2="3.0"/><line class="sp-tk" x1="209.8" y1="13.3" x2="210.3" y2="3.3"/><line class="sp-tk" x1="219.5" y1="14.0" x2="220.6" y2="4.1"/><line class="sp-tk" x1="229.3" y1="15.3" x2="230.8" y2="5.4"/><line class="sp-tk" x1="238.9" y1="17.1" x2="241.0" y2="7.3"/><line class="sp-tk" x1="248.4" y1="19.4" x2="251.0" y2="9.7"/><line class="sp-tk" x1="257.8" y1="22.2" x2="260.9" y2="12.6"/><line class="sp-tk" x1="267.0" y1="25.4" x2="270.6" y2="16.1"/><line class="sp-tk" x1="276.1" y1="29.2" x2="280.1" y2="20.0"/><line class="sp-tk" x1="284.9" y1="33.4" x2="289.4" y2="24.5"/><line class="sp-tk long" x1="288.0" y1="47.6" x2="298.5" y2="29.4"/><line class="sp-tk" x1="301.8" y1="43.2" x2="307.3" y2="34.8"/><line class="sp-tk" x1="309.9" y1="48.7" x2="315.8" y2="40.6"/><line class="sp-tk" x1="317.7" y1="54.7" x2="324.0" y2="46.9"/><line class="sp-tk" x1="325.1" y1="61.0" x2="331.8" y2="53.6"/><line class="sp-tk" x1="332.2" y1="67.8" x2="339.3" y2="60.7"/><line class="sp-tk" x1="339.0" y1="74.9" x2="346.4" y2="68.2"/><line class="sp-tk" x1="345.3" y1="82.3" x2="353.1" y2="76.0"/><line class="sp-tk" x1="351.3" y1="90.1" x2="359.4" y2="84.2"/><line class="sp-tk" x1="356.8" y1="98.2" x2="365.2" y2="92.7"/><line class="sp-tk long" x1="352.4" y1="112.0" x2="370.6" y2="101.5"/><line class="sp-tk" x1="366.6" y1="115.1" x2="375.5" y2="110.6"/><line class="sp-tk" x1="370.8" y1="123.9" x2="380.0" y2="119.9"/><line class="sp-tk" x1="374.6" y1="133.0" x2="383.9" y2="129.4"/><line class="sp-tk" x1="377.8" y1="142.2" x2="387.4" y2="139.1"/><line class="sp-tk" x1="380.6" y1="151.6" x2="390.3" y2="149.0"/><line class="sp-tk" x1="382.9" y1="161.1" x2="392.7" y2="159.0"/><line class="sp-tk" x1="384.7" y1="170.7" x2="394.6" y2="169.2"/><line class="sp-tk" x1="386.0" y1="180.5" x2="395.9" y2="179.4"/><line class="sp-tk" x1="386.7" y1="190.2" x2="396.7" y2="189.7"/></g><circle class="sp-dial-dots" cx="200" cy="200" r="166"/><circle class="sp-dial-arc" cx="200" cy="200" r="148"/></svg>
+    </div>
+    <div class="sp-copy">
+      <div class="sp-kicker">DABAIFAN · AI</div>
+      <div class="sp-title"><span>开</span><span>始</span><span>探</span><span>索</span></div>
+      <div class="sp-sub"><span class="sp-ln"></span><span>EXPLORE</span><span class="sp-ln"></span></div>
+      <div class="sp-sweep"></div>
+    </div>
+  </div></div>
+  <div class="sp-scan"></div>
+  <div class="sp-grain"></div>
+  <div class="sp-vignette"></div>
+  <div class="sp-hint"><i></i><span>点击任意处进入</span></div>
+  <div class="sp-corner sp-tl"></div><div class="sp-corner sp-tr"></div>
+  <div class="sp-corner sp-bl"></div><div class="sp-corner sp-br"></div>
+  <div class="sp-flash"></div>
+</div>
+<noscript><style>.splash{display:none!important}html.splash-lock{overflow:auto!important}html.splash-lock .nav,html.splash-lock main{opacity:1!important}</style></noscript>
+
 
 <header class="nav" id="nav">
   <a class="brand" href="/">
@@ -430,6 +703,26 @@ footer{padding:clamp(30px,4vw,44px) clamp(20px,4vw,56px);max-width:1280px;margin
     </div>
 
     <div class="stage reveal">
+    <div class="df-logo" aria-hidden="true">
+      <svg viewBox="0 0 300 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="150" cy="288" rx="82" ry="7" fill="#e6ecfa"/>
+        <!-- 鲸尾在最底层，根部被白饭盖住，像是从饭里冒出来 -->
+        <g class="df-tail">
+          <path d="M143 158C143 142 143 132 145 124 134 116 118 102 110 86 105 77 111 71 119 77 133 89 147 102 150 102 153 102 167 89 181 77 189 71 195 77 190 86 182 102 166 116 155 124 157 132 157 142 157 158Z" fill="#2f5cff"/>
+        </g>
+        <!-- 一碗白饭：扁而宽，顶部有起伏 -->
+        <path d="M62 214C62 186 80 164 104 156c16-4 30 0 46-2 16 2 30-2 46 2 24 8 42 30 42 58Z" fill="#ffffff" stroke="#2f5cff" stroke-width="2.9" stroke-linejoin="round"/>
+        <path d="M100 176c11-7 24-10 37-9M166 167c13 0 25 4 35 10" stroke="#a8bde0" stroke-width="2.4" stroke-linecap="round"/>
+        <!-- 碗 -->
+        <path d="M52 206c0 60 44 80 98 80s98-20 98-80z" fill="#ffffff" stroke="#2f5cff" stroke-width="3.4" stroke-linejoin="round"/>
+        <ellipse cx="150" cy="206" rx="98" ry="17" fill="#ffffff" stroke="#2f5cff" stroke-width="3.4"/>
+        <path d="M72 234c15 11 44 17 78 17s63-6 78-17" stroke="#c9d8f2" stroke-width="2.6" stroke-linecap="round"/>
+        <circle class="df-bub b1" cx="246" cy="166" r="4.6" fill="#a3b8e2"/>
+        <circle class="df-bub b2" cx="258" cy="132" r="3.4" fill="#bccdea"/>
+        <circle class="df-bub b3" cx="240" cy="106" r="2.8" fill="#cad9f1"/>
+      </svg>
+    </div>
+
       <svg class="deco" viewBox="0 0 520 520" fill="none" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
         <defs>
           <pattern id="dots" width="13" height="13" patternUnits="userSpaceOnUse">
@@ -891,6 +1184,65 @@ footer{padding:clamp(30px,4vw,44px) clamp(20px,4vw,56px);max-width:1280px;margin
   setInterval(swap, 9000);
   setTimeout(function(){ say(LINES[0]); }, 1200);
   setTimeout(function(){ bubble.classList.add('hide'); }, 9000);
+})();
+</script>
+
+<script>
+/* 开屏：深空流体 —— 微尘生成 / 三层视差 / 虹膜退场 */
+(function(){
+  var el = document.getElementById('splash');
+  if(!el) return;
+  var root = document.documentElement;
+  root.classList.add('splash-lock');
+  var opened = false, reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* 微尘 */
+  var dust = el.querySelector('.dust');
+  if(dust && !reduce){
+    var n = window.innerWidth < 720 ? 22 : 48, frag = document.createDocumentFragment();
+    for(var i=0;i<n;i++){
+      var s = document.createElement('i'), z = 1 + Math.random()*2.2;
+      s.style.cssText = 'left:' + (Math.random()*100).toFixed(2) + '%;top:' +
+        (Math.random()*100).toFixed(2) + '%;width:' + z.toFixed(1) + 'px;height:' + z.toFixed(1) +
+        'px;animation-duration:' + (10 + Math.random()*15).toFixed(1) + 's;animation-delay:-' +
+        (Math.random()*22).toFixed(1) + 's';
+      frag.appendChild(s);
+    }
+    dust.appendChild(frag);
+  }
+
+  /* 视差：用 rAF 合并写入，避免高频回流 */
+  var mx = 0, my = 0, q = false;
+  function flush(){
+    q = false;
+    el.style.setProperty('--mx', mx.toFixed(3));
+    el.style.setProperty('--my', my.toFixed(3));
+  }
+  window.addEventListener('mousemove', function(e){
+    if(opened) return;
+    mx = (e.clientX / window.innerWidth - .5) * 2;
+    my = (e.clientY / window.innerHeight - .5) * 2;
+    if(!q){ q = true; requestAnimationFrame(flush); }
+  }, {passive:true});
+
+  function enter(){
+    if(opened) return;
+    opened = true;
+    el.classList.add('sp-open');
+    setTimeout(function(){ root.classList.remove('splash-lock'); }, 160);  // 主页从四周淡入
+    setTimeout(function(){
+      el.classList.add('sp-hide');
+      setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 420);
+    }, 1180);
+  }
+
+  el.addEventListener('click', enter);
+  el.addEventListener('keydown', function(e){
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); enter(); }
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') enter();
+  });
 })();
 </script>
 </body>
